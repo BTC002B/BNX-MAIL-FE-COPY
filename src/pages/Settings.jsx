@@ -898,7 +898,7 @@ const Settings = () => {
   ];
 
   return (
-    <div className="flex h-full overflow-hidden" style={{ background: theme.bg }}>
+    <div className="flex h-full overflow-hidden" style={{ background: theme.cardBg }}>
       {/* Side Tabs Bar */}
       <aside
         className="w-64 lg:w-72 border-r p-4 md:p-5 flex flex-col gap-1.5 shrink-0"
@@ -926,8 +926,8 @@ const Settings = () => {
       </aside>
 
       {/* Settings Options Pane */}
-      <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto hidden-scrollbar flex justify-start">
-        <div className="w-full max-w-6xl mx-auto">
+      <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto hidden-scrollbar flex justify-start" style={{ background: theme.cardBg }}>
+        <div className="w-full">
           {/* accounts Tab */}
           {activeTab === "accounts" && (
             <div className="flex flex-col gap-5 md:gap-6">
@@ -1570,7 +1570,7 @@ const Settings = () => {
                           value={quietHoursStart}
                           onChange={e => setQuietHoursStart(e.target.value)}
                           className="p-3 text-sm rounded-xl outline-none border focus:ring-2 focus:border-transparent transition-all"
-                          style={{ background: theme.bg, borderColor: theme.border, color: theme.text }}
+                          style={{ background: theme.cardBg, borderColor: theme.border, color: theme.text }}
                         />
                       </div>
                       <div className="flex-1 flex flex-col gap-2">
@@ -1580,7 +1580,7 @@ const Settings = () => {
                           value={quietHoursEnd}
                           onChange={e => setQuietHoursEnd(e.target.value)}
                           className="p-3 text-sm rounded-xl outline-none border focus:ring-2 focus:border-transparent transition-all"
-                          style={{ background: theme.bg, borderColor: theme.border, color: theme.text }}
+                          style={{ background: theme.cardBg, borderColor: theme.border, color: theme.text }}
                         />
                       </div>
                     </div>
