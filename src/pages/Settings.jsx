@@ -901,7 +901,7 @@ const Settings = () => {
     <div className="flex h-full overflow-hidden" style={{ background: theme.bg }}>
       {/* Side Tabs Bar */}
       <aside
-        className="w-72 border-r p-4 md:p-5 flex flex-col gap-1.5 shrink-0"
+        className="w-64 lg:w-72 border-r p-4 md:p-5 flex flex-col gap-1.5 shrink-0"
         style={{ background: theme.cardBg, borderColor: theme.border }}
       >
         <button
@@ -926,32 +926,32 @@ const Settings = () => {
       </aside>
 
       {/* Settings Options Pane */}
-      <main className="flex-1 p-4 md:p-5 overflow-y-auto hidden-scrollbar flex justify-start">
-        <div className="w-full">
+      <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto hidden-scrollbar flex justify-start">
+        <div className="w-full max-w-6xl mx-auto">
           {/* accounts Tab */}
           {activeTab === "accounts" && (
-            <div className="flex flex-col gap-4 md:gap-5">
+            <div className="flex flex-col gap-5 md:gap-6">
               {/* Accounts & Mailboxes switching + Add/Manage Other Accounts */}
               <Section title="Email Accounts & Switching" theme={theme}>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                   <p className="text-sm text-gray-500">Manage and switch between linked email accounts in your current session.</p>
                   <button
                     type="button"
                     onClick={() => setShowAddAccountModal(true)}
-                    className="px-4 py-2 text-xs font-semibold rounded-xl text-white cursor-pointer hover:opacity-90 transition-opacity"
+                    className="px-4 py-2 text-xs font-semibold rounded-xl text-white cursor-pointer hover:opacity-90 transition-opacity shrink-0"
                     style={{ background: theme.accent }}
                   >
                     + Add Other Account
                   </button>
                 </div>
 
-                <div className="flex flex-col gap-3 max-w-xl">
+                <div className="flex flex-col gap-3 w-full">
                   {getSessions().length > 0 ? (
                     getSessions().map(session => (
                       <div
                         key={session.email}
                         onClick={() => switchAccount(session.email)}
-                        className="flex items-center justify-between p-5 rounded-2xl border hover:shadow-sm transition-shadow cursor-pointer"
+                        className="flex items-center justify-between p-4 sm:p-5 rounded-2xl border hover:shadow-sm transition-shadow cursor-pointer w-full"
                         style={{ borderColor: theme.border, background: user?.email === session.email ? theme.accent + '11' : theme.cardBg }}
                       >
                         <div className="flex items-center gap-3">
@@ -978,14 +978,14 @@ const Settings = () => {
 
               {/* 1. Account Information */}
               <Section title="Account Information" theme={theme}>
-                <div className="grid grid-cols-2 gap-4 max-w-xl">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
                   <div className="flex flex-col gap-1 p-4 rounded-xl border" style={{ borderColor: theme.border }}>
                     <span className="text-xs font-semibold text-gray-400 uppercase">Full Name / Username</span>
-                    <span className="text-sm font-semibold" style={{ color: theme.text }}>{user?.name || user?.username || (user?.email ? user.email.split('@')[0] : "Not specified")}</span>
+                    <span className="text-sm font-semibold truncate" style={{ color: theme.text }}>{user?.name || user?.username || (user?.email ? user.email.split('@')[0] : "Not specified")}</span>
                   </div>
                   <div className="flex flex-col gap-1 p-4 rounded-xl border" style={{ borderColor: theme.border }}>
                     <span className="text-xs font-semibold text-gray-400 uppercase">Primary Email</span>
-                    <span className="text-sm font-semibold" style={{ color: theme.text }}>{user?.email || "Not available"}</span>
+                    <span className="text-sm font-semibold truncate" style={{ color: theme.text }}>{user?.email || "Not available"}</span>
                   </div>
                   <div className="flex flex-col gap-1 p-4 rounded-xl border" style={{ borderColor: theme.border }}>
                     <span className="text-xs font-semibold text-gray-400 uppercase">Account Role</span>
@@ -993,7 +993,7 @@ const Settings = () => {
                   </div>
                   <div className="flex flex-col gap-1 p-4 rounded-xl border" style={{ borderColor: theme.border }}>
                     <span className="text-xs font-semibold text-gray-400 uppercase">Account Status</span>
-                    <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Active & Verified Γ£ô</span>
+                    <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Active & Verified ✓</span>
                   </div>
                 </div>
               </Section>
@@ -1003,7 +1003,7 @@ const Settings = () => {
               <Section title="Password Recovery & Backup Contacts" theme={theme}>
                 <form
                   onSubmit={handleStartOtpVerification}
-                  className="flex flex-col gap-5 max-w-md"
+                  className="flex flex-col gap-5 w-full"
                 >
                   <ToggleRow
                     label="Enable Password Recovery via Backup Email & Phone"
@@ -1012,61 +1012,63 @@ const Settings = () => {
                     theme={theme}
                   />
 
-                  {/* 4. Recovery Email */}
-                  <div className="flex flex-col gap-1.5 border-t pt-4" style={{ borderColor: theme.border }}>
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">Recovery Email Address</label>
-                      {isRecoveryEmailVerified ? (
-                        <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                          Recovery Email Verified Γ£ô
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                          Unverified
-                        </span>
-                      )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 border-t pt-4" style={{ borderColor: theme.border }}>
+                    {/* 4. Recovery Email */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">Recovery Email Address</label>
+                        {isRecoveryEmailVerified ? (
+                          <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                            Recovery Email Verified ✓
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                            Unverified
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="email"
+                        placeholder="backup@example.com"
+                        value={recoveryInfo.recoveryEmail || ""}
+                        onChange={e => {
+                          setRecoveryInfo({ ...recoveryInfo, recoveryEmail: e.target.value });
+                          setIsRecoveryEmailVerified(false);
+                        }}
+                        className="p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
+                        style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
+                      />
                     </div>
-                    <input
-                      type="email"
-                      placeholder="backup@example.com"
-                      value={recoveryInfo.recoveryEmail || ""}
-                      onChange={e => {
-                        setRecoveryInfo({ ...recoveryInfo, recoveryEmail: e.target.value });
-                        setIsRecoveryEmailVerified(false);
-                      }}
-                      className="p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
-                      style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
-                    />
-                  </div>
 
-                  {/* 5. Recovery Phone Number */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">Recovery Phone Number</label>
-                      {isRecoveryPhoneVerified ? (
-                        <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                          Recovery Phone Verified Γ£ô
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                          Unverified
-                        </span>
-                      )}
+                    {/* 5. Recovery Phone Number */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">Recovery Phone Number</label>
+                        {isRecoveryPhoneVerified ? (
+                          <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                            Recovery Phone Verified ✓
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                            Unverified
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={10}
+                        placeholder="10-digit mobile number"
+                        value={recoveryInfo.phoneNumber || ""}
+                        onChange={e => {
+                          const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          setRecoveryInfo({ ...recoveryInfo, phoneNumber: digitsOnly });
+                          setIsRecoveryPhoneVerified(false);
+                        }}
+                        className="p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
+                        style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
+                      />
                     </div>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={10}
-                      placeholder="10-digit mobile number"
-                      value={recoveryInfo.phoneNumber || ""}
-                      onChange={e => {
-                        const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
-                        setRecoveryInfo({ ...recoveryInfo, phoneNumber: digitsOnly });
-                        setIsRecoveryPhoneVerified(false);
-                      }}
-                      className="p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
-                      style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
-                    />
                   </div>
 
                   <button
@@ -1081,7 +1083,7 @@ const Settings = () => {
 
               {/* 6. Account Security & 7. Login & Security */}
               <Section title="Account & Login Security" theme={theme}>
-                <div className="flex flex-col gap-4 max-w-xl">
+                <div className="flex flex-col gap-4 w-full">
                   <ToggleRow
                     label="Send Security Alerts on New Logins"
                     checked={securityToggles.loginAlerts}
@@ -1511,7 +1513,7 @@ const Settings = () => {
           {activeTab === "labels" && (
             <Section title="Sidebar Labels" theme={theme}>
               <p className="text-sm text-gray-500 mb-6">Choose which labels are visible in the main sidebar.</p>
-              <div className="flex flex-col gap-3 max-w-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
                 {Object.keys(sidebarPreferences || {}).map((itemName) => (
                   <div key={itemName} className="flex items-center justify-between p-4 rounded-xl border bg-white dark:bg-transparent" style={{ borderColor: theme.border }}>
                     <span className="font-medium text-sm" style={{ color: theme.text }}>{itemName}</span>
@@ -1603,7 +1605,7 @@ const Settings = () => {
                 {/* Density */}
                 <div className="flex flex-col gap-3">
                   <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Mail Density View</label>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
                     {["Default", "Comfortable", "Compact"].map(d => (
                       <button
                         key={d}
@@ -1621,7 +1623,7 @@ const Settings = () => {
                 {/* Emails Per Page */}
                 <div className="flex flex-col gap-3">
                   <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Emails Per Page</label>
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
                     {[10, 20, 50, 100].map(count => (
                       <button
                         key={count}
@@ -1680,7 +1682,7 @@ const Settings = () => {
                 {/* Theme palettes picker */}
                 <div className="flex flex-col gap-3 border-t pt-6" style={{ borderColor: theme.border }}>
                   <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Visual Theme Palette</label>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 w-full">
                     {["Classic", "Dark", "Nature", "Ocean", "Sunset", "Minimal"].map(t => (
                       <button
                         key={t}
@@ -1735,7 +1737,7 @@ const Settings = () => {
                   )}
 
                   {/* Preset wallpapers grid */}
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 w-full">
                     {PRESET_BACKGROUNDS.map((bg) => (
                       <button
                         key={bg.label}
@@ -1874,7 +1876,7 @@ const Settings = () => {
                 {/* Details and 2FA */}
                 <form onSubmit={handleSaveSecuritySettings} className="flex flex-col gap-5">
                   <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Profile Information</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-semibold text-gray-500">Job Title</label>
                       <input
@@ -1895,17 +1897,16 @@ const Settings = () => {
                         style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
                       />
                     </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 mt-2">
-                    <label className="text-xs font-semibold text-gray-500">Phone Contact</label>
-                    <input
-                      placeholder="+1 (555) 019-2834"
-                      value={phoneNumber}
-                      onChange={e => setPhoneNumber(e.target.value)}
-                      className="p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
-                      style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
-                    />
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-gray-500">Phone Contact</label>
+                      <input
+                        placeholder="+1 (555) 019-2834"
+                        value={phoneNumber}
+                        onChange={e => setPhoneNumber(e.target.value)}
+                        className="p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
+                        style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
+                      />
+                    </div>
                   </div>
 
                   <div className="border-t my-4" style={{ borderColor: theme.border }} />
@@ -1926,22 +1927,24 @@ const Settings = () => {
                 {/* Password update form */}
                 <form onSubmit={handleChangePassword} className="flex flex-col gap-4 border-t pt-8" style={{ borderColor: theme.border }}>
                   <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Update Account Password</h4>
-                  <input
-                    type="password"
-                    placeholder="Current Password"
-                    value={passwords.oldPassword}
-                    onChange={e => setPasswords({ ...passwords, oldPassword: e.target.value })}
-                    className="w-full p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
-                    style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
-                  />
-                  <input
-                    type="password"
-                    placeholder="New Password"
-                    value={passwords.newPassword}
-                    onChange={e => setPasswords({ ...passwords, newPassword: e.target.value })}
-                    className="w-full p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
-                    style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                    <input
+                      type="password"
+                      placeholder="Current Password"
+                      value={passwords.oldPassword}
+                      onChange={e => setPasswords({ ...passwords, oldPassword: e.target.value })}
+                      className="w-full p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
+                      style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
+                    />
+                    <input
+                      type="password"
+                      placeholder="New Password"
+                      value={passwords.newPassword}
+                      onChange={e => setPasswords({ ...passwords, newPassword: e.target.value })}
+                      className="w-full p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
+                      style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
+                    />
+                  </div>
                   <button
                     type="submit"
                     className="w-fit mt-2 px-6 py-3 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 active:scale-95 transition-all cursor-pointer shadow-sm"
@@ -1953,27 +1956,29 @@ const Settings = () => {
                 {/* Recovery Setup */}
                 <form onSubmit={handleUpdateRecovery} className="flex flex-col gap-4 border-t pt-8" style={{ borderColor: theme.border }}>
                   <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Backup Account Recovery</h4>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-semibold text-gray-500">Recovery Email Address</label>
-                    <input
-                      type="email"
-                      placeholder="backup@example.com"
-                      value={recoveryInfo.recoveryEmail || ""}
-                      onChange={e => setRecoveryInfo({ ...recoveryInfo, recoveryEmail: e.target.value })}
-                      className="w-full p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
-                      style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-semibold text-gray-500">Backup Phone Number</label>
-                    <input
-                      type="text"
-                      placeholder="+1234567890"
-                      value={recoveryInfo.phoneNumber || ""}
-                      onChange={e => setRecoveryInfo({ ...recoveryInfo, phoneNumber: e.target.value })}
-                      className="w-full p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
-                      style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-gray-500">Recovery Email Address</label>
+                      <input
+                        type="email"
+                        placeholder="backup@example.com"
+                        value={recoveryInfo.recoveryEmail || ""}
+                        onChange={e => setRecoveryInfo({ ...recoveryInfo, recoveryEmail: e.target.value })}
+                        className="w-full p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
+                        style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold text-gray-500">Backup Phone Number</label>
+                      <input
+                        type="text"
+                        placeholder="+1234567890"
+                        value={recoveryInfo.phoneNumber || ""}
+                        onChange={e => setRecoveryInfo({ ...recoveryInfo, phoneNumber: e.target.value })}
+                        className="w-full p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
+                        style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
+                      />
+                    </div>
                   </div>
                   <button
                     type="submit"
