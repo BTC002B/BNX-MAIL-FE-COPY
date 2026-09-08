@@ -311,7 +311,7 @@ const Groups = () => {
                                             <textarea 
                                                 value={groupData.members}
                                                 onChange={(e) => setGroupData({...groupData, members: e.target.value})}
-                                                className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-transparent outline-none focus:ring-2 focus:ring-primary/30 min-h-[100px]"
+                                                className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-transparent outline-none focus:ring-2 focus:ring-primary/30 min-h-[100px] resize-none"
                                                 placeholder="user1@bnxmail.com, user2@bnxmail.com"
                                             />
                                         </div>
