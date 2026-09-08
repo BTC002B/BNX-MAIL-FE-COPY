@@ -863,6 +863,34 @@ const Settings = () => {
     });
   };
 
+  const handleResetToDefault = async () => {
+    setSelectedWallpaper(null);
+    setCustomBgUrl("");
+    if (bgFileRef.current) bgFileRef.current.value = "";
+    clearBackgroundImage();
+    changeTheme("Classic");
+    setThemeMode("Light");
+    setAccentColor("#135bec");
+    updateCustomAccentColor("#135bec");
+    setFontSize(1.0);
+    updateCustomFontSize(1.0);
+    setDensity("Default");
+    setLocalEmailsPerPage(20);
+    setEmailsPerPageState(20);
+    setReadingPaneMode("no_split");
+    if (setReadingPaneModeState) {
+      setReadingPaneModeState("no_split");
+    }
+    await saveBackendSettings({
+      themeMode: "Light",
+      accentColor: "#135bec",
+      fontSize: 1.0,
+      density: "Default",
+      readingPaneMode: "no_split"
+    });
+    toast.success("Appearance and background reset to default", { id: "wallpaper-toast", duration: 3000 });
+  };
+
   const handleSaveSecuritySettings = async (e) => {
     e.preventDefault();
     if (savingRef.current) return;
@@ -1823,11 +1851,7 @@ const Settings = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedWallpaper(null);
-                        clearBackgroundImage();
-                        toast.success("Background reset to default", { id: "wallpaper-toast", duration: 3000 });
-                      }}
+                      onClick={handleResetToDefault}
                       className="w-fit px-5 py-2.5 rounded-xl text-sm font-medium border cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all shadow-sm flex items-center gap-2"
                       style={{ borderColor: theme.border, color: theme.text }}
                     >
