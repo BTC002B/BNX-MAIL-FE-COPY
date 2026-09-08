@@ -1851,9 +1851,9 @@ const Settings = () => {
                     className="w-full p-3 text-sm rounded-xl border outline-none cursor-pointer focus:ring-2 focus:border-transparent transition-all"
                     style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
                   >
-                    <option value="no_split">No split (Full screen)</option>
-                    <option value="right">Right of inbox</option>
-                    <option value="below">Below inbox</option>
+                    <option value="no_split" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" style={{ backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff', color: theme.mode === 'dark' ? '#f3f4f6' : '#111827' }}>No split (Full screen)</option>
+                    <option value="right" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" style={{ backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff', color: theme.mode === 'dark' ? '#f3f4f6' : '#111827' }}>Right of inbox</option>
+                    <option value="below" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" style={{ backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff', color: theme.mode === 'dark' ? '#f3f4f6' : '#111827' }}>Below inbox</option>
                   </select>
                   <span className="text-xs text-gray-500">Choose how emails open in your mailbox.</span>
                 </div>
