@@ -250,14 +250,13 @@ const AppContent = () => {
           />
 
           <main
-            className="flex-1 min-h-0 overflow-hidden ml-2 md:ml-3 mr-2 md:mr-3 mb-2 md:mb-3 mt-1 flex flex-col transition-all duration-300 rounded-2xl shadow-md border border-white/20 dark:border-gray-800/30"
+            className="flex-1 min-h-0 overflow-hidden ml-2 md:ml-3 mr-2 md:mr-3 mb-2 md:mb-3 mt-1 flex flex-col transition-all duration-300 rounded-2xl shadow-md border-0"
             style={{
               backgroundColor: backgroundImage
                 ? (theme.mode === "dark" ? "rgba(31, 41, 55, 0.45)" : "rgba(255, 255, 255, 0.45)")
                 : theme.cardBg,
               backdropFilter: backgroundImage ? "none" : "none",
               WebkitBackdropFilter: backgroundImage ? "none" : "none",
-              borderColor: theme.accent || "#135bec",
             }}
           >
             <Routes>
