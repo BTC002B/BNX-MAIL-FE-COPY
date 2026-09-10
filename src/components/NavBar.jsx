@@ -195,7 +195,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
               onClick={() => onToggleDesktopSidebar()}
               className="text-lg sm:text-xl font-bold tracking-tight cursor-pointer hover:opacity-90 transition-opacity text-white hidden sm:block"
             >
-              BNX<span className="font-normal text-white/90">MAIL</span>
+              BNX<span className="font-normal text-white/90">mail</span>
             </span>
           </div>
 
