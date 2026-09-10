@@ -1,0 +1,7 @@
+services:
+  bnx-mail-fe:
+    image: ghcr.io/betasoftnet-png/bnx-mail-fe:latest
+    container_name: bnx-mail-fe
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3102:80"
