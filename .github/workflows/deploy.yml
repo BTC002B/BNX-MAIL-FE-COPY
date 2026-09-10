@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: ghcr.io/btc001b/bnx-mail-fe
+  IMAGE_NAME: ghcr.io/betasoftnet-png/bnx-mail-fe
 
 jobs:
   build-and-deploy:
@@ -53,7 +53,7 @@ jobs:
             cd /var/www/BNX-MAIL-FE
 
             echo "Logging in to GHCR..."
-            echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ghcr.io -u btc001b --password-stdin
+            echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ghcr.io -u betasoftnet-png --password-stdin
 
             echo "Pulling latest Docker image..."
             docker compose pull
