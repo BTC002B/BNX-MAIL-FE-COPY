@@ -58,6 +58,7 @@ import SignupLayout from "./pages/signup/SignupLayout";
 import SignupSelection from "./pages/signup/SignupSelection";
 import SignupProfile from "./pages/signup/SignupProfile";
 import SignupChild from "./pages/signup/SignupChild";
+import SignupMobileVerify from "./pages/signup/SignupMobileVerify";
 import SignupParentVerify from "./pages/signup/SignupParentVerify";
 import SignupBusiness from "./pages/signup/SignupBusiness";
 import SignupMail from "./pages/signup/SignupMail";
@@ -390,6 +391,7 @@ const App = () => (
                   <Route path="child" element={<SignupChild />} />
                   <Route path="parent-verify" element={<SignupParentVerify />} />
                   <Route path="business" element={<SignupBusiness />} />
+                  <Route path="mobile-verify" element={<SignupMobileVerify />} />
                   <Route path="mail" element={<SignupMail />} />
                   <Route path="password-setup" element={<SignupPasswordSetup />} />
                 </Route>

@@ -22,6 +22,9 @@ export const SignupProvider = ({ children }) => {
         dob: '',
         parentEmail: '',
         parentOtp: '',
+        mobileNumber: '',
+        mobileVerified: false,
+        recoveryPhone: '',
         tempToken: '', // Token returned after POST /api/auth/register
 
         // Business Details

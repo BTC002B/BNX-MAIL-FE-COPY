@@ -4,23 +4,23 @@ import { useSignup } from '../../context/SignupContext';
 import { authAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
-const SignupParentVerify = () => {
+const SignupMobileVerify = () => {
     const navigate = useNavigate();
     const { formData, updateFormData } = useSignup();
-    const [step, setStep] = useState('EMAIL'); // EMAIL or OTP
+    const [step, setStep] = useState('MOBILE'); // MOBILE or OTP
     const [loading, setLoading] = useState(false);
 
     const handleSendOtp = async (e) => {
         e.preventDefault();
-        if (!formData.parentEmail) {
-            toast.error('Parent email is required');
+        if (!formData.mobileNumber) {
+            toast.error('Mobile number is required');
             return;
         }
 
         setLoading(true);
         try {
-            await authAPI.sendParentOtp({ parentEmail: formData.parentEmail });
-            toast.success('Consent code sent to parent email');
+            await authAPI.sendMobileOtp({ mobile: formData.mobileNumber });
+            toast.success('OTP sent to your mobile number');
             setStep('OTP');
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to send OTP');
@@ -31,19 +31,25 @@ const SignupParentVerify = () => {
 
     const handleVerifyOtp = async (e) => {
         e.preventDefault();
-        if (!formData.parentOtp) {
+        if (!formData.mobileOtp) {
             toast.error('Please enter the OTP');
             return;
         }
 
         setLoading(true);
         try {
-            await authAPI.verifyParentOtp({
-                parentEmail: formData.parentEmail,
-                otp: formData.parentOtp
+            await authAPI.verifyMobileOtp({
+                mobile: formData.mobileNumber,
+                otp: formData.mobileOtp
             });
-            toast.success('Parent verified successfully');
-            navigate('/signup/mobile-verify');
+            
+            updateFormData({ 
+                mobileVerified: true, 
+                recoveryPhone: formData.mobileNumber 
+            });
+            
+            toast.success('Mobile number verified successfully');
+            navigate('/signup/mail');
         } catch (err) {
             toast.error(err.response?.data?.message || 'Invalid OTP');
         } finally {
@@ -51,29 +57,42 @@ const SignupParentVerify = () => {
         }
     };
 
+    const handleBack = () => {
+        if (step === 'OTP') {
+            setStep('MOBILE');
+            return;
+        }
+        
+        if (formData.accountType === 'CHILD') {
+            navigate('/signup/child-verify');
+        } else {
+            navigate('/signup/profile');
+        }
+    };
+
     return (
         <div className="animate-fade-in space-y-6">
             <div className="text-center">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">
-                    Parent Verification
+                    Mobile Verification
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
-                    Since the account is for a child, we need a parent's consent.
+                    Verify your mobile number to secure your account.
                 </p>
             </div>
 
-            {step === 'EMAIL' ? (
+            {step === 'MOBILE' ? (
                 <form onSubmit={handleSendOtp} className="space-y-4">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                            Parent's Email Address
+                            Mobile Number (with country code)
                         </label>
                         <input
-                            type="email"
-                            value={formData.parentEmail}
-                            onChange={(e) => updateFormData({ parentEmail: e.target.value })}
+                            type="text"
+                            value={formData.mobileNumber}
+                            onChange={(e) => updateFormData({ mobileNumber: e.target.value })}
                             required
-                            placeholder="parent@example.com"
+                            placeholder="+1234567890"
                             className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
                         />
                     </div>
@@ -81,7 +100,7 @@ const SignupParentVerify = () => {
                     <div className="pt-4 flex justify-between">
                         <button
                             type="button"
-                            onClick={() => navigate('/signup/child')}
+                            onClick={handleBack}
                             className="px-6 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                         >
                             Back
@@ -99,25 +118,25 @@ const SignupParentVerify = () => {
                 <form onSubmit={handleVerifyOtp} className="space-y-4">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                            Enter the Consent Code
+                            Enter the 6-digit OTP
                         </label>
                         <input
                             type="text"
-                            value={formData.parentOtp}
-                            onChange={(e) => updateFormData({ parentOtp: e.target.value })}
+                            value={formData.mobileOtp || ''}
+                            onChange={(e) => updateFormData({ mobileOtp: e.target.value })}
                             required
-                            placeholder="6-digit code"
+                            placeholder="123456"
                             className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white text-center tracking-widest text-lg font-mono"
                         />
                         <p className="text-xs text-gray-500 mt-2 text-center">
-                            Code sent to {formData.parentEmail}. <button type="button" onClick={() => setStep('EMAIL')} className="text-indigo-600 hover:underline">Change email</button>
+                            Code sent to {formData.mobileNumber}. <button type="button" onClick={() => setStep('MOBILE')} className="text-indigo-600 hover:underline">Change number</button>
                         </p>
                     </div>
 
                     <div className="pt-4 flex justify-between">
                         <button
                             type="button"
-                            onClick={() => setStep('EMAIL')}
+                            onClick={handleBack}
                             className="px-6 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                         >
                             Back
@@ -136,4 +155,4 @@ const SignupParentVerify = () => {
     );
 };
 
-export default SignupParentVerify;
+export default SignupMobileVerify;

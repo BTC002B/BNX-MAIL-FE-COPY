@@ -38,8 +38,8 @@ const SignupProfile = () => {
             return;
         }
 
-        // Proceed to Mail setup
-        navigate('/signup/mail');
+        // Proceed to Mobile Verify setup
+        navigate('/signup/mobile-verify');
     };
 
     return (

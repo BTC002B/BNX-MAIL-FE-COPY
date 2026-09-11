@@ -220,6 +220,8 @@ export const authAPI = {
     getUsernameSuggestions: (params) => api.get('/api/auth/username-suggestions', { params }),
     sendParentOtp: (data) => api.post('/api/auth/child/send-parent-otp', data),
     verifyParentOtp: (data) => api.post('/api/auth/child/verify-parent-otp', data),
+    sendMobileOtp: (data) => api.post('/api/auth/send-mobile-otp', data),
+    verifyMobileOtp: (data) => api.post('/api/auth/verify-mobile-otp', data),
 };
 // Mail APIs
 export const mailAPI = {
