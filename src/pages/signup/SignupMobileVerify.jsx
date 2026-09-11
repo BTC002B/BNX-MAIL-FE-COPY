@@ -94,9 +94,11 @@ const SignupMobileVerify = () => {
                             value={formData.mobileNumber}
                             onChange={(phone) => updateFormData({ mobileNumber: '+' + phone })}
                             enableSearch={true}
-                            inputClass="!w-full !py-3 !pl-12 !bg-gray-50 dark:!bg-slate-700 !border !border-gray-200 dark:!border-slate-600 !rounded-xl focus:!ring-2 focus:!ring-indigo-500 !outline-none dark:!text-white !h-auto"
-                            buttonClass="!bg-transparent !border-none !left-1 hover:!bg-transparent dark:hover:!bg-transparent"
-                            dropdownClass="dark:!bg-slate-800 dark:!text-white dark:!border-slate-600"
+                            containerClass="!w-full relative group"
+                            inputClass="!w-full !px-4 !py-3 !pl-[52px] !bg-gray-50 dark:!bg-slate-700 !border !border-gray-200 dark:!border-slate-600 !rounded-xl focus:!ring-2 focus:!ring-indigo-500 !outline-none dark:!text-white !h-[52px] !text-base transition-all duration-200 hover:!border-gray-300 dark:hover:!border-slate-500"
+                            buttonClass="!bg-transparent !border-none !left-1 !w-[42px] !h-full !rounded-l-xl hover:!bg-gray-200/50 dark:hover:!bg-slate-600/50 transition-colors duration-200 !flex !items-center !justify-center"
+                            dropdownClass="!w-[320px] !bg-white dark:!bg-slate-800 !border !border-gray-100 dark:!border-slate-700 !rounded-2xl shadow-2xl dark:!text-white !mt-2 overflow-hidden !z-50 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full"
+                            searchClass="!bg-gray-50 dark:!bg-slate-900/50 !border !border-gray-200 dark:!border-slate-600 !rounded-xl !px-4 !py-2.5 !m-3 !w-[calc(100%-24px)] focus:!ring-2 focus:!ring-indigo-500/50 !outline-none dark:!text-white !text-sm transition-all"
                         />
                     </div>
 
