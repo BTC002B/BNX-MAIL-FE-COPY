@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useSignup } from '../../context/SignupContext';
 import { authAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 const SignupMobileVerify = () => {
     const navigate = useNavigate();
@@ -85,15 +87,16 @@ const SignupMobileVerify = () => {
                 <form onSubmit={handleSendOtp} className="space-y-4">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                            Mobile Number (with country code)
+                            Mobile Number
                         </label>
-                        <input
-                            type="text"
+                        <PhoneInput
+                            country={'us'}
                             value={formData.mobileNumber}
-                            onChange={(e) => updateFormData({ mobileNumber: e.target.value })}
-                            required
-                            placeholder="+1234567890"
-                            className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                            onChange={(phone) => updateFormData({ mobileNumber: '+' + phone })}
+                            enableSearch={true}
+                            inputClass="!w-full !py-3 !pl-12 !bg-gray-50 dark:!bg-slate-700 !border !border-gray-200 dark:!border-slate-600 !rounded-xl focus:!ring-2 focus:!ring-indigo-500 !outline-none dark:!text-white !h-auto"
+                            buttonClass="!bg-transparent !border-none !left-1 hover:!bg-transparent dark:hover:!bg-transparent"
+                            dropdownClass="dark:!bg-slate-800 dark:!text-white dark:!border-slate-600"
                         />
                     </div>
 
