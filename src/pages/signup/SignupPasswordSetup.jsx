@@ -30,7 +30,7 @@ const SignupPasswordSetup = () => {
                 mode: formData.accountType === 'CHILD' ? 'PERSONAL' : formData.accountType,
                 username: formData.username,
                 password: formData.password,
-                recoveryPhone: formData.recoveryPhone || null,
+                phoneNumber: formData.recoveryPhone || null,
             };
 
             if (formData.accountType === 'PERSONAL' || formData.accountType === 'CHILD') {

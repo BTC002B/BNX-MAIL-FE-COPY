@@ -25,6 +25,11 @@ const ForgotPassword = () => {
         setLoading(true);
         try {
             const res = await authAPI.getForgotPasswordOptions(identifier);
+            if (res.data && res.data.success === false) {
+                toast.error(res.data.message || "Failed to find account");
+                return;
+            }
+            
             if (res.data.success) {
                 const { recoveryEmail, phoneNumber } = res.data.data;
                 if (!recoveryEmail && !phoneNumber) {
@@ -46,6 +51,11 @@ const ForgotPassword = () => {
         setLoading(true);
         try {
             const res = await authAPI.sendOTP({ identifier, method });
+            if (res.data && res.data.success === false) {
+                toast.error(res.data.message || "Failed to send OTP");
+                return;
+            }
+
             if (res.data.success) {
                 toast.success(`OTP sent to your ${method.toLowerCase()}`);
                 setStep(3);
@@ -64,7 +74,11 @@ const ForgotPassword = () => {
         setLoading(true);
         try {
             const res = await authAPI.verifyOTP({ identifier, otp });
-            // Since the response is 200 OK for valid, we proceed
+            if (res.data && res.data.success === false) {
+                toast.error(res.data.message || "Invalid or expired OTP");
+                return;
+            }
+
             toast.success("OTP Verified successfully");
             setStep(4);
         } catch (err) {
@@ -90,7 +104,12 @@ const ForgotPassword = () => {
                 otp,
                 newPassword: passwords.newPassword
             });
-            if (res.data.success) {
+            if (res.data && res.data.success === false) {
+                toast.error(res.data.message || "Failed to reset password");
+                return;
+            }
+
+            if (res.data.success || res.status === 200) {
                 toast.success("Password reset successfully! Please login.");
                 navigate('/login');
             }
