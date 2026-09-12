@@ -30,7 +30,7 @@ const SignupPasswordSetup = () => {
                 mode: formData.accountType === 'CHILD' ? 'PERSONAL' : formData.accountType,
                 username: formData.username,
                 password: formData.password,
-                phoneNumber: formData.recoveryPhone || null,
+                phoneNumber: formData.recoveryPhone || formData.mobileNumber || null,
             };
 
             if (formData.accountType === 'PERSONAL' || formData.accountType === 'CHILD') {
@@ -53,6 +53,7 @@ const SignupPasswordSetup = () => {
             }
 
             // 2. Call Auth Register
+            console.log("Registration Payload being sent:", payload);
             const registerRes = await authAPI.register(payload);
             const tempToken = registerRes.data?.data?.tempToken;
 
