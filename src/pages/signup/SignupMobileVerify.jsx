@@ -64,7 +64,7 @@ const SignupMobileVerify = () => {
             });
             
             toast.success('Mobile number verified successfully');
-            navigate('/signup/mail');
+            navigate('/signup/password-setup');
         } catch (err) {
             toast.error(err.response?.data?.message || 'Invalid OTP');
         } finally {
@@ -78,11 +78,7 @@ const SignupMobileVerify = () => {
             return;
         }
         
-        if (formData.accountType === 'CHILD') {
-            navigate('/signup/child-verify');
-        } else {
-            navigate('/signup/profile');
-        }
+        navigate('/signup/mail');
     };
 
     return (

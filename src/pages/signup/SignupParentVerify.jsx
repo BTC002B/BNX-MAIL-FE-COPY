@@ -43,7 +43,7 @@ const SignupParentVerify = () => {
                 otp: formData.parentOtp
             });
             toast.success('Parent verified successfully');
-            navigate('/signup/mobile-verify');
+            navigate('/signup/mail');
         } catch (err) {
             toast.error(err.response?.data?.message || 'Invalid OTP');
         } finally {

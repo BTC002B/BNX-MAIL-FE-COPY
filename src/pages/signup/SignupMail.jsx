@@ -67,8 +67,8 @@ const SignupMail = () => {
             }
         }
 
-        // Proceed to Password Setup
-        navigate('/signup/password-setup');
+        // Proceed to Mobile Verify
+        navigate('/signup/mobile-verify');
     };
 
     const selectSuggestion = (sugg) => {

@@ -30,6 +30,7 @@ const SignupPasswordSetup = () => {
                 mode: formData.accountType === 'CHILD' ? 'PERSONAL' : formData.accountType,
                 username: formData.username,
                 password: formData.password,
+                recoveryPhone: formData.recoveryPhone || null,
             };
 
             if (formData.accountType === 'PERSONAL' || formData.accountType === 'CHILD') {
@@ -123,7 +124,7 @@ const SignupPasswordSetup = () => {
                 <div className="pt-4 flex justify-between">
                     <button
                         type="button"
-                        onClick={() => navigate('/signup/mail')}
+                        onClick={() => navigate('/signup/mobile-verify')}
                         className="px-6 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                     >
                         Back
