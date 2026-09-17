@@ -47,7 +47,7 @@ export const SignupProvider = ({ children }) => {
         acceptTerms: false,
 
         // New Business Verification Fields
-        businessFlow: 'primary',
+        businessFlow: 'secondary',
         businessType: 'SOLE_PROPRIETORSHIP',
         panNumber: '',
         cin: '',
