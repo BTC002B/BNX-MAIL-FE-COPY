@@ -108,14 +108,18 @@ const ComposePage = () => {
         if (d.cc) setShowCc(true);
         if (d.bcc) setShowBcc(true);
       } else {
-        setFormData((prev) => ({
-          ...prev,
-          to: location.state.to || prev.to || "",
-          cc: location.state.cc || prev.cc || "",
-          bcc: location.state.bcc || prev.bcc || "",
-          subject: location.state.subject || prev.subject || "",
-          body: location.state.body || prev.body || "",
-        }));
+        const newTo = location.state.to !== undefined ? location.state.to : "";
+        const newCc = location.state.cc !== undefined ? location.state.cc : "";
+        const newBcc = location.state.bcc !== undefined ? location.state.bcc : "";
+        setFormData({
+          to: newTo,
+          cc: newCc,
+          bcc: newBcc,
+          subject: location.state.subject || "",
+          body: location.state.body || "",
+        });
+        if (newCc) setShowCc(true);
+        if (newBcc) setShowBcc(true);
       }
     }
   }, [location.state]);
@@ -130,7 +134,7 @@ const ComposePage = () => {
       setFormData((prev) => ({
         ...prev,
         subject: template.subject,
-        body: template.body,
+        body: template.body ? (template.body.includes('<') && template.body.includes('>') ? template.body : template.body.replace(/\n/g, '<br/>')) : '',
       }));
       setShowTemplates(false);
     }
