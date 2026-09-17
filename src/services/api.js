@@ -222,6 +222,8 @@ export const authAPI = {
     verifyParentOtp: (data) => api.post('/api/auth/child/verify-parent-otp', data),
     sendMobileOtp: (data) => api.post('/api/auth/send-mobile-otp', data),
     verifyMobileOtp: (data) => api.post('/api/auth/verify-mobile-otp', data),
+    fetchGstins: (pan) => api.get('/api/auth/fetch-gstins', { params: { pan } }),
+    verifyBusiness: (data) => api.post('/api/auth/verify-business', data),
 };
 // Mail APIs
 export const mailAPI = {

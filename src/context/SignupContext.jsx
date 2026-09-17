@@ -44,7 +44,15 @@ export const SignupProvider = ({ children }) => {
         language: '',
         companyLogo: null,
         profilePhoto: null,
-        acceptTerms: false
+        acceptTerms: false,
+
+        // New Business Verification Fields
+        businessFlow: 'primary',
+        businessType: 'SOLE_PROPRIETORSHIP',
+        panNumber: '',
+        cin: '',
+        gstin: '',
+        businessEmail: ''
     };
 
     const [formData, setFormData] = useState(defaultState);

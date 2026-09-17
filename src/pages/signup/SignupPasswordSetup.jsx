@@ -46,7 +46,10 @@ const SignupPasswordSetup = () => {
                     ...payload,
                     businessName: formData.businessName,
                     businessType: formData.businessType,
-                    registrationNumber: formData.registrationNumber,
+                    businessFlow: formData.businessFlow,
+                    cin: formData.cin,
+                    gstin: formData.gstin,
+                    registrationNumber: formData.registrationNumber, // Fallback if needed
                     ownerFirstName: formData.ownerFirstName,
                     ownerLastName: formData.ownerLastName,
                 };
