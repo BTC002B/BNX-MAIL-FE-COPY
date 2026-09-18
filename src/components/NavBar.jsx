@@ -183,7 +183,16 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
     >
       <div className="flex items-center justify-between w-full relative">
         {/* LEFT */}
-        <div className="flex items-center gap-2 sm:gap-12 shrink-0 md:flex-1">
+        <div className="flex items-center gap-2 sm:gap-6 lg:gap-12 shrink-0 md:flex-1">
+          {/* Mobile Menu Toggle Button */}
+          <button
+            onClick={onOpenMenu}
+            className="p-1.5 rounded-lg text-white hover:bg-white/10 md:hidden cursor-pointer shrink-0"
+            title="Open Menu"
+          >
+            <MdMenu size={24} />
+          </button>
+
           <div className="flex items-center gap-2 pl-1 sm:pl-2">
             <img
               src={logo}
@@ -202,7 +211,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
           {/* COMPOSE (Hidden on mobile/tablet, shown as floating button instead) */}
           <button
             onClick={() => openCompose(currentTab === 'chat' ? { mode: 'casbox' } : null)}
-            className="hidden lg:flex items-center gap-2.5 px-5 py-2 rounded-full font-semibold shadow-sm transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] bg-white dark:bg-[#303134] border border-gray-200/50 dark:border-gray-700/50 text-gray-700 dark:text-gray-200 ml-12"
+            className="hidden lg:flex items-center gap-2.5 px-5 py-2 rounded-full font-semibold shadow-sm transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] bg-white dark:bg-[#303134] border border-gray-200/50 dark:border-gray-700/50 text-gray-700 dark:text-gray-200 ml-4 lg:ml-12"
           >
             <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.accent || "#135bec" }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -231,7 +240,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
         <div className="flex items-center justify-end gap-1 sm:gap-3 md:flex-1 shrink-0">
 
           {/* SEARCH */}
-          <form onSubmit={handleSearch} className="hidden lg:flex flex-1 max-w-[260px] mr-2" ref={searchContainerRef}>
+          <form onSubmit={handleSearch} className="hidden sm:flex flex-1 max-w-[140px] md:max-w-[200px] lg:max-w-[260px] mr-1 sm:mr-2" ref={searchContainerRef}>
             <div className="relative group w-full">
               <input
                 type="text"
@@ -242,10 +251,10 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                   setShowSearchResults(true);
                 }}
                 placeholder="Search..."
-                className="w-full px-4 py-2 pl-10 rounded-full text-[13px] placeholder:text-white/60 bg-white/10 hover:bg-white/20 focus:bg-white focus:text-gray-900 text-white focus:shadow-sm border border-transparent outline-none transition-all duration-200"
+                className="w-full px-3 sm:px-4 py-1.5 sm:py-2 pl-8 sm:pl-10 rounded-full text-xs sm:text-[13px] placeholder:text-white/60 bg-white/10 hover:bg-white/20 focus:bg-white focus:text-gray-900 text-white focus:shadow-sm border border-transparent outline-none transition-all duration-200"
               />
               <svg
-                className="absolute left-3.5 top-2.5 h-4 w-4 transition-colors text-white/60 group-focus-within:text-gray-500"
+                className="absolute left-2.5 sm:left-3.5 top-2 sm:top-2.5 h-3.5 sm:h-4 w-3.5 sm:w-4 transition-colors text-white/60 group-focus-within:text-gray-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -255,7 +264,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
 
               {showSearchResults && searchQuery.trim().length > 0 && (
                 <div 
-                  className="absolute left-0 right-0 mt-2 bg-white dark:bg-gray-800 border shadow-2xl rounded-2xl p-3 max-h-96 overflow-y-auto z-[999] w-[320px] max-w-[400px]"
+                  className="absolute right-0 sm:left-0 sm:right-auto mt-2 bg-white dark:bg-gray-800 border shadow-2xl rounded-2xl p-3 max-h-96 overflow-y-auto z-[999] w-[280px] sm:w-[320px] max-w-[90vw]"
                   style={{ borderColor: theme.border || '#e2e8f0' }}
                 >
                   {/* Matching Emails */}

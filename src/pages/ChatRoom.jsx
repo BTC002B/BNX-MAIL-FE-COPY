@@ -65,6 +65,92 @@ const ChatRoom = () => {
   const moreMenuRef = useRef(null);
   const [hasNewMessagesBelow, setHasNewMessagesBelow] = useState(false);
 
+  useEffect(() => {
+    if (chat) {
+      setIsChatStarred(Boolean(chat.starred || chat.isStarred));
+    } else {
+      setIsChatStarred(false);
+    }
+  }, [chat, chatId]);
+
+  const handleArchiveChat = async () => {
+    const targetId = chatId || chat?.uid || chat?.id;
+    if (!targetId) return;
+
+    try {
+      if (mailAPI.archive) {
+        await mailAPI.archive(targetId, 'chat');
+      }
+      toast.success("Chat archived");
+      if (chat?.type === 'DIRECT') {
+        navigate("/chat");
+      } else {
+        navigate("/colab");
+      }
+    } catch (err) {
+      console.error("Failed to archive chat", err);
+      toast.error("Failed to archive chat");
+    }
+  };
+
+  const handleSnoozeChat = async (wakeUpDate) => {
+    const targetId = chatId || chat?.uid || chat?.id;
+    if (!targetId) return;
+    const wakeUpAt = wakeUpDate || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    try {
+      if (mailAPI.snooze) {
+        await mailAPI.snooze(targetId, wakeUpAt, 'chat');
+      }
+      toast.success("Chat snoozed");
+      if (chat?.type === 'DIRECT') {
+        navigate("/chat");
+      } else {
+        navigate("/colab");
+      }
+    } catch (err) {
+      console.error("Failed to snooze chat", err);
+      toast.error("Failed to snooze chat");
+    }
+  };
+
+  const handleDeleteChat = async () => {
+    const targetId = chatId || chat?.uid || chat?.id;
+    if (!targetId) return;
+
+    try {
+      if (mailAPI.trash) {
+        await mailAPI.trash(targetId, 'chat');
+      }
+      toast.success("Chat deleted");
+      if (chat?.type === 'DIRECT') {
+        navigate("/chat");
+      } else {
+        navigate("/colab");
+      }
+    } catch (err) {
+      console.error("Failed to delete chat", err);
+      toast.error("Failed to delete chat");
+    }
+  };
+
+  const handleToggleStarChat = async () => {
+    const targetId = chatId || chat?.uid || chat?.id;
+    if (!targetId) return;
+    const newStarred = !isChatStarred;
+
+    try {
+      if (mailAPI.toggleStar) {
+        await mailAPI.toggleStar(targetId, 'chat');
+      }
+      setIsChatStarred(newStarred);
+      setChat(prev => prev ? { ...prev, starred: newStarred, isStarred: newStarred } : null);
+    } catch (err) {
+      console.error("Failed to toggle star chat", err);
+      toast.error("Failed to update star");
+    }
+  };
+
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef(null);
 
@@ -425,25 +511,35 @@ const ChatRoom = () => {
     let subscription = null;
     if (isConnected) {
       subscription = subscribeToChat(chatId, (msg) => {
-        const isMe = msg.sender === user?.email;
+        const msgSender = msg.sender || msg.senderEmail;
+        const msgContent = msg.content || msg.message;
+        const isMe = msgSender === user?.email;
         const nearBottom = isUserNearBottom();
 
         setMessages(prev => {
-          if (prev.some(m => m.id === msg.id)) return prev;
+          const normalizedMsg = {
+            ...msg,
+            sender: msgSender || msg.sender,
+            content: msgContent || msg.content,
+            message: msgContent || msg.message,
+            isOptimistic: false
+          };
+
+          if (prev.some(m => String(m.id) === String(msg.id) && !m.isOptimistic)) return prev;
 
           const optimisticIdx = prev.findIndex(m => 
             m.isOptimistic && 
-            m.sender === msg.sender && 
-            m.content === msg.content
+            (m.sender === msgSender || m.sender === user?.email) && 
+            (m.content === msgContent || m.message === msgContent)
           );
 
           if (optimisticIdx !== -1) {
             const newMsgs = [...prev];
-            newMsgs[optimisticIdx] = { ...msg, isOptimistic: false };
+            newMsgs[optimisticIdx] = normalizedMsg;
             return newMsgs;
           }
 
-          return [...prev, msg];
+          return [...prev, normalizedMsg];
         });
 
         if (isMe || nearBottom) {
@@ -475,13 +571,15 @@ const ChatRoom = () => {
     if (!newMessage.trim() && selectedAttachments.length === 0) return;
 
     const attachmentsJson = selectedAttachments.length > 0 ? JSON.stringify(selectedAttachments) : null;
+    const contentText = newMessage;
 
     // Optimistic update
     const tempMsg = {
-      id: Date.now(),
+      id: `temp-${Date.now()}`,
       chatId: parseInt(chatId),
       sender: user.email,
-      content: newMessage,
+      content: contentText,
+      message: contentText,
       attachmentsJson: attachmentsJson,
       timestamp: new Date().toISOString(),
       isOptimistic: true
@@ -495,16 +593,33 @@ const ChatRoom = () => {
     // Send via WebSocket with HTTP fallback if socket transmission fails
     let isSentViaWs = false;
     if (isConnected) {
-      isSentViaWs = sendMessage(chatId, tempMsg.content, attachmentsJson) !== false;
+      isSentViaWs = sendMessage(chatId, contentText, attachmentsJson) !== false;
     } 
     
     if (!isSentViaWs) {
       chatAPI.sendMessage({
         chatId: parseInt(chatId),
         sender: user.email,
-        message: tempMsg.content,
+        message: contentText,
         attachmentsJson: attachmentsJson
-      }).catch(() => {
+      }).then(res => {
+        const resData = res.data?.data || res.data;
+        if (resData) {
+          const msgContent = resData.content || resData.message || contentText;
+          const msgSender = resData.sender || resData.senderEmail || user.email;
+          const updatedMsg = {
+            ...resData,
+            sender: msgSender,
+            content: msgContent,
+            message: msgContent,
+            isOptimistic: false
+          };
+          setMessages(prev => prev.map(m => m.id === tempMsg.id ? updatedMsg : m));
+        } else {
+          setMessages(prev => prev.map(m => m.id === tempMsg.id ? { ...m, isOptimistic: false } : m));
+        }
+      }).catch(err => {
+        console.error("Failed to send message via HTTP", err);
         toast.error("Failed to send message");
         setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
       });
@@ -617,12 +732,14 @@ const ChatRoom = () => {
           </button>
           <div className="h-5 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1" />
           <button
+            onClick={handleArchiveChat}
             className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 cursor-pointer"
             title="Archive"
           >
             <MdArchive size={20} />
           </button>
           <button
+            onClick={() => handleSnoozeChat()}
             className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400 hover:text-blue-500 cursor-pointer"
             title="Snooze"
           >
@@ -635,6 +752,7 @@ const ChatRoom = () => {
             <MdLabel size={20} />
           </button>
           <button
+            onClick={handleDeleteChat}
             className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-gray-500 dark:text-gray-400 hover:text-red-500 cursor-pointer"
             title="Delete"
           >
@@ -662,7 +780,7 @@ const ChatRoom = () => {
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
                 <button
                   onClick={() => {
-                    setIsChatStarred(prev => !prev);
+                    handleToggleStarChat();
                     setShowMoreMenu(false);
                   }}
                   className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-2"
@@ -693,7 +811,7 @@ const ChatRoom = () => {
             )}
           </div>
           <button
-            onClick={() => setIsChatStarred(!isChatStarred)}
+            onClick={handleToggleStarChat}
             className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
             title={isChatStarred ? "Starred" : "Star"}
             style={{ color: isChatStarred ? "#e3b341" : "rgb(107,114,128)" }}
@@ -983,6 +1101,7 @@ const ChatRoom = () => {
                   placeholder="Type a message..."
                   className="w-full pl-4 pr-12 py-3 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 bg-white/80 dark:bg-gray-800/80 outline-none focus:ring-2 focus:ring-primary/30 transition-all shadow-inner text-sm"
                   style={{ color: theme.text }}
+                  spellCheck="false"
                 />
                 <button 
                   type="submit"

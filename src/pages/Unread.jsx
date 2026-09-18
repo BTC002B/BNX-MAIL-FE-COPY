@@ -16,8 +16,8 @@ const Unread = ({ searchQuery }) => {
   const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleMarkRead, handleApplyLabel, handleArchive, handleUnarchive, openCompose } = useMail();
   const [selectedEmailUid, setSelectedEmailUid] = useState(null);
 
-  const unreadEmails = emails.filter((e) => e.isRead === false);
-  const selectedEmail = unreadEmails.find((e) => String(e.uid) === String(selectedEmailUid));
+  const unreadEmails = emails.filter((e) => !e.isRead);
+  const selectedEmail = emails.find((e) => String(e.uid) === String(selectedEmailUid));
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const handleToggleSelect = (uid) => {
@@ -128,7 +128,11 @@ const Unread = ({ searchQuery }) => {
 
   const listComponent = (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {unreadEmails.length === 0 ? (
+      {loading ? (
+        <div className="flex flex-col items-center justify-center min-h-[50vh]">
+          <p className="text-sm font-medium animate-pulse" style={{ color: theme.subText }}>Loading unread emails...</p>
+        </div>
+      ) : unreadEmails.length === 0 ? (
         <div className="flex flex-col items-center justify-center min-h-[50vh]">
           <MdMailOutline className="text-5xl mb-4 text-gray-300 dark:text-gray-600 opacity-55" />
           <p className="text-base font-semibold" style={{ color: theme.text }}>No unread messages</p>

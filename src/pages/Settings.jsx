@@ -1162,9 +1162,10 @@ const Settings = () => {
                       <button
                         type="button"
                         onClick={() => setShowAddAccountModal(false)}
-                        className="text-gray-400 hover:text-gray-600 text-lg font-bold cursor-pointer"
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                        title="Close"
                       >
-                        Γ£ò
+                        <MdClose size={20} />
                       </button>
                     </div>
 
@@ -1248,15 +1249,16 @@ const Settings = () => {
                   >
                     <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: theme.border }}>
                       <div className="flex items-center gap-2">
-                        <span className="text-xl">≡ƒöÉ</span>
+                        <MdLock size={20} className="text-blue-500" />
                         <h3 className="text-base font-bold">OTP Verification</h3>
                       </div>
                       <button
                         type="button"
                         onClick={() => setShowOtpModal(false)}
-                        className="text-gray-400 hover:text-gray-600 text-lg font-bold cursor-pointer"
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                        title="Close"
                       >
-                        Γ£ò
+                        <MdClose size={20} />
                       </button>
                     </div>
 
@@ -2037,7 +2039,7 @@ const Settings = () => {
                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold text-white bg-green-500 uppercase tracking-wider">This device</span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500">{s.ipAddress} ΓÇö {device.browser}</p>
+                            <p className="text-sm text-gray-500">{s.ipAddress} — {device.browser}</p>
                             <p className="text-xs text-gray-400 mt-1">Logged in: {new Date(s.createdAt).toLocaleString()}</p>
                           </div>
                         </div>
@@ -2068,7 +2070,7 @@ const Settings = () => {
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <span className="text-base font-semibold" style={{ color: theme.text }}>{s.appName}</span>
-                          <p className="text-sm text-gray-500">{s.ipAddress} ΓÇö Basic Profile Access</p>
+                          <p className="text-sm text-gray-500">{s.ipAddress} — Basic Profile Access</p>
                           <p className="text-xs text-gray-400 mt-1">Authorized: {new Date(s.loggedInAt).toLocaleString()}</p>
                         </div>
                       </div>

@@ -50,6 +50,7 @@ export const MailProvider = ({ children }) => {
                 setTotalEmails(data.totalCount || 0);
                 const normalizedEmails = (data.emails || data || []).map(m => ({
                     ...m,
+                    isRead: m.isRead !== undefined ? Boolean(m.isRead) : (m.read !== undefined ? Boolean(m.read) : false),
                     starred: m.starred ?? m.isStarred ?? false
                 })).filter(m => m.folderName?.toLowerCase() !== 'trash');
 
@@ -92,6 +93,7 @@ export const MailProvider = ({ children }) => {
                 const data = res.data.data;
                 let normalizedEmails = (data.emails || []).map(m => ({
                     ...m,
+                    isRead: m.isRead !== undefined ? Boolean(m.isRead) : (m.read !== undefined ? Boolean(m.read) : false),
                     starred: m.starred ?? m.isStarred ?? false
                 }));
                 if (folderKey === 'starred') {
@@ -325,6 +327,7 @@ export const MailProvider = ({ children }) => {
                 const data = res.data.data;
                 let normalizedEmails = (data.emails || []).map(m => ({
                     ...m,
+                    isRead: m.isRead !== undefined ? Boolean(m.isRead) : (m.read !== undefined ? Boolean(m.read) : false),
                     starred: m.starred ?? m.isStarred ?? false
                 }));
                 if (folder === 'starred') {
@@ -430,6 +433,7 @@ export const MailProvider = ({ children }) => {
                                     const data = res.data.data;
                                     let normalized = (data.emails || []).map(m => ({
                                         ...m,
+                                        isRead: m.isRead !== undefined ? Boolean(m.isRead) : (m.read !== undefined ? Boolean(m.read) : false),
                                         starred: m.starred ?? m.isStarred ?? false
                                     }));
 
@@ -558,6 +562,17 @@ export const MailProvider = ({ children }) => {
         try {
             await mailAPI.markUnread(uid);
             setEmails(prev => prev.map(m => String(m.uid) === String(uid) ? { ...m, isRead: false } : m));
+            setUnreadCounts(counts => ({
+                ...counts,
+                inbox: (counts.inbox || 0) + 1
+            }));
+            invalidateCache('unread');
+            if (currentFolderRef.current) {
+                invalidateCache(currentFolderRef.current);
+            }
+            if (currentFolderRef.current?.toLowerCase() === 'unread') {
+                fetchEmails('unread', true);
+            }
         } catch (error) {
             console.error('Mark unread failed:', error);
         }

@@ -127,7 +127,7 @@ const EmailDetails = ({
   const { theme, readingPaneMode } = useTheme();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const { labels, handleRemoveLabel, handleCreateLabel, fetchEmails, currentFolder } = useMail();
+  const { labels, handleRemoveLabel, handleCreateLabel, fetchEmails, currentFolder, handleMarkUnread } = useMail();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const normalizeEmail = (addr) => {
@@ -916,7 +916,7 @@ const EmailDetails = ({
     >
       {/* HEADER ACTION TOOLBAR */}
       <div
-        className="flex items-center justify-between px-4 sm:px-6 py-2 border-b shrink-0"
+        className="flex items-center justify-between px-2 sm:px-6 py-2 border-b shrink-0 flex-wrap gap-1 sm:gap-2 overflow-x-auto hidden-scrollbar"
         style={{ borderColor: theme.border }}
       >
         <div className="flex items-center gap-2">
@@ -1193,9 +1193,8 @@ const EmailDetails = ({
                 <button
                   onClick={async () => {
                     try {
-                      if (mailAPI.toggleRead) {
-                        await mailAPI.toggleRead(email.uid, false);
-                        if (fetchEmails) fetchEmails(currentFolder || "inbox");
+                      if (handleMarkUnread) {
+                        await handleMarkUnread(email.uid);
                       }
                       toast.success("Marked as unread");
                       handleClose();
@@ -1270,7 +1269,7 @@ const EmailDetails = ({
       </div>
 
       {/* CONTENT AREA */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 bg-transparent">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 bg-transparent">
         {/* SUBJECT */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <h1
@@ -1350,7 +1349,7 @@ const EmailDetails = ({
                     </div>
 
                     {/* BODY */}
-                    <div className="max-w-none prose prose-slate dark:prose-invert prose-p:leading-relaxed text-[15px] leading-relaxed pt-4">
+                    <div className="max-w-none prose prose-slate dark:prose-invert prose-p:leading-relaxed text-[14px] sm:text-[15px] leading-relaxed pt-4 overflow-x-auto break-words [&_img]:max-w-full [&_img]:h-auto">
                       {m.htmlBody || (m.isHtml && m.body) || (m.body && (
                         m.body.trim().startsWith('<!DOCTYPE html') ||
                         m.body.trim().startsWith('<html') ||
@@ -1487,7 +1486,7 @@ const EmailDetails = ({
             </div>
 
             {/* BODY */}
-            <div className="max-w-none prose prose-slate dark:prose-invert prose-p:leading-relaxed text-[15px] leading-relaxed">
+            <div className="max-w-none prose prose-slate dark:prose-invert prose-p:leading-relaxed text-[14px] sm:text-[15px] leading-relaxed overflow-x-auto break-words [&_img]:max-w-full [&_img]:h-auto">
               {email.htmlBody || (email.isHtml && email.body) || (email.body && (
                 email.body.trim().startsWith('<!DOCTYPE html') ||
                 email.body.trim().startsWith('<html') ||

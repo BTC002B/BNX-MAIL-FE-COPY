@@ -252,7 +252,7 @@ const EmailList = ({
                 <div
                   key={`${email.uid}__${email.folderName || ''}`}
                   onClick={() => onSelectEmail(email)}
-                  className={`group flex items-center gap-3 py-2.5 px-4 cursor-pointer relative transition-colors duration-150 select-none ${snoozeOpenUid === email.uid ? 'z-50' : 'z-10'}
+                  className={`group flex items-center gap-1.5 sm:gap-3 py-2 sm:py-2.5 px-2 sm:px-4 cursor-pointer relative transition-colors duration-150 select-none ${snoozeOpenUid === email.uid ? 'z-50' : 'z-10'}
                     ${isSelected
                       ? "bg-primary/5 dark:bg-primary/10 border-l-[3px] border-primary"
                       : isUnread
@@ -285,17 +285,17 @@ const EmailList = ({
                       title={email.starred ? "Unstar" : "Star"}
                     >
                       {email.starred ? (
-                        <MdStar size={20} className="text-yellow-500 fill-current" />
+                        <MdStar size={18} className="text-yellow-500 fill-current" />
                       ) : (
-                        <MdStarBorder size={20} className="text-gray-400 dark:text-gray-500" />
+                        <MdStarBorder size={18} className="text-gray-400 dark:text-gray-500" />
                       )}
                     </button>
                   </div>
 
                   {/* Sender Name */}
-                  <div className="w-36 sm:w-44 md:w-48 shrink-0 truncate pr-2">
+                  <div className="w-24 sm:w-36 md:w-48 shrink-0 truncate pr-1 sm:pr-2">
                     <span
-                      className={`text-sm ${isUnread
+                      className={`text-xs sm:text-sm ${isUnread
                         ? "font-bold text-gray-900 dark:text-gray-100"
                         : "font-medium text-gray-600 dark:text-gray-300"
                         }`}
@@ -316,21 +316,21 @@ const EmailList = ({
                   </div>
 
                   {/* Subject & Snippet */}
-                  <div className="flex-1 min-w-0 flex items-baseline gap-2 truncate pr-4">
+                  <div className="flex-1 min-w-0 flex items-baseline gap-1 sm:gap-2 truncate pr-1 sm:pr-4">
                     {email.accountEmail && (
-                      <span className="shrink-0 text-[9px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/30 px-1.5 py-0.5 rounded-md select-none" title={`Account: ${email.accountEmail}`}>
+                      <span className="shrink-0 text-[9px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/30 px-1.5 py-0.5 rounded-md select-none hidden md:inline" title={`Account: ${email.accountEmail}`}>
                         {email.accountEmail.split('@')[0].toUpperCase()}
                       </span>
                     )}
                     <span
-                      className={`text-sm truncate ${isUnread
+                      className={`text-xs sm:text-sm truncate ${isUnread
                         ? "font-bold text-gray-900 dark:text-gray-100"
                         : "font-medium text-gray-800 dark:text-gray-200"
                         }`}
                     >
                       {email.subject || "(No Subject)"}
                     </span>
-                    <span className="text-sm text-gray-400 dark:text-gray-500 truncate font-normal">
+                    <span className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 truncate font-normal hidden sm:inline">
                       — {(() => {
                         if (email.textPlain && email.textPlain.trim().length > 0) {
                           return email.textPlain.replace(/\s+/g, " ");
@@ -364,7 +364,7 @@ const EmailList = ({
                   )}
 
                   {/* Date / Hover Actions */}
-                  <div className={`w-16 sm:w-20 shrink-0 text-right relative flex justify-end items-center h-full ${snoozeOpenUid === email.uid ? 'z-50' : 'z-10'}`}>
+                  <div className={`w-14 sm:w-20 shrink-0 text-right relative flex justify-end items-center h-full ${snoozeOpenUid === email.uid ? 'z-50' : 'z-10'}`}>
                     <span
                       className={`text-xs whitespace-nowrap transition-opacity duration-100 group-hover:opacity-0 ${isUnread ? "font-bold text-primary" : "text-gray-400 dark:text-gray-500"
                         }`}

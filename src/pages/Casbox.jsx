@@ -5,7 +5,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { useMail } from "../context/MailContext";
-import { casboxAPI, api, userAPI } from "../services/api";
+import { casboxAPI, api, userAPI, mailAPI } from "../services/api";
 import { MdCheck, MdDoneAll, MdStarBorder, MdStar, MdDeleteOutline, MdRefresh, MdSend, MdClose, MdRemoveRedEye, MdFileDownload, MdReply, MdBlock, MdArrowBack, MdArchive, MdAccessTime, MdLabel, MdDelete, MdMoreVert, MdInsertEmoticon } from "react-icons/md";
 import toast from "react-hot-toast";
 import ReadingPaneLayout from "../components/ReadingPaneLayout";
@@ -83,7 +83,7 @@ const Casbox = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { stompClient, isConnected } = useSocket();
-  const { openCompose, emails } = useMail();
+  const { openCompose, emails, handleArchive, handleSnooze, handleMoveToTrash, handleToggleStar } = useMail();
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -249,11 +249,104 @@ const Casbox = () => {
         : selectedMessage.senderEmail;
       selectedContactRef.current = otherEmail;
       fetchThread(otherEmail);
+      setIsChatStarred(Boolean(selectedMessage.starred || selectedMessage.isStarred));
     } else {
       selectedContactRef.current = null;
       setThreadMessages([]);
+      setIsChatStarred(false);
     }
   }, [selectedMessage, user?.email]);
+
+  const handleArchiveChat = async () => {
+    if (!selectedMessage) return;
+    const targetId = selectedMessage.uid || selectedMessage.id;
+    const otherEmail = selectedMessage.senderEmail === user?.email
+      ? selectedMessage.receiverEmail
+      : selectedMessage.senderEmail;
+
+    try {
+      if (mailAPI.archive) {
+        await mailAPI.archive(targetId, 'casbox');
+      } else if (handleArchive) {
+        await handleArchive(targetId, 'casbox', true);
+      }
+      toast.success("Chat archived");
+      setMessages(prev => prev.filter(m => (m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail) !== otherEmail));
+      setSelectedMessage(null);
+      fetchMessages(true);
+    } catch (err) {
+      console.error("Failed to archive chat", err);
+      toast.error("Failed to archive chat");
+    }
+  };
+
+  const handleSnoozeChat = async (wakeUpDate) => {
+    if (!selectedMessage) return;
+    const targetId = selectedMessage.uid || selectedMessage.id;
+    const otherEmail = selectedMessage.senderEmail === user?.email
+      ? selectedMessage.receiverEmail
+      : selectedMessage.senderEmail;
+
+    const wakeUpAt = wakeUpDate || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    try {
+      if (mailAPI.snooze) {
+        await mailAPI.snooze(targetId, wakeUpAt, 'casbox');
+      } else if (handleSnooze) {
+        await handleSnooze(targetId, wakeUpAt, 'casbox', true);
+      }
+      toast.success("Chat snoozed");
+      setMessages(prev => prev.filter(m => (m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail) !== otherEmail));
+      setSelectedMessage(null);
+      fetchMessages(true);
+    } catch (err) {
+      console.error("Failed to snooze chat", err);
+      toast.error("Failed to snooze chat");
+    }
+  };
+
+  const handleDeleteChat = async () => {
+    if (!selectedMessage) return;
+    const targetId = selectedMessage.uid || selectedMessage.id;
+    const otherEmail = selectedMessage.senderEmail === user?.email
+      ? selectedMessage.receiverEmail
+      : selectedMessage.senderEmail;
+
+    try {
+      if (mailAPI.trash) {
+        await mailAPI.trash(targetId, 'casbox');
+      } else if (handleMoveToTrash) {
+        await handleMoveToTrash(targetId, 'casbox', true);
+      }
+      toast.success("Chat deleted");
+      setMessages(prev => prev.filter(m => (m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail) !== otherEmail));
+      setSelectedMessage(null);
+      fetchMessages(true);
+    } catch (err) {
+      console.error("Failed to delete chat", err);
+      toast.error("Failed to delete chat");
+    }
+  };
+
+  const handleToggleStarChat = async () => {
+    if (!selectedMessage) return;
+    const targetId = selectedMessage.uid || selectedMessage.id;
+    const newStarred = !isChatStarred;
+
+    try {
+      if (mailAPI.toggleStar) {
+        await mailAPI.toggleStar(targetId, 'casbox');
+      } else if (handleToggleStar) {
+        await handleToggleStar(targetId, 'casbox');
+      }
+      setIsChatStarred(newStarred);
+      setSelectedMessage(prev => prev ? { ...prev, starred: newStarred, isStarred: newStarred } : null);
+      setMessages(prev => prev.map(m => (m.id === targetId || m.uid === targetId) ? { ...m, starred: newStarred, isStarred: newStarred } : m));
+    } catch (err) {
+      console.error("Failed to toggle star chat", err);
+      toast.error("Failed to update star");
+    }
+  };
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -766,18 +859,21 @@ const Casbox = () => {
             </button>
             <div className="h-5 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1" />
             <button
+              onClick={handleArchiveChat}
               className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 cursor-pointer"
               title="Archive"
             >
               <MdArchive size={20} />
             </button>
             <button
+              onClick={() => handleSnoozeChat()}
               className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400 hover:text-blue-500 cursor-pointer"
               title="Snooze"
             >
               <MdAccessTime size={20} />
             </button>
             <button
+              onClick={handleDeleteChat}
               className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-gray-500 dark:text-gray-400 hover:text-red-500 cursor-pointer"
               title="Delete"
             >
@@ -798,7 +894,7 @@ const Casbox = () => {
                 <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
                   <button
                     onClick={() => {
-                      setIsChatStarred(prev => !prev);
+                      handleToggleStarChat();
                       setShowMoreMenu(false);
                     }}
                     className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-2"
@@ -827,7 +923,7 @@ const Casbox = () => {
               )}
             </div>
             <button
-              onClick={() => setIsChatStarred(!isChatStarred)}
+              onClick={handleToggleStarChat}
               className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
               title={isChatStarred ? "Starred" : "Star"}
               style={{ color: isChatStarred ? "#e3b341" : "rgb(107,114,128)" }}
@@ -883,7 +979,7 @@ const Casbox = () => {
               return (
                 <div key={msg.id || index} className="flex items-start gap-4 sm:gap-6 w-full py-1">
                   {/* Left Column: Contact Card */}
-                  <div className="w-28 sm:w-36 md:w-40 shrink-0 pt-0 select-none text-left">
+                  <div className="w-20 sm:w-36 md:w-40 shrink-0 pt-0 select-none text-left">
                     <div 
                       className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl border relative shadow-sm w-full bg-gray-50/50 dark:bg-[#1e1e1e]/40"
                       style={{
