@@ -1,10 +1,11 @@
-import { useTranslation } from "../context/LanguageContext";
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from "../context/LanguageContext";
 import { mailAPI } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import { MdCloudQueue } from 'react-icons/md';
 
 const StorageWidget = ({ isDesktopOpen }) => {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const [storageData, setStorageData] = useState({
     used: 0,
@@ -37,7 +38,6 @@ const StorageWidget = ({ isDesktopOpen }) => {
   }, []);
 
   const formatSize = (bytes) => {
-  const { t } = useTranslation();
     if (bytes === 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -46,6 +46,11 @@ const StorageWidget = ({ isDesktopOpen }) => {
   };
 
   if (loading) return null;
+
+  const usedText = t('storage.of_used', '{limit} of {used} used')
+    .replace('{limit}', '1 GB')
+    .replace('{used}', formatSize(storageData.used))
+    .replace('of {limit} used', `of 1 GB ${t('storage.used_of', 'used')}`);
 
   return (
     <a 
@@ -65,11 +70,13 @@ const StorageWidget = ({ isDesktopOpen }) => {
         <div className="flex items-center gap-2">
           <MdCloudQueue size={20} className="text-blue-600 shrink-0" />
           <span className="text-[14px] font-bold text-gray-800 font-sans hide-on-collapse">
-            Storage
+            {t('storage.storage_widget_title', 'Storage')}
           </span>
         </div>
         <div className="text-[12px] text-gray-600 font-medium pl-0.5 hide-on-collapse">
-          {formatSize(storageData.used)} of 1 GB used
+          {t('storage.of_used', '{used} of {limit} used')
+            .replace('{limit}', '1 GB')
+            .replace('{used}', formatSize(storageData.used))}
         </div>
       </div>
 

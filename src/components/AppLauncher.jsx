@@ -8,6 +8,7 @@ import cliksLogo from "../assets/cliks.png";
 import cliksBusinessLogo from "../assets/cliks-business.png";
 
 const AppLauncher = ({ onClose, onToggleBitToolSidebar, onEdit }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('BASE');
   const [activeTopTab, setActiveTopTab] = useState('FAVORITES');
 
@@ -55,7 +56,6 @@ const AppLauncher = ({ onClose, onToggleBitToolSidebar, onEdit }) => {
     .filter(Boolean);
 
   const handleAppClick = (app) => {
-  const { t } = useTranslation();
     const appName = app.name;
     const updatedNames = [appName, ...recentNames.filter(name => name !== appName)].slice(0, 3);
     setRecentNames(updatedNames);

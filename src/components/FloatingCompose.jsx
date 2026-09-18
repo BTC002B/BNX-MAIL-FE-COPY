@@ -965,7 +965,7 @@ const FloatingCompose = () => {
             }}
           >
             <span className="font-semibold text-sm text-gray-800 dark:text-gray-100">
-              {composeMode === "casbox" ? "New Casbox Broadcast" : (composeData?.draft ? "Edit Draft" : "New Message")}
+              {composeMode === "casbox" ? t('casbox.new_broadcast', "New Casbox Broadcast") : (composeData?.draft ? t('compose.edit_draft', "Edit Draft") : t('compose.new_message', "New Message"))}
             </span>
             <div className="flex items-center gap-1">
               {!isMobile && (
@@ -1020,13 +1020,13 @@ const FloatingCompose = () => {
             {/* Cc & Bcc toggles */}
             {!isReply && composeMode === "email" && (
               <div className="flex px-4 py-2 border-b items-center text-sm dark:border-gray-800 shrink-0">
-                <div className="text-gray-400 dark:text-gray-500 w-10">To</div>
+                <div className="text-gray-400 dark:text-gray-500 w-10">{t('compose.to', 'To')}</div>
                 <input
                   type="text"
                   name="to"
                   autoFocus
                   className="flex-1 outline-none bg-transparent dark:text-gray-100 placeholder-gray-400"
-                  placeholder="Recipients"
+                  placeholder={t('compose.recipients', 'Recipients')}
                   value={formData.to}
                   onChange={handleChange}
                 />
@@ -1090,14 +1090,14 @@ const FloatingCompose = () => {
               {/* SUBJECT */}
               {!isReply && (
                 <div className="flex items-center gap-2 border-b py-1.5 shrink-0" style={{ borderColor: theme.border }}>
-                  <span className="text-xs font-semibold w-10 text-gray-500">Subject:</span>
+                  <span className="text-xs font-semibold w-10 text-gray-500">{t('compose.subject', 'Subject')}:</span>
                   <input
                     name="subject"
                     value={formData.subject}
                     onChange={handleChange}
                     className="flex-1 bg-transparent text-sm outline-none border-none"
                     style={{ color: theme.text }}
-                    placeholder="Enter subject..."
+                    placeholder={t('compose.subject_placeholder', 'Enter subject...')}
                     spellCheck="false"
                   />
                 </div>
@@ -1159,7 +1159,7 @@ const FloatingCompose = () => {
                       disabled={sending || uploading}
                       className="px-5 py-2 text-white text-xs font-bold disabled:opacity-60 cursor-pointer border-r border-white/20"
                     >
-                      {sending ? "Sending…" : "Send"}
+                      {sending ? t('compose.sending', 'Sending...') : t('compose.send_email', 'Send')}
                     </button>
                     {composeMode === "email" && (
                       <button
@@ -1370,7 +1370,7 @@ const FloatingCompose = () => {
                       className="flex items-center gap-1.5 px-4 py-2 rounded-l-full text-white text-xs font-semibold disabled:opacity-60 cursor-pointer border-r border-white/20"
                       style={{ background: `linear-gradient(135deg, ${theme.accent || '#135bec'} 0%, #3b82f6 100%)` }}
                     >
-                      {sending ? "Sending…" : "Send"}
+                      {sending ? t('compose.sending', 'Sending...') : t('compose.send_email', 'Send')}
                       {!sending && <MdSend size={14} />}
                     </button>
                     {composeMode === "email" && (
@@ -1498,7 +1498,7 @@ const FloatingCompose = () => {
                         title="Insert Signature"
                       >
                         <MdEditDocument size={16} />
-                        <span className="hidden sm:inline">Signature</span>
+                        <span className="hidden sm:inline">{t('settings.signature_label', 'Signature')}</span>
                       </button>
 
                       {showSignaturesMenu && (
@@ -1555,7 +1555,7 @@ const FloatingCompose = () => {
                         title="Insert Template"
                       >
                         <MdAssignment size={16} />
-                        <span className="hidden sm:inline">Templates</span>
+                        <span className="hidden sm:inline">{t('sidebar.templates', 'Templates')}</span>
                       </button>
 
                       {showTemplates && (
@@ -1606,7 +1606,7 @@ const FloatingCompose = () => {
                   className="flex items-center gap-1 px-3 py-1.5 rounded-full text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs font-semibold transition-colors cursor-pointer"
                 >
                   <MdDeleteOutline size={18} />
-                  <span className="hidden sm:inline">Discard</span>
+                  <span className="hidden sm:inline">{t('compose.discard', 'Discard')}</span>
                 </button>
               </div>
             )}

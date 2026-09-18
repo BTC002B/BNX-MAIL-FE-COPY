@@ -915,6 +915,44 @@ const Settings = () => {
     });
   };
 
+  const getSidebarItemLabel = (name) => {
+    if (!name) return "";
+    const lower = name.toLowerCase().trim();
+    const map = {
+      "inbox": t("sidebar.inbox", "Inbox"),
+      "all inbox": t("sidebar.all_inbox", "All Inbox"),
+      "analytics": t("sidebar.analytics", "Analytics"),
+      "starred": t("sidebar.starred", "Starred"),
+      "sent": t("sidebar.sent", "Sent"),
+      "draft": t("sidebar.draft", "Draft"),
+      "drafts": t("sidebar.drafts", "Drafts"),
+      "snoozed": t("sidebar.snoozed", "Snoozed"),
+      "scheduled": t("sidebar.scheduled", "Scheduled"),
+      "archive": t("sidebar.archive", "Archive"),
+      "spam": t("sidebar.spam", "Spam"),
+      "trash": t("sidebar.trash", "Trash"),
+      "unread": t("sidebar.unread", "Unread"),
+      "all mail": t("sidebar.all_mail", "All Mail"),
+      "templates": t("sidebar.templates", "Templates"),
+      "colab": t("sidebar.colab", "Colab"),
+      "chat": t("sidebar.chat", "Chat"),
+      "mail backup": t("sidebar.mail_backup", "Mail Backup"),
+      "groups": t("sidebar.groups", "Groups"),
+      "chat room": t("sidebar.chat_room", "Chat Room"),
+      "casbox": t("sidebar.casbox", "Casbox"),
+      "my vault": t("sidebar.my_vault", "My Vault"),
+      "vault": t("sidebar.vault", "Vault"),
+      "storage management": t("sidebar.storage_management", "Storage Management"),
+      "subscriptions": t("sidebar.subscriptions", "Subscriptions"),
+      "notification": t("sidebar.notification", "Notifications"),
+      "notifyhub": t("sidebar.notify_hub", "NotifyHub"),
+      "settings": t("sidebar.settings", "Settings"),
+      "help & support": t("sidebar.support", "Help & Support"),
+      "support": t("sidebar.support", "Support")
+    };
+    return map[lower] || name;
+  };
+
   const tabs = [
     { id: "accounts", label: t("settings.accounts_mailboxes", "Accounts & Mailboxes"), icon: <MdEmail size={20} /> },
     { id: "composing", label: t("settings.general_composing", "General & Composing"), icon: <MdSettings size={20} /> },
@@ -960,16 +998,16 @@ const Settings = () => {
           {activeTab === "accounts" && (
             <div className="flex flex-col gap-5 md:gap-6">
               {/* Accounts & Mailboxes switching + Add/Manage Other Accounts */}
-              <Section title="Email Accounts & Switching" theme={theme}>
+              <Section title={t("settings.email_accounts_switching", "Email Accounts & Switching")} theme={theme}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                  <p className="text-sm text-gray-500">Manage and switch between linked email accounts in your current session.</p>
+                  <p className="text-sm text-gray-500">{t("settings.manage_linked_accounts", "Manage and switch between linked email accounts in your current session.")}</p>
                   <button
                     type="button"
                     onClick={() => setShowAddAccountModal(true)}
                     className="px-4 py-2 text-xs font-semibold rounded-xl text-white cursor-pointer hover:opacity-90 transition-opacity shrink-0"
                     style={{ background: theme.accent }}
                   >
-                    + Add Other Account
+                    {t("settings.add_other_account", "+ Add Other Account")}
                   </button>
                 </div>
 
@@ -988,53 +1026,53 @@ const Settings = () => {
                           </div>
                           <div className="flex flex-col">
                             <span className="text-sm font-semibold" style={{ color: theme.text }}>{session.email}</span>
-                            <span className="text-[11px] text-gray-400">BNX Mail Account</span>
+                            <span className="text-[11px] text-gray-400">{t("settings.bnx_account", "BNX Mail Account")}</span>
                           </div>
                         </div>
                         {user?.email === session.email ? (
-                          <span className="px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">Active</span>
+                          <span className="px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">{t("settings.active", "Active")}</span>
                         ) : (
-                          <span className="text-xs text-gray-400 font-medium hover:text-gray-600 transition-colors">Switch Account</span>
+                          <span className="text-xs text-gray-400 font-medium hover:text-gray-600 transition-colors">{t("settings.switch_account", "Switch Account")}</span>
                         )}
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-gray-400 italic">No linked sessions found.</p>
+                    <p className="text-sm text-gray-400 italic">{t("settings.no_linked_sessions", "No linked sessions found.")}</p>
                   )}
                 </div>
               </Section>
 
               {/* 1. Account Information */}
-              <Section title="Account Information" theme={theme}>
+              <Section title={t("settings.account_info", "Account Information")} theme={theme}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
                   <div className="flex flex-col gap-1 p-4 rounded-xl border" style={{ borderColor: theme.border }}>
-                    <span className="text-xs font-semibold text-gray-400 uppercase">Full Name / Username</span>
-                    <span className="text-sm font-semibold truncate" style={{ color: theme.text }}>{user?.name || user?.username || (user?.email ? user.email.split('@')[0] : "Not specified")}</span>
+                    <span className="text-xs font-semibold text-gray-400 uppercase">{t("settings.full_name_username", "Full Name / Username")}</span>
+                    <span className="text-sm font-semibold truncate" style={{ color: theme.text }}>{user?.name || user?.username || (user?.email ? user.email.split('@')[0] : t("settings.not_specified", "Not specified"))}</span>
                   </div>
                   <div className="flex flex-col gap-1 p-4 rounded-xl border" style={{ borderColor: theme.border }}>
-                    <span className="text-xs font-semibold text-gray-400 uppercase">Primary Email</span>
-                    <span className="text-sm font-semibold truncate" style={{ color: theme.text }}>{user?.email || "Not available"}</span>
+                    <span className="text-xs font-semibold text-gray-400 uppercase">{t("settings.primary_email", "Primary Email")}</span>
+                    <span className="text-sm font-semibold truncate" style={{ color: theme.text }}>{user?.email || t("settings.not_available", "Not available")}</span>
                   </div>
                   <div className="flex flex-col gap-1 p-4 rounded-xl border" style={{ borderColor: theme.border }}>
-                    <span className="text-xs font-semibold text-gray-400 uppercase">Account Role</span>
-                    <span className="text-sm font-semibold" style={{ color: theme.text }}>{user?.role || "Standard User"}</span>
+                    <span className="text-xs font-semibold text-gray-400 uppercase">{t("settings.account_role", "Account Role")}</span>
+                    <span className="text-sm font-semibold" style={{ color: theme.text }}>{user?.role || t("settings.standard_user", "Standard User")}</span>
                   </div>
                   <div className="flex flex-col gap-1 p-4 rounded-xl border" style={{ borderColor: theme.border }}>
-                    <span className="text-xs font-semibold text-gray-400 uppercase">Account Status</span>
-                    <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Active & Verified ✓</span>
+                    <span className="text-xs font-semibold text-gray-400 uppercase">{t("settings.account_status", "Account Status")}</span>
+                    <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{t("settings.active_verified", "Active & Verified ✓")}</span>
                   </div>
                 </div>
               </Section>
 
 
               {/* 3, 4, 5. Password Recovery, Recovery Email & Phone */}
-              <Section title="Password Recovery & Backup Contacts" theme={theme}>
+              <Section title={t("settings.password_recovery_contacts", "Password Recovery & Backup Contacts")} theme={theme}>
                 <form
                   onSubmit={handleStartOtpVerification}
                   className="flex flex-col gap-5 w-full"
                 >
                   <ToggleRow
-                    label="Enable Password Recovery via Backup Email & Phone"
+                    label={t("settings.enable_recovery_methods", "Enable Password Recovery via Backup Email & Phone")}
                     checked={securityToggles.recoveryMethodsEnabled}
                     onChange={(val) => setSecurityToggles({ ...securityToggles, recoveryMethodsEnabled: val })}
                     theme={theme}
@@ -1044,14 +1082,14 @@ const Settings = () => {
                     {/* 4. Recovery Email */}
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">Recovery Email Address</label>
+                        <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">{t("settings.recovery_email_address", "Recovery Email Address")}</label>
                         {isRecoveryEmailVerified ? (
                           <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                            Recovery Email Verified ✓
+                            {t("settings.recovery_email_verified", "Recovery Email Verified ✓")}
                           </span>
                         ) : (
                           <span className="px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                            Unverified
+                            {t("settings.unverified", "Unverified")}
                           </span>
                         )}
                       </div>
@@ -1071,14 +1109,14 @@ const Settings = () => {
                     {/* 5. Recovery Phone Number */}
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">Recovery Phone Number</label>
+                        <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">{t("settings.recovery_phone_number", "Recovery Phone Number")}</label>
                         {isRecoveryPhoneVerified ? (
                           <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                            Recovery Phone Verified ✓
+                            {t("settings.recovery_phone_verified", "Recovery Phone Verified ✓")}
                           </span>
                         ) : (
                           <span className="px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                            Unverified
+                            {t("settings.unverified", "Unverified")}
                           </span>
                         )}
                       </div>
@@ -1086,7 +1124,7 @@ const Settings = () => {
                         type="text"
                         inputMode="numeric"
                         maxLength={10}
-                        placeholder="10-digit mobile number"
+                        placeholder={t("settings.enter_phone", "10-digit mobile number")}
                         value={recoveryInfo.phoneNumber || ""}
                         onChange={e => {
                           const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -1104,46 +1142,46 @@ const Settings = () => {
                     className="w-fit px-5 py-2.5 rounded-xl text-xs font-bold text-white cursor-pointer hover:opacity-90 transition-opacity"
                     style={{ background: theme.accent }}
                   >
-                    Save Recovery Details
+                    {t("settings.save_security_preferences", "Save Recovery Details")}
                   </button>
                 </form>
               </Section>
 
               {/* 6. Account Security & 7. Login & Security */}
-              <Section title="Account & Login Security" theme={theme}>
+              <Section title={t("settings.manage_security_credentials", "Account & Login Security")} theme={theme}>
                 <div className="flex flex-col gap-4 w-full">
                   <ToggleRow
-                    label="Send Security Alerts on New Logins"
+                    label={t("settings.login_alerts", "Send Security Alerts on New Logins")}
                     checked={securityToggles.loginAlerts}
                     onChange={(val) => setSecurityToggles({ ...securityToggles, loginAlerts: val })}
                     theme={theme}
                   />
                   <ToggleRow
-                    label="Require Password Re-authentication for Sensitive Actions"
+                    label={t("settings.reauth_sensitive", "Require Password Re-authentication for Sensitive Actions")}
                     checked={securityToggles.reAuthSensitive}
                     onChange={(val) => setSecurityToggles({ ...securityToggles, reAuthSensitive: val })}
                     theme={theme}
                   />
                   <ToggleRow
-                    label="Log Login IP & Location History"
+                    label={t("settings.location_history", "Log Login IP & Location History")}
                     checked={securityToggles.locationHistory}
                     onChange={(val) => setSecurityToggles({ ...securityToggles, locationHistory: val })}
                     theme={theme}
                   />
 
                   <div className="flex flex-col gap-1.5 border-t pt-4" style={{ borderColor: theme.border }}>
-                    <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">Auto Sign-Out Idle Session Timeout</label>
+                    <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">{t("settings.idle_timeout", "Auto Sign-Out Idle Session Timeout")}</label>
                     <select
                       value={securityToggles.idleTimeout}
                       onChange={e => setSecurityToggles({ ...securityToggles, idleTimeout: e.target.value })}
                       className="p-3 text-sm rounded-xl border outline-none cursor-pointer focus:ring-2 focus:border-transparent transition-all"
                       style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
                     >
-                      <option value="never">Never</option>
-                      <option value="15_mins">15 minutes</option>
-                      <option value="30_mins">30 minutes</option>
-                      <option value="1_hour">1 hour</option>
-                      <option value="4_hours">4 hours</option>
+                      <option value="never">{t("settings.timeout_never", "Never")}</option>
+                      <option value="15_mins">{t("settings.timeout_15m", "15 minutes")}</option>
+                      <option value="30_mins">{t("settings.timeout_30m", "30 minutes")}</option>
+                      <option value="1_hour">{t("settings.timeout_1h", "1 hour")}</option>
+                      <option value="4_hours">{t("settings.timeout_4h", "4 hours")}</option>
                     </select>
                   </div>
                 </div>
@@ -1158,12 +1196,12 @@ const Settings = () => {
                     style={{ background: theme.cardBg, borderColor: theme.border, color: theme.text }}
                   >
                     <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: theme.border }}>
-                      <h3 className="text-base font-bold">Add Other Email Account</h3>
+                      <h3 className="text-base font-bold">{t("settings.add_other_email_account", "Add Other Email Account")}</h3>
                       <button
                         type="button"
                         onClick={() => setShowAddAccountModal(false)}
                         className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                        title="Close"
+                        title={t("common.close", "Close")}
                       >
                         <MdClose size={20} />
                       </button>
@@ -1183,7 +1221,7 @@ const Settings = () => {
                       className="flex flex-col gap-4"
                     >
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-gray-500">Email Address</label>
+                        <label className="text-xs font-semibold text-gray-500">{t("settings.email_address", "Email Address")}</label>
                         <input
                           type="email"
                           placeholder="user@example.com"
@@ -1194,7 +1232,7 @@ const Settings = () => {
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-gray-500">Account Display Name</label>
+                        <label className="text-xs font-semibold text-gray-500">{t("settings.account_display_name", "Account Display Name")}</label>
                         <input
                           type="text"
                           placeholder="Work / Personal Email"
@@ -1205,7 +1243,7 @@ const Settings = () => {
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-gray-500">Account Protocol</label>
+                        <label className="text-xs font-semibold text-gray-500">{t("settings.account_protocol", "Account Protocol")}</label>
                         <select
                           value={newAccountInput.provider}
                           onChange={e => setNewAccountInput({ ...newAccountInput, provider: e.target.value })}
@@ -1225,14 +1263,14 @@ const Settings = () => {
                           className="px-4 py-2 text-xs font-semibold rounded-xl border hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
                           style={{ borderColor: theme.border }}
                         >
-                          Cancel
+                          {t("common.cancel", "Cancel")}
                         </button>
                         <button
                           type="submit"
                           className="px-5 py-2 text-xs font-bold rounded-xl text-white cursor-pointer hover:opacity-90 transition-opacity"
                           style={{ background: theme.accent }}
                         >
-                          Add Account
+                          {t("settings.add_account_btn", "Add Account")}
                         </button>
                       </div>
                     </form>
@@ -1250,13 +1288,13 @@ const Settings = () => {
                     <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: theme.border }}>
                       <div className="flex items-center gap-2">
                         <MdLock size={20} className="text-blue-500" />
-                        <h3 className="text-base font-bold">OTP Verification</h3>
+                        <h3 className="text-base font-bold">{t("settings.otp_verification", "OTP Verification")}</h3>
                       </div>
                       <button
                         type="button"
                         onClick={() => setShowOtpModal(false)}
                         className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                        title="Close"
+                        title={t("common.close", "Close")}
                       >
                         <MdClose size={20} />
                       </button>
@@ -1264,7 +1302,7 @@ const Settings = () => {
 
                     <div className="flex flex-col gap-2">
                       <p className="text-xs text-gray-500">
-                        Enter the 6-digit verification code sent to{" "}
+                        {t("settings.otp_sent_to", "Enter the 6-digit verification code sent to")}{" "}
                         <span className="font-bold" style={{ color: theme.text }}>
                           {getMaskedContact(
                             otpTarget === "email" ? recoveryInfo.recoveryEmail : recoveryInfo.phoneNumber,
@@ -1298,7 +1336,7 @@ const Settings = () => {
                           className="w-full py-3 rounded-xl text-xs font-bold text-white cursor-pointer hover:opacity-90 transition-opacity shadow-sm"
                           style={{ background: theme.accent }}
                         >
-                          Verify OTP
+                          {t("settings.verify_code", "Verify OTP")}
                         </button>
 
                         <div className="flex items-center justify-between text-xs pt-1">
@@ -1312,7 +1350,7 @@ const Settings = () => {
                                 : "text-blue-600 hover:text-blue-700 dark:text-blue-400"
                             }`}
                           >
-                            {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP"}
+                            {resendTimer > 0 ? `${t("settings.resend_code_in", "Resend code in")} ${resendTimer}s` : t("settings.resend_code", "Resend OTP")}
                           </button>
 
                           <button
@@ -1320,7 +1358,7 @@ const Settings = () => {
                             onClick={() => setShowOtpModal(false)}
                             className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-medium cursor-pointer"
                           >
-                            Change Contact Details
+                            {t("settings.change_contact", "Change Contact Details")}
                           </button>
                         </div>
                       </div>
@@ -1341,7 +1379,11 @@ const Settings = () => {
                   <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t("settings.display_language", "Display Language")}</label>
                   <select
                     value={language}
-                    onChange={e => setLanguage(e.target.value)}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setLanguage(val);
+                      applyLanguage(val);
+                    }}
                     className="w-full p-3 text-sm rounded-xl border outline-none cursor-pointer focus:ring-2 focus:border-transparent transition-all"
                     style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
                   >
@@ -1541,12 +1583,12 @@ const Settings = () => {
 
           {/* Labels Tab */}
           {activeTab === "labels" && (
-            <Section title="Sidebar Labels" theme={theme}>
-              <p className="text-sm text-gray-500 mb-6">Choose which labels are visible in the main sidebar.</p>
+            <Section title={t("settings.labels_sidebar", "Sidebar Labels")} theme={theme}>
+              <p className="text-sm text-gray-500 mb-6">{t("settings.folder_label_desc", "Choose which labels are visible in the main sidebar.")}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
                 {Object.keys(sidebarPreferences || {}).map((itemName) => (
                   <div key={itemName} className="flex items-center justify-between p-4 rounded-xl border bg-white dark:bg-transparent" style={{ borderColor: theme.border }}>
-                    <span className="font-medium text-sm" style={{ color: theme.text }}>{itemName}</span>
+                    <span className="font-medium text-sm" style={{ color: theme.text }}>{getSidebarItemLabel(itemName)}</span>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
@@ -1569,32 +1611,32 @@ const Settings = () => {
 
           {/* notifications Tab */}
           {activeTab === "notifications" && (
-            <Section title="Notification Preferences & Quiet Hours" theme={theme}>
+            <Section title={t("settings.notification_prefs", "Notification Preferences & Quiet Hours")} theme={theme}>
               <form onSubmit={handleSaveNotificationSettings} className="flex flex-col gap-8 w-full">
                 {/* Notifications triggers */}
                 <div className="flex flex-col gap-4">
-                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Folders & Subscriptions</h4>
-                  <ToggleRow label="Inbox Mail Alerts" checked={inboxNotifications} onChange={setInboxNotifications} theme={theme} />
-                  <ToggleRow label="Sent Confirmation Alerts" checked={sentNotifications} onChange={setSentNotifications} theme={theme} />
-                  <ToggleRow label="Starred Emails Alerts" checked={starredNotifications} onChange={setStarredNotifications} theme={theme} />
-                  <ToggleRow label="Snoozed Reminders" checked={snoozedNotifications} onChange={setSnoozedNotifications} theme={theme} />
+                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{t("settings.folders_subscriptions", "Folders & Subscriptions")}</h4>
+                  <ToggleRow label={t("settings.inbox_alerts", "Inbox Mail Alerts")} checked={inboxNotifications} onChange={setInboxNotifications} theme={theme} />
+                  <ToggleRow label={t("settings.sent_alerts", "Sent Confirmation Alerts")} checked={sentNotifications} onChange={setSentNotifications} theme={theme} />
+                  <ToggleRow label={t("settings.starred_alerts", "Starred Email Alerts")} checked={starredNotifications} onChange={setStarredNotifications} theme={theme} />
+                  <ToggleRow label={t("settings.snoozed_alerts", "Snoozed Email Alerts")} checked={snoozedNotifications} onChange={setSnoozedNotifications} theme={theme} />
                 </div>
 
                 <div className="flex flex-col gap-4 border-t pt-6" style={{ borderColor: theme.border }}>
-                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Vibration & Sounds</h4>
-                  <ToggleRow label="Play Alert Sound" checked={soundEnabled} onChange={setSoundEnabled} theme={theme} />
-                  <ToggleRow label="Enable Haptic Vibration" checked={vibrationEnabled} onChange={setVibrationEnabled} theme={theme} />
+                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{t("settings.auditory_vibration_feedback", "Vibration & Sounds")}</h4>
+                  <ToggleRow label={t("settings.play_sound", "Play Alert Sound")} checked={soundEnabled} onChange={setSoundEnabled} theme={theme} />
+                  <ToggleRow label={t("settings.vibrate", "Enable Haptic Vibration")} checked={vibrationEnabled} onChange={setVibrationEnabled} theme={theme} />
                 </div>
 
                 {/* Quiet Hours */}
                 <div className="flex flex-col gap-4 border-t pt-6" style={{ borderColor: theme.border }}>
-                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Quiet Hours Schedule</h4>
-                  <ToggleRow label="Mute Notifications Schedule" checked={quietHoursEnabled} onChange={setQuietHoursEnabled} theme={theme} />
+                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{t("settings.quiet_hours_schedule", "Quiet Hours Schedule")}</h4>
+                  <ToggleRow label={t("settings.quiet_hours_desc", "Mute Notifications Schedule")} checked={quietHoursEnabled} onChange={setQuietHoursEnabled} theme={theme} />
 
                   {quietHoursEnabled && (
                     <div className="flex items-center gap-4 mt-2 p-4 rounded-2xl animate-fadeIn" style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
                       <div className="flex-1 flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-gray-500">Quiet Starts At</label>
+                        <label className="text-xs font-semibold text-gray-500">{t("settings.quiet_hours_start", "Quiet Starts At")}</label>
                         <input
                           type="time"
                           value={quietHoursStart}
@@ -1604,7 +1646,7 @@ const Settings = () => {
                         />
                       </div>
                       <div className="flex-1 flex flex-col gap-2">
-                        <label className="text-xs font-semibold text-gray-500">Quiet Ends At</label>
+                        <label className="text-xs font-semibold text-gray-500">{t("settings.quiet_hours_end", "Quiet Ends At")}</label>
                         <input
                           type="time"
                           value={quietHoursEnd}
@@ -1622,7 +1664,7 @@ const Settings = () => {
                   className="w-fit mt-4 px-6 py-3 rounded-xl text-sm font-medium text-white cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm"
                   style={{ background: theme.accent }}
                 >
-                  Save Notification Settings
+                  {t("settings.save_notification_settings", "Save Notification Settings")}
                 </button>
               </form>
             </Section>
@@ -1630,13 +1672,17 @@ const Settings = () => {
 
           {/* appearance Tab */}
           {activeTab === "appearance" && (
-            <Section title="Appearance & Interface Customization" theme={theme}>
+            <Section title={t("settings.appearance_title", "Appearance & Interface Customization")} theme={theme}>
               <form onSubmit={handleSaveAppearanceSettings} className="flex flex-col gap-8 w-full">
                 {/* Density */}
                 <div className="flex flex-col gap-3">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Mail Density View</label>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t("settings.density", "Mail Density View")}</label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-                    {["Default", "Comfortable", "Compact"].map(d => (
+                    {[
+                      { key: "Default", label: t("settings.default", "Default") },
+                      { key: "Comfortable", label: t("settings.spacious", "Comfortable") },
+                      { key: "Compact", label: t("settings.compact", "Compact") }
+                    ].map(({ key: d, label }) => (
                       <button
                         key={d}
                         type="button"
@@ -1644,7 +1690,7 @@ const Settings = () => {
                         className={`p-4 text-sm font-semibold rounded-2xl border transition-all cursor-pointer shadow-sm ${density === d ? 'border-primary ring-2 ring-primary bg-primary/5' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                         style={density === d ? { borderColor: theme.accent, color: theme.accent } : { borderColor: theme.border, color: theme.text }}
                       >
-                        {d}
+                        {label}
                       </button>
                     ))}
                   </div>
@@ -1652,7 +1698,7 @@ const Settings = () => {
 
                 {/* Emails Per Page */}
                 <div className="flex flex-col gap-3">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Emails Per Page</label>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t("settings.emails_per_page", "Emails Per Page")}</label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
                     {[10, 20, 50, 100].map(count => (
                       <button
@@ -1670,7 +1716,7 @@ const Settings = () => {
 
                 {/* Accent Color picker */}
                 <div className="flex flex-col gap-3">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Custom Accent Color</label>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t("settings.accent_color", "Custom Accent Color")}</label>
                   <div className="flex items-center gap-4">
                     <input
                       type="color"
@@ -1695,7 +1741,7 @@ const Settings = () => {
                 {/* Font scaling size */}
                 <div className="flex flex-col gap-3">
                   <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex justify-between">
-                    <span>Font Size Scale</span>
+                    <span>{t("settings.font_size_scale", "Font Size Scale")}</span>
                     <span className="font-mono text-xs opacity-75">{fontSize}x</span>
                   </label>
                   <input
@@ -1711,21 +1757,28 @@ const Settings = () => {
 
                 {/* Theme palettes picker */}
                 <div className="flex flex-col gap-3 border-t pt-6" style={{ borderColor: theme.border }}>
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Visual Theme Palette</label>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t("settings.visual_theme_palette", "Visual Theme Palette")}</label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 w-full">
-                    {["Classic", "Dark", "Nature", "Ocean", "Sunset", "Minimal"].map(t => (
+                    {[
+                      { key: "Classic", label: t("settings.classic", "Classic") },
+                      { key: "Dark", label: t("settings.dark", "Dark") },
+                      { key: "Nature", label: t("settings.nature", "Nature") },
+                      { key: "Ocean", label: t("settings.ocean", "Ocean") },
+                      { key: "Sunset", label: t("settings.sunset", "Sunset") },
+                      { key: "Minimal", label: t("settings.minimal", "Minimal") }
+                    ].map(({ key: tKey, label }) => (
                       <button
-                        key={t}
+                        key={tKey}
                         type="button"
                         onClick={() => {
-                          changeTheme(t);
-                          setThemeMode(t === "Dark" ? "Dark" : "Light");
+                          changeTheme(tKey);
+                          setThemeMode(tKey === "Dark" ? "Dark" : "Light");
                         }}
-                        className={`p-4 text-sm font-medium rounded-2xl border cursor-pointer transition-all shadow-sm flex items-center justify-center gap-1.5 ${currentThemeName === t ? "border-primary ring-2 ring-primary" : "hover:bg-black/5 dark:hover:bg-white/5"}`}
-                        style={currentThemeName === t ? { borderColor: theme.accent, color: theme.accent } : { borderColor: theme.border, color: theme.text }}
+                        className={`p-4 text-sm font-medium rounded-2xl border cursor-pointer transition-all shadow-sm flex items-center justify-center gap-1.5 ${currentThemeName === tKey ? "border-primary ring-2 ring-primary" : "hover:bg-black/5 dark:hover:bg-white/5"}`}
+                        style={currentThemeName === tKey ? { borderColor: theme.accent, color: theme.accent } : { borderColor: theme.border, color: theme.text }}
                       >
-                        <span>{t}</span>
-                        {t === "Classic" && (
+                        <span>{label}</span>
+                        {tKey === "Classic" && (
                           <span
                             className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-md"
                             style={
@@ -1734,7 +1787,7 @@ const Settings = () => {
                                 : { backgroundColor: "rgba(100, 116, 139, 0.15)", color: "rgba(100, 116, 139, 0.75)" }
                             }
                           >
-                            Default
+                            {t("settings.default", "Default")}
                           </span>
                         )}
                       </button>
@@ -1744,7 +1797,7 @@ const Settings = () => {
 
                 {/* Background Image section */}
                 <div className="flex flex-col gap-4 border-t pt-6" style={{ borderColor: theme.border }}>
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Background Wallpaper</label>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t("settings.background_wallpaper", "Background Wallpaper")}</label>
 
                   {/* Current background preview */}
                   {selectedWallpaper && (
@@ -1760,7 +1813,7 @@ const Settings = () => {
                           onClick={() => setSelectedWallpaper(null)}
                           className="px-4 py-2 text-sm font-bold rounded-xl bg-white/90 text-gray-800 hover:bg-white cursor-pointer shadow-lg transition-transform active:scale-95"
                         >
-                          Remove Background
+                          {t("settings.remove_background", "Remove Background")}
                         </button>
                       </div>
                     </div>
@@ -1798,7 +1851,7 @@ const Settings = () => {
                   <div className="flex gap-3">
                     <input
                       type="url"
-                      placeholder="Paste custom image URL..."
+                      placeholder={t("settings.paste_custom_url", "Paste custom image URL...")}
                       value={customBgUrl}
                       onChange={(e) => setCustomBgUrl(e.target.value)}
                       className="flex-1 p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
@@ -1816,7 +1869,7 @@ const Settings = () => {
                       className="px-5 py-3 rounded-xl text-sm font-medium text-white cursor-pointer hover:opacity-90 active:scale-95 transition-all shrink-0 shadow-sm"
                       style={{ background: theme.accent }}
                     >
-                      Apply
+                      {t("settings.apply", "Apply")}
                     </button>
                   </div>
 
@@ -1849,7 +1902,7 @@ const Settings = () => {
                       className="w-fit px-5 py-2.5 rounded-xl text-sm font-medium border cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all shadow-sm flex items-center gap-2"
                       style={{ borderColor: theme.border, color: theme.text }}
                     >
-                      <MdFileUpload size={18} /> Upload from device
+                      <MdFileUpload size={18} /> {t("settings.upload_from_device", "Upload from device")}
                     </button>
                     <button
                       type="button"
@@ -1857,14 +1910,14 @@ const Settings = () => {
                       className="w-fit px-5 py-2.5 rounded-xl text-sm font-medium border cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all shadow-sm flex items-center gap-2"
                       style={{ borderColor: theme.border, color: theme.text }}
                     >
-                      <MdRefresh size={18} /> Reset to Default
+                      <MdRefresh size={18} /> {t("settings.reset_to_default", "Reset to Default")}
                     </button>
                   </div>
                 </div>
 
                 {/* Reading Pane */}
                 <div className="flex flex-col gap-2 mt-4 pt-4 border-t" style={{ borderColor: theme.border }}>
-                  <label className="text-sm font-semibold" style={{ color: theme.text }}>Reading Pane</label>
+                  <label className="text-sm font-semibold" style={{ color: theme.text }}>{t("settings.reading_pane", "Reading Pane")}</label>
                   <select
                     value={readingPaneMode}
                     onChange={e => {
@@ -1877,11 +1930,11 @@ const Settings = () => {
                     className="w-full p-3 text-sm rounded-xl border outline-none cursor-pointer focus:ring-2 focus:border-transparent transition-all"
                     style={{ background: theme.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: theme.border, color: theme.text }}
                   >
-                    <option value="no_split" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" style={{ backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff', color: theme.mode === 'dark' ? '#f3f4f6' : '#111827' }}>No split (Full screen)</option>
-                    <option value="right" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" style={{ backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff', color: theme.mode === 'dark' ? '#f3f4f6' : '#111827' }}>Right of inbox</option>
-                    <option value="below" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" style={{ backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff', color: theme.mode === 'dark' ? '#f3f4f6' : '#111827' }}>Below inbox</option>
+                    <option value="no_split" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" style={{ backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff', color: theme.mode === 'dark' ? '#f3f4f6' : '#111827' }}>{t("settings.no_split", "No split (Full screen)")}</option>
+                    <option value="right" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" style={{ backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff', color: theme.mode === 'dark' ? '#f3f4f6' : '#111827' }}>{t("settings.right_split", "Right of inbox")}</option>
+                    <option value="below" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" style={{ backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff', color: theme.mode === 'dark' ? '#f3f4f6' : '#111827' }}>{t("settings.bottom_split", "Below inbox")}</option>
                   </select>
-                  <span className="text-xs text-gray-500">Choose how emails open in your mailbox.</span>
+                  <span className="text-xs text-gray-500">{t("settings.reading_pane_help", "Choose how emails open in your mailbox.")}</span>
                 </div>
 
                 <button
@@ -1889,7 +1942,7 @@ const Settings = () => {
                   className="w-fit px-5 py-2.5 rounded-xl text-xs font-bold text-white cursor-pointer hover:opacity-95 transition-opacity"
                   style={{ background: theme.accent }}
                 >
-                  Save Layout Settings
+                  {t("settings.save_layout_settings", "Save Layout Settings")}
                 </button>
               </form>
             </Section>
@@ -1897,16 +1950,16 @@ const Settings = () => {
 
           {/* security Tab */}
           {activeTab === "security" && (
-            <Section title="Security & Account Recovery" theme={theme}>
+            <Section title={t("settings.security_recovery", "Security & Account Recovery")} theme={theme}>
               <div className="flex flex-col gap-8 w-full">
                 {/* Details and 2FA */}
                 <form onSubmit={handleSaveSecuritySettings} className="flex flex-col gap-5">
-                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Profile Information</h4>
+                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t("settings.profile_info", "Profile Information")}</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-gray-500">Job Title</label>
+                      <label className="text-xs font-semibold text-gray-500">{t("settings.job_title", "Job Title")}</label>
                       <input
-                        placeholder="Software Engineer"
+                        placeholder={t("settings.enter_job", "e.g. Lead Software Architect")}
                         value={jobTitle}
                         onChange={e => setJobTitle(e.target.value)}
                         className="p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
@@ -1914,9 +1967,9 @@ const Settings = () => {
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-gray-500">Location</label>
+                      <label className="text-xs font-semibold text-gray-500">{t("settings.location", "Location")}</label>
                       <input
-                        placeholder="New York, USA"
+                        placeholder={t("settings.enter_location", "e.g. San Francisco, CA")}
                         value={location}
                         onChange={e => setLocation(e.target.value)}
                         className="p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
@@ -1924,9 +1977,9 @@ const Settings = () => {
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-gray-500">Phone Contact</label>
+                      <label className="text-xs font-semibold text-gray-500">{t("settings.phone_contact", "Phone Contact")}</label>
                       <input
-                        placeholder="+1 (555) 019-2834"
+                        placeholder={t("settings.enter_phone", "+1 (555) 019-2834")}
                         value={phoneNumber}
                         onChange={e => setPhoneNumber(e.target.value)}
                         className="p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
@@ -1937,26 +1990,26 @@ const Settings = () => {
 
                   <div className="border-t my-4" style={{ borderColor: theme.border }} />
 
-                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Multi-Factor Authenticator</h4>
-                  <ToggleRow label="Enable Two-Factor Authentication (2FA)" checked={twoFactorEnabled} onChange={setTwoFactorEnabled} theme={theme} />
-                  <ToggleRow label="Enable Biometrics Access" checked={biometricsEnabled} onChange={setBiometricsEnabled} theme={theme} />
+                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t("settings.two_factor_auth", "Multi-Factor Authenticator")}</h4>
+                  <ToggleRow label={t("settings.enable_2fa", "Enable Two-Factor Authentication (2FA)")} checked={twoFactorEnabled} onChange={setTwoFactorEnabled} theme={theme} />
+                  <ToggleRow label={t("settings.enable_biometrics", "Enable Biometrics Access")} checked={biometricsEnabled} onChange={setBiometricsEnabled} theme={theme} />
 
                   <button
                     type="submit"
                     className="w-fit mt-3 px-6 py-3 rounded-xl text-sm font-medium text-white cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm"
                     style={{ background: theme.accent }}
                   >
-                    Save Security Preferences
+                    {t("settings.save_security_preferences", "Save Security Preferences")}
                   </button>
                 </form>
 
                 {/* Password update form */}
                 <form onSubmit={handleChangePassword} className="flex flex-col gap-4 border-t pt-8" style={{ borderColor: theme.border }}>
-                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Update Account Password</h4>
+                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{t("settings.change_password", "Update Account Password")}</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
                     <input
                       type="password"
-                      placeholder="Current Password"
+                      placeholder={t("settings.current_password", "Current Password")}
                       value={passwords.oldPassword}
                       onChange={e => setPasswords({ ...passwords, oldPassword: e.target.value })}
                       className="w-full p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
@@ -1964,7 +2017,7 @@ const Settings = () => {
                     />
                     <input
                       type="password"
-                      placeholder="New Password"
+                      placeholder={t("settings.new_password", "New Password")}
                       value={passwords.newPassword}
                       onChange={e => setPasswords({ ...passwords, newPassword: e.target.value })}
                       className="w-full p-3 text-sm rounded-xl border outline-none focus:ring-2 focus:border-transparent transition-all"
@@ -1975,16 +2028,16 @@ const Settings = () => {
                     type="submit"
                     className="w-fit mt-2 px-6 py-3 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 active:scale-95 transition-all cursor-pointer shadow-sm"
                   >
-                    Update Password
+                    {t("settings.update_password", "Update Password")}
                   </button>
                 </form>
 
                 {/* Recovery Setup */}
                 <form onSubmit={handleUpdateRecovery} className="flex flex-col gap-4 border-t pt-8" style={{ borderColor: theme.border }}>
-                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Backup Account Recovery</h4>
+                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{t("settings.password_recovery_contacts", "Backup Account Recovery")}</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-gray-500">Recovery Email Address</label>
+                      <label className="text-xs font-semibold text-gray-500">{t("settings.recovery_email_address", "Recovery Email Address")}</label>
                       <input
                         type="email"
                         placeholder="backup@example.com"
@@ -1995,7 +2048,7 @@ const Settings = () => {
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-gray-500">Backup Phone Number</label>
+                      <label className="text-xs font-semibold text-gray-500">{t("settings.recovery_phone_number", "Backup Phone Number")}</label>
                       <input
                         type="text"
                         placeholder="+1234567890"
@@ -2009,8 +2062,9 @@ const Settings = () => {
                   <button
                     type="submit"
                     className="w-fit mt-2 px-6 py-3 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all cursor-pointer shadow-sm"
+                    style={{ background: theme.accent }}
                   >
-                    Save Recovery Details
+                    {t("settings.save_security_preferences", "Save Recovery Details")}
                   </button>
                 </form>
               </div>
@@ -2020,8 +2074,8 @@ const Settings = () => {
           {/* sessions Tab */}
           {activeTab === "sessions" && (
             <div className="flex flex-col gap-4 md:gap-5">
-              <Section title="Active Device Sessions" theme={theme}>
-                <p className="text-sm text-gray-500 mb-6">Below are the devices currently logged into your account.</p>
+              <Section title={t("settings.active_login_sessions", "Active Device Sessions")} theme={theme}>
+                <p className="text-sm text-gray-500 mb-6">{t("settings.review_manage_sessions", "Below are the devices currently logged into your account.")}</p>
                 <div className="flex flex-col gap-4">
                   {sessions.length > 0 ? sessions.map((s) => {
                     const device = parseUserAgent(s.userAgent);
@@ -2036,11 +2090,11 @@ const Settings = () => {
                             <div className="flex items-center gap-2">
                               <span className="text-base font-semibold" style={{ color: theme.text }}>{device.name}</span>
                               {s.isCurrentSession && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold text-white bg-green-500 uppercase tracking-wider">This device</span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold text-white bg-green-500 uppercase tracking-wider">{t("settings.this_device", "This device")}</span>
                               )}
                             </div>
                             <p className="text-sm text-gray-500">{s.ipAddress} — {device.browser}</p>
-                            <p className="text-xs text-gray-400 mt-1">Logged in: {new Date(s.createdAt).toLocaleString()}</p>
+                            <p className="text-xs text-gray-400 mt-1">{t("settings.logged_in", "Logged in:")} {new Date(s.createdAt).toLocaleString()}</p>
                           </div>
                         </div>
                         {!s.isCurrentSession && (
@@ -2048,19 +2102,19 @@ const Settings = () => {
                             onClick={() => handleRevokeSession(s.id)}
                             className="px-4 py-2 text-xs font-bold rounded-xl text-red-500 border border-red-500 hover:bg-red-500 hover:text-white transition-all cursor-pointer"
                           >
-                            Sign Out
+                            {t("settings.sign_out", "Sign Out")}
                           </button>
                         )}
                       </div>
                     );
                   }) : (
-                    <p className="text-sm text-gray-400 text-center py-6">No active sessions found.</p>
+                    <p className="text-sm text-gray-400 text-center py-6">{t("settings.no_active_sessions", "No active sessions found.")}</p>
                   )}
                 </div>
               </Section>
 
-              <Section title="Connected Applications" theme={theme}>
-                <p className="text-sm text-gray-500 mb-6">Third-party applications authorized to access your mailbox profile.</p>
+              <Section title={t("settings.connected_applications", "Connected Applications")} theme={theme}>
+                <p className="text-sm text-gray-500 mb-6">{t("settings.connected_apps_desc", "Third-party applications authorized to access your mailbox profile.")}</p>
                 <div className="flex flex-col gap-4">
                   {externalSessions.length > 0 ? externalSessions.map((s) => (
                     <div key={s.id} className="p-5 rounded-2xl border flex justify-between items-center shadow-sm hover:shadow transition-shadow" style={{ borderColor: theme.border, background: theme.cardBg }}>
@@ -2070,25 +2124,25 @@ const Settings = () => {
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <span className="text-base font-semibold" style={{ color: theme.text }}>{s.appName}</span>
-                          <p className="text-sm text-gray-500">{s.ipAddress} — Basic Profile Access</p>
-                          <p className="text-xs text-gray-400 mt-1">Authorized: {new Date(s.loggedInAt).toLocaleString()}</p>
+                          <p className="text-sm text-gray-500">{s.ipAddress} — {t("settings.basic_profile_access", "Basic Profile Access")}</p>
+                          <p className="text-xs text-gray-400 mt-1">{t("settings.authorized", "Authorized:")} {new Date(s.loggedInAt).toLocaleString()}</p>
                         </div>
                       </div>
                       <button
                         onClick={() => handleRevokeExternalSession(s.id)}
                         className="px-4 py-2 text-xs font-bold rounded-xl text-red-500 border border-red-500 hover:bg-red-500 hover:text-white transition-all cursor-pointer"
                       >
-                        Revoke Access
+                        {t("settings.revoke_access", "Revoke Access")}
                       </button>
                     </div>
                   )) : (
-                    <p className="text-sm text-gray-400 text-center py-6">No connected applications found.</p>
+                    <p className="text-sm text-gray-400 text-center py-6">{t("settings.no_connected_apps", "No connected applications found.")}</p>
                   )}
                 </div>
               </Section>
 
-              <Section title="Security Activity Log" theme={theme}>
-                <p className="text-sm text-gray-500 mb-6">Audit history of recent security-critical adjustments on your account.</p>
+              <Section title={t("settings.recent_activity_logs", "Security Activity Log")} theme={theme}>
+                <p className="text-sm text-gray-500 mb-6">{t("settings.activity_logs_desc", "Audit history of recent security-critical adjustments on your account.")}</p>
                 <div className="flex flex-col gap-3 max-h-96 overflow-y-auto hidden-scrollbar pr-2">
                   {activityLogs.length > 0 ? activityLogs.map((log, idx) => (
                     <div key={idx} className="p-4 border rounded-xl flex justify-between items-center bg-black/5 dark:bg-white/5" style={{ borderColor: theme.border }}>
@@ -2099,7 +2153,7 @@ const Settings = () => {
                       <span className="text-xs text-gray-400 font-medium text-right">{new Date(log.timestamp).toLocaleString()}</span>
                     </div>
                   )) : (
-                    <p className="text-sm text-gray-400 text-center py-6">No activity logs recorded.</p>
+                    <p className="text-sm text-gray-400 text-center py-6">{t("settings.no_activity_logs", "No activity logs recorded.")}</p>
                   )}
                 </div>
               </Section>

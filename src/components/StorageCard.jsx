@@ -12,10 +12,10 @@ const StorageCard = ({
   remainingStorage,
   onManage
 }) => {
+  const { t } = useTranslation();
   const { theme } = useTheme();
 
   const formatSize = (bytes) => {
-  const { t } = useTranslation();
     if (bytes === 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];

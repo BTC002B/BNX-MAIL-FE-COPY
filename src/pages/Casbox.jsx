@@ -12,7 +12,6 @@ import ReadingPaneLayout from "../components/ReadingPaneLayout";
 import logo from "../assets/bnx-remove.png";
 
 const getMimeType = (fileName) => {
-  const { t } = useTranslation();
   const ext = fileName?.split('.').pop().toLowerCase() || '';
   switch (ext) {
     case 'pdf': return 'application/pdf';
@@ -79,6 +78,7 @@ const POPULAR_EMOJIS = [
 ];
 
 const Casbox = () => {
+  const { t } = useTranslation();
   const { theme, readingPaneMode } = useTheme();
   const location = useLocation();
   const { user } = useAuth();
@@ -651,19 +651,19 @@ const Casbox = () => {
             onClick={() => { setActiveTab('received'); setSelectedMessage(null); }}
             className={`px-3 sm:px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'received' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
           >
-            Received <span className={`font-normal hidden sm:inline ${activeTab === 'received' ? 'opacity-80' : 'opacity-60'}`}>({receivedMessages.length})</span>
+            {t('casbox.received', 'Received')} <span className={`font-normal hidden sm:inline ${activeTab === 'received' ? 'opacity-80' : 'opacity-60'}`}>({receivedMessages.length})</span>
           </button>
           <button
             onClick={() => { setActiveTab('sent'); setSelectedMessage(null); }}
             className={`px-3 sm:px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'sent' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
           >
-            Sent <span className={`font-normal hidden sm:inline ${activeTab === 'sent' ? 'opacity-80' : 'opacity-60'}`}>({sentMessages.length})</span>
+            {t('sidebar.sent', 'Sent')} <span className={`font-normal hidden sm:inline ${activeTab === 'sent' ? 'opacity-80' : 'opacity-60'}`}>({sentMessages.length})</span>
           </button>
           <button
             onClick={() => { setActiveTab('requests'); setSelectedMessage(null); }}
             className={`px-3 sm:px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'requests' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
           >
-            Requests {requestMessages.length > 0 && <span className="flex h-2 w-2 rounded-full bg-red-500"></span>}
+            {t('casbox.requests', 'Requests')} {requestMessages.length > 0 && <span className="flex h-2 w-2 rounded-full bg-red-500"></span>}
           </button>
         </div>
 
@@ -674,18 +674,19 @@ const Casbox = () => {
           className="px-4 py-1.5 rounded-full text-sm font-bold text-white transition-transform hover:shadow-md active:scale-95"
           style={{ backgroundColor: theme.accent || "#135bec" }}
         >
-          Compose
+          {t('navbar.compose', 'Compose')}
         </button>
         <button
           onClick={() => setShowBlockedModal(true)}
           className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 ml-1"
-          title="Blocked Users"
+          title={t('casbox.blocked_users', 'Blocked Users')}
         >
           <MdBlock size={18} />
         </button>
         <button
           onClick={fetchMessages}
           className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+          title={t('common.refresh', 'Refresh')}
         >
           <MdRefresh size={20} className={loading ? "animate-spin" : ""} />
         </button>
@@ -698,7 +699,7 @@ const Casbox = () => {
       {conversationList.length === 0 && !loading && (
         <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-600 opacity-80 pb-20">
           <MdSend className="text-4xl mb-3 opacity-30" />
-          <p className="text-sm font-medium">No {activeTab} chats yet</p>
+          <p className="text-sm font-medium">{t('casbox.no_chats', 'No chats yet')}</p>
         </div>
       )}
       {conversationList.map((chat) => {

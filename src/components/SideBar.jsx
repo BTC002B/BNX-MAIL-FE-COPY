@@ -60,13 +60,18 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
       case 'Analytics': return t('sidebar.analytics', 'Analytics');
       case 'Starred': return t('sidebar.starred', 'Starred');
       case 'Sent': return t('sidebar.sent', 'Sent');
-      case 'Drafts': return t('sidebar.drafts', 'Drafts');
+      case 'Draft':
+      case 'Drafts': return t('sidebar.draft', t('sidebar.drafts', 'Drafts'));
       case 'Snoozed': return t('sidebar.snoozed', 'Snoozed');
       case 'Scheduled': return t('sidebar.scheduled', 'Scheduled');
       case 'Archive': return t('sidebar.archive', 'Archive');
       case 'Spam': return t('sidebar.spam', 'Spam');
       case 'Trash': return t('sidebar.trash', 'Trash');
       case 'Unread': return t('sidebar.unread', 'Unread');
+      case 'All Mail': return t('sidebar.all_mail', 'All Mail');
+      case 'Templates': return t('sidebar.templates', 'Templates');
+      case 'Colab': return t('sidebar.colab', 'Colab');
+      case 'Chat': return t('sidebar.chat', 'Chat');
       case 'Mail Backup': return t('sidebar.mail_backup', 'Mail Backup');
       case 'Groups': return t('sidebar.groups', 'Groups');
       case 'Chat Room': return t('sidebar.chat_room', 'Chat Room');
@@ -74,6 +79,8 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
       case 'Vault': return t('sidebar.vault', 'Vault');
       case 'Storage Management': return t('sidebar.storage_management', 'Storage Management');
       case 'Subscriptions': return t('sidebar.subscriptions', 'Subscriptions');
+      case 'Notification':
+      case 'NotifyHub': return t('sidebar.notification', 'Notifications');
       case 'Settings': return t('sidebar.settings', 'Settings');
       case 'Support & Help': return t('sidebar.support', 'Support & Help');
       default: return name;
@@ -153,7 +160,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
                   style={{ color: theme.accent || "#135bec" }}
                >
                  <MdCloudUpload size={18} className="shrink-0" />
-                 <span className="text-sm font-medium hide-on-collapse">My Vault</span>
+                 <span className="text-sm font-medium hide-on-collapse">{t('sidebar.my_vault', 'My Vault')}</span>
                </button>
             </div>
           ) : !isChatMode ? (
@@ -212,7 +219,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
                     style={{ color: location.pathname.startsWith('/casbox') ? (theme.accent || "#135bec") : theme.sidebarText }}
                  >
                    <MdChat size={18} className="shrink-0" />
-                   <span className="text-sm font-medium hide-on-collapse text-left flex-1">Casbox</span>
+                   <span className="text-sm font-medium hide-on-collapse text-left flex-1">{t('sidebar.casbox', 'Casbox')}</span>
                  </button>
               </div>
 
@@ -226,7 +233,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
                     style={{ color: location.pathname.startsWith('/colab') || location.pathname.startsWith('/chat') ? (theme.accent || "#135bec") : theme.sidebarText }}
                  >
                    <MdGroup size={18} className="shrink-0" />
-                   <span className="text-sm font-medium hide-on-collapse text-left flex-1">Colab</span>
+                   <span className="text-sm font-medium hide-on-collapse text-left flex-1">{t('sidebar.colab', 'Colab')}</span>
                  </button>
               </div>
 
@@ -249,7 +256,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
                   <span className="text-[18px] transition-transform duration-200 group-hover:scale-105">
                     {isMoreOpen ? <MdExpandLess /> : <MdExpandMore />}
                   </span>
-                  <span className="text-sm tracking-wide hide-on-collapse">{isMoreOpen ? "Less" : "More"}</span>
+                  <span className="text-sm tracking-wide hide-on-collapse">{isMoreOpen ? t('sidebar.less', 'Less') : t('sidebar.more', 'More')}</span>
                 </div>
               </button>
 
@@ -314,7 +321,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
           <div className="mt-1">
             <div className="pl-4 pr-3 flex items-center justify-between mb-1 hide-on-collapse">
               <h3 className="text-xs font-bold uppercase tracking-widest opacity-50" style={{ color: theme.sidebarText }}>
-                Labels
+                {t('sidebar.labels', 'Labels')}
               </h3>
               <button
                 onClick={() => setIsCreating(true)}
@@ -367,19 +374,19 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
                                 }}
                                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer text-left"
                               >
-                                <MdEdit size={14} /> Edit
+                                <MdEdit size={14} /> {t('common.edit', 'Edit')}
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setActiveLabelMenu(null);
-                                  if (window.confirm('Are you sure you want to delete this label? Sub-labels will also be deleted.')) {
+                                  if (window.confirm(t('sidebar.delete_label_confirm', 'Are you sure you want to delete this label? Sub-labels will also be deleted.'))) {
                                     handleDeleteLabel(label.id);
                                   }
                                 }}
                                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer text-left text-red-500"
                               >
-                                <MdDelete size={14} /> Delete
+                                <MdDelete size={14} /> {t('common.delete', 'Delete')}
                               </button>
                             </div>
                         )}
@@ -408,7 +415,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
             style={{ color: theme.sidebarText, fontWeight: 500 }}
           >
             <span className="text-[18px]"><MdSettings size={22} /></span>
-            <span className="hide-on-collapse">Settings</span>
+            <span className="hide-on-collapse">{t('sidebar.settings', 'Settings')}</span>
           </button>
 
           <button
@@ -417,7 +424,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
             style={{ color: theme.sidebarText, fontWeight: 500 }}
           >
             <span className="text-[18px]"><MdHelpOutline size={22} /></span>
-            <span className="hide-on-collapse">Help & Support</span>
+            <span className="hide-on-collapse">{t('sidebar.support', 'Support & Help')}</span>
           </button>
         </div>
       </aside>
@@ -427,7 +434,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
           <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-2xl border dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between px-5 py-4 border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-              <h2 className="text-lg font-semibold" style={{ color: theme.text }}>New Label</h2>
+              <h2 className="text-lg font-semibold" style={{ color: theme.text }}>{t('sidebar.new_label', 'New Label')}</h2>
               <button onClick={() => setIsCreating(false)} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer" style={{ color: theme.subText }}>
                 <MdClose size={20} />
               </button>
@@ -435,10 +442,10 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
 
             <div className="p-5 space-y-5">
               <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: theme.subText }}>Label Name</label>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: theme.subText }}>{t('sidebar.label_name', 'Label Name')}</label>
                 <input
                   autoFocus
-                  placeholder="e.g. Work, Personal, Receipts"
+                  placeholder={t('sidebar.label_placeholder', 'e.g. Work, Personal, Receipts')}
                   value={newLabel.name}
                   onChange={(e) => setNewLabel({ ...newLabel, name: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg bg-transparent outline-none transition-all"
@@ -447,14 +454,14 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: theme.subText }}>Nest label under</label>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: theme.subText }}>{t('sidebar.nest_under', 'Nest label under')}</label>
                 <select
                   value={newLabel.parentId}
                   onChange={(e) => setNewLabel({ ...newLabel, parentId: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg bg-transparent outline-none transition-all cursor-pointer"
                   style={{ color: theme.text, borderColor: theme.border }}
                 >
-                  <option value="" style={{ color: "black" }}>Top Level (No Parent)</option>
+                  <option value="" style={{ color: "black" }}>{t('sidebar.top_level', 'Top Level (No Parent)')}</option>
                   {labels.map(l => (
                     <option key={l.id} value={l.id} style={{ color: "black" }}>{l.name}</option>
                   ))}
@@ -462,7 +469,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: theme.subText }}>Color</label>
+                <label className="block text-sm font-medium mb-2" style={{ color: theme.subText }}>{t('sidebar.color', 'Color')}</label>
                 <div className="flex flex-wrap gap-3">
                   {COLORS.map((c) => (
                     <button
@@ -486,7 +493,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
                 className="px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                 style={{ color: theme.text }}
               >
-                Cancel
+                {t('common.cancel', 'Cancel')}
               </button>
               <button
                 onClick={handleAddLabel}
@@ -494,7 +501,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
                 className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundColor: theme.accent || "#135bec" }}
               >
-                Create Label
+                {t('sidebar.create_label', 'Create Label')}
               </button>
             </div>
           </div>
@@ -506,7 +513,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
           <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-2xl border dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between px-5 py-4 border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-              <h2 className="text-lg font-semibold" style={{ color: theme.text }}>Edit Label</h2>
+              <h2 className="text-lg font-semibold" style={{ color: theme.text }}>{t('sidebar.edit_label', 'Edit Label')}</h2>
               <button onClick={() => setEditingLabel(null)} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer" style={{ color: theme.subText }}>
                 <MdClose size={20} />
               </button>
@@ -514,10 +521,10 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
 
             <div className="p-5 space-y-5">
               <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: theme.subText }}>Label Name</label>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: theme.subText }}>{t('sidebar.label_name', 'Label Name')}</label>
                 <input
                   autoFocus
-                  placeholder="e.g. Work, Personal, Receipts"
+                  placeholder={t('sidebar.label_placeholder', 'e.g. Work, Personal, Receipts')}
                   value={editingLabel.name}
                   onChange={(e) => setEditingLabel({ ...editingLabel, name: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg bg-transparent outline-none transition-all"
@@ -526,14 +533,14 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: theme.subText }}>Nest label under</label>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: theme.subText }}>{t('sidebar.nest_under', 'Nest label under')}</label>
                 <select
                   value={editingLabel.parentId}
                   onChange={(e) => setEditingLabel({ ...editingLabel, parentId: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg bg-transparent outline-none transition-all cursor-pointer"
                   style={{ color: theme.text, borderColor: theme.border }}
                 >
-                  <option value="" style={{ color: "black" }}>Top Level (No Parent)</option>
+                  <option value="" style={{ color: "black" }}>{t('sidebar.top_level', 'Top Level (No Parent)')}</option>
                   {labels.filter(l => l.id !== editingLabel.id).map(l => (
                     <option key={l.id} value={l.id} style={{ color: "black" }}>{l.name}</option>
                   ))}
@@ -541,7 +548,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: theme.subText }}>Color</label>
+                <label className="block text-sm font-medium mb-2" style={{ color: theme.subText }}>{t('sidebar.color', 'Color')}</label>
                 <div className="flex flex-wrap gap-3">
                   {COLORS.map((c) => (
                     <button
@@ -565,7 +572,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
                 className="px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                 style={{ color: theme.text }}
               >
-                Cancel
+                {t('common.cancel', 'Cancel')}
               </button>
               <button
                 onClick={handleEditLabelSubmit}
@@ -573,7 +580,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
                 className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundColor: theme.accent || "#135bec" }}
               >
-                Save Changes
+                {t('sidebar.save_changes', 'Save Changes')}
               </button>
             </div>
           </div>

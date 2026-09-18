@@ -216,7 +216,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
             <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.accent || "#135bec" }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
-            <span className="hidden sm:inline text-[14px]">Compose</span>
+            <span className="hidden sm:inline text-[14px]">{t('navbar.compose', t('common.compose', 'Compose'))}</span>
           </button>
         </div>
 
@@ -226,13 +226,13 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
             onClick={() => navigate('/inbox')}
             className={`px-3 sm:px-6 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors ${currentTab === 'mail' ? 'bg-white text-[#1e3a8a] shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
           >
-            Mail
+            {t('navbar.mail', 'Mail')}
           </button>
           <button
             onClick={() => navigate('/casbox')}
             className={`px-3 sm:px-6 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors ${currentTab === 'chat' ? 'bg-white text-[#1e3a8a] shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
           >
-            Chat
+            {t('navbar.chat', 'Chat')}
           </button>
         </div>
 
@@ -250,7 +250,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                   setSearchQuery(e.target.value);
                   setShowSearchResults(true);
                 }}
-                placeholder="Search..."
+                placeholder={t('navbar.search_placeholder', 'Search mail...')}
                 className="w-full px-3 sm:px-4 py-1.5 sm:py-2 pl-8 sm:pl-10 rounded-full text-xs sm:text-[13px] placeholder:text-white/60 bg-white/10 hover:bg-white/20 focus:bg-white focus:text-gray-900 text-white focus:shadow-sm border border-transparent outline-none transition-all duration-200"
               />
               <svg
@@ -271,7 +271,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                   {matchingEmails.length > 0 && (
                     <div className="mb-3">
                       <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5 px-2 select-none">
-                        Emails
+                        {t('navbar.emails_category', t('storage.emails', 'Emails'))}
                       </div>
                       <div className="flex flex-col gap-0.5">
                         {matchingEmails.map(e => (
@@ -296,7 +296,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                   {matchingCasbox.length > 0 && (
                     <div className="mb-3">
                       <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5 px-2 select-none">
-                        Casbox Chat
+                        {t('navbar.casbox_chat', 'Casbox Chat')}
                       </div>
                       <div className="flex flex-col gap-0.5">
                         {matchingCasbox.map(m => {
@@ -323,7 +323,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                   {matchingChats.length > 0 && (
                     <div className="mb-1">
                       <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5 px-2 select-none">
-                        Colab Rooms
+                        {t('navbar.colab_rooms', 'Colab Rooms')}
                       </div>
                       <div className="flex flex-col gap-0.5">
                         {matchingChats.map(c => {
@@ -349,7 +349,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
 
                   {matchingEmails.length === 0 && matchingCasbox.length === 0 && matchingChats.length === 0 && (
                     <div className="text-xs text-gray-400 dark:text-gray-600 text-center py-4 select-none">
-                      No matching results found
+                      {t('navbar.no_matching_results', 'No matching results found')}
                     </div>
                   )}
                 </div>
@@ -383,7 +383,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                   {user?.email?.split('@')[0] || "User"}
                 </span>
                 {isPrimary && (
-                  <MdCheckCircle className="text-white shrink-0" size={13} title="Primary Account" />
+                  <MdCheckCircle className="text-white shrink-0" size={13} title={t('navbar.primary_account', 'Primary Account')} />
                 )}
               </div>
               <svg
@@ -451,7 +451,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                     className="mt-3 px-3.5 py-1.5 border rounded-full text-[11px] font-bold hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-all cursor-pointer flex items-center gap-1.5"
                     style={{ borderColor: theme.border, color: theme.text }}
                   >
-                    <MdManageAccounts size={15} /> Manage your account
+                    <MdManageAccounts size={15} /> {t('navbar.manage_accounts', 'Manage your account')}
                   </button>
                 </div>
 
@@ -503,7 +503,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                     }}
                     className="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex items-center gap-3 font-semibold text-gray-600 dark:text-gray-300"
                   >
-                    <MdPersonAdd size={18} className="text-gray-400" /> Add another account
+                    <MdPersonAdd size={18} className="text-gray-400" /> {t('navbar.add_account', 'Add another account')}
                   </button>
 
                   {/* <button
@@ -520,7 +520,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                     }}
                     className="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex items-center gap-3 font-semibold text-gray-600 dark:text-gray-300"
                   >
-                    <MdLogout size={18} className="text-gray-400" /> Sign out of this account
+                    <MdLogout size={18} className="text-gray-400" /> {t('navbar.logout', 'Sign out of this account')}
                   </button>
                 </div>
 
@@ -532,7 +532,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                     }}
                     className="w-full text-left px-3 py-2 text-xs rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors flex items-center gap-3 font-bold"
                   >
-                    <MdLogout size={18} className="text-red-400" /> Sign out of all accounts
+                    <MdLogout size={18} className="text-red-400" /> {t('navbar.sign_out_all', 'Sign out of all accounts')}
                   </button>
                 </div>
               </div>
@@ -544,7 +544,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
           <button
             onClick={onToggleBitToolSidebar}
             className="relative left-2 h-9 p-1 px-2 rounded-full bg-white dark:hover:bg-white/10 transition-colors flex items-center justify-center shrink-0 border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
-            title="Toggle BIT Tools"
+            title={t('navbar.bit_tools', 'Toggle BIT Tools')}
           >
             <img
               src={bitToolLogo}

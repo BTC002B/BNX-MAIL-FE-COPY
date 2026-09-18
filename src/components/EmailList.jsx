@@ -19,6 +19,7 @@ const EmailList = ({
   onToggleSelect,
   isArchiveFolder = false,
 }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { theme, emailsPerPage } = useTheme();
   const { isComposeOpen, totalEmails, currentPage, handlePageChange, loading } = useMail();
@@ -34,7 +35,6 @@ const EmailList = ({
   const displayedEmails = emails;
 
   const getSnoozeOptions = () => {
-  const { t } = useTranslation();
     const now = new Date();
 
     // Later today: 6 PM today (or +3 hours if past 5 PM)

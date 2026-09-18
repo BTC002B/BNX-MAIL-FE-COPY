@@ -24,6 +24,7 @@ const BulkActionsToolbar = ({
   visibleEmails,
   folder,
 }) => {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const {
     labels,
@@ -51,7 +52,6 @@ const BulkActionsToolbar = ({
   // Close menus on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-  const { t } = useTranslation();
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setShowMoreMenu(false);
         setShowSnoozeSub(false);
@@ -243,12 +243,12 @@ const BulkActionsToolbar = ({
         className="w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer shrink-0"
       />
 
-      <span className="text-xs font-bold shrink-0">{selectedIds.size} selected</span>
+      <span className="text-xs font-bold shrink-0">{selectedIds.size} {t("bulk_actions.selected", "selected")}</span>
 
       <button 
         onClick={() => setSelectedIds(new Set())}
         className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer flex items-center justify-center"
-        title="Clear Selection"
+        title={t("bulk_actions.clear_selection", "Clear Selection")}
       >
         <MdClose size={18} />
       </button>
@@ -260,7 +260,7 @@ const BulkActionsToolbar = ({
           <button
             onClick={handleBulkUnarchive}
             className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer text-gray-600 dark:text-gray-300 flex items-center justify-center"
-            title="Restore / Move to Inbox"
+            title={t("bulk_actions.restore", "Restore / Move to Inbox")}
           >
             <MdUnarchive size={19} />
           </button>
@@ -268,7 +268,7 @@ const BulkActionsToolbar = ({
           <button
             onClick={handleBulkArchive}
             className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer text-gray-600 dark:text-gray-300 flex items-center justify-center"
-            title="Archive"
+            title={t("common.archive", "Archive")}
           >
             <MdArchive size={19} />
           </button>
@@ -289,7 +289,7 @@ const BulkActionsToolbar = ({
         <button
           onClick={handleBulkReadStatus}
           className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer text-gray-600 dark:text-gray-300 flex items-center justify-center"
-          title={hasUnread ? "Mark as Read" : "Mark as Unread"}
+          title={hasUnread ? t("common.mark_read", "Mark as Read") : t("common.mark_unread", "Mark as Unread")}
         >
           {hasUnread ? <MdMarkEmailRead size={19} /> : <MdMail size={19} />}
         </button>
@@ -298,7 +298,7 @@ const BulkActionsToolbar = ({
         <button
           onClick={handleBulkDelete}
           className="p-2 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 hover:text-red-700 rounded-xl transition-all cursor-pointer flex items-center justify-center"
-          title="Delete"
+          title={t("common.delete", "Delete")}
         >
           <MdDelete size={19} />
         </button>
@@ -308,7 +308,7 @@ const BulkActionsToolbar = ({
           <button
             onClick={() => setShowMoreMenu(!showMoreMenu)}
             className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer text-gray-600 dark:text-gray-300 flex items-center justify-center"
-            title="More Options"
+            title={t("email_details.more_actions", "More Options")}
           >
             <MdMoreVert size={19} />
           </button>
@@ -330,7 +330,7 @@ const BulkActionsToolbar = ({
                   onClick={() => setShowSnoozeSub(!showSnoozeSub)}
                   className="w-full px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-2.5 text-gray-700 dark:text-gray-300"
                 >
-                  <MdAccessTime size={16} className="text-gray-400" /> Snooze it...
+                  <MdAccessTime size={16} className="text-gray-400" /> {t("common.snooze", "Snooze")}...
                 </button>
                 {showSnoozeSub && (
                   <div 
@@ -339,7 +339,7 @@ const BulkActionsToolbar = ({
                   >
                     {showCustomSnoozeForm ? (
                       <div className="p-3 flex flex-col gap-2 bg-white dark:bg-gray-900">
-                        <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400">Select Date & Time</label>
+                        <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400">{t("bulk_actions.select_datetime", "Select Date & Time")}</label>
                         <input
                           type="datetime-local"
                           value={customSnoozeTime}
@@ -351,7 +351,7 @@ const BulkActionsToolbar = ({
                             onClick={() => setShowCustomSnoozeForm(false)}
                             className="px-2 py-1 rounded text-[10px] bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
                           >
-                            Back
+                            {t("common.back", "Back")}
                           </button>
                           <button
                             onClick={() => {
@@ -368,16 +368,16 @@ const BulkActionsToolbar = ({
                             }}
                             className="px-2 py-1 rounded text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-medium"
                           >
-                            Save
+                            {t("common.save", "Save")}
                           </button>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <button onClick={() => handleBulkSnooze(2)} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">Later today</button>
-                        <button onClick={() => handleBulkSnooze(24)} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">Tomorrow</button>
-                        <button onClick={() => handleBulkSnooze(48)} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">This weekend</button>
-                        <button onClick={() => handleBulkSnooze(168)} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">Next week</button>
+                        <button onClick={() => handleBulkSnooze(2)} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">{t("bulk_actions.later_today", "Later today")}</button>
+                        <button onClick={() => handleBulkSnooze(24)} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">{t("bulk_actions.tomorrow", "Tomorrow")}</button>
+                        <button onClick={() => handleBulkSnooze(48)} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">{t("bulk_actions.this_weekend", "This weekend")}</button>
+                        <button onClick={() => handleBulkSnooze(168)} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">{t("bulk_actions.next_week", "Next week")}</button>
                         <div className="border-t border-gray-100 dark:border-neutral-800 my-1"></div>
                         <button
                           onClick={() => {
@@ -388,7 +388,7 @@ const BulkActionsToolbar = ({
                           }}
                           className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 text-blue-500 font-semibold"
                         >
-                          Select date & time
+                          {t("bulk_actions.select_datetime", "Select date & time")}
                         </button>
                       </>
                     )}
@@ -403,7 +403,7 @@ const BulkActionsToolbar = ({
                   onClick={() => setShowLabelSub(!showLabelSub)}
                   className="w-full px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-2.5 text-gray-700 dark:text-gray-300"
                 >
-                  <MdLabel size={16} className="text-gray-400" /> Label as...
+                  <MdLabel size={16} className="text-gray-400" /> {t("bulk_actions.label_as", "Label as...")}
                 </button>
                 {showLabelSub && (
                   <div 
@@ -411,7 +411,7 @@ const BulkActionsToolbar = ({
                     style={{ borderColor: theme.border }}
                   >
                     {labels.length === 0 ? (
-                      <div className="px-4 py-2 text-gray-400">No labels found</div>
+                      <div className="px-4 py-2 text-gray-400">{t("bulk_actions.no_labels", "No labels found")}</div>
                     ) : (
                       labels.map((lbl) => (
                         <button 
@@ -434,7 +434,7 @@ const BulkActionsToolbar = ({
                 onMouseEnter={() => { setShowSnoozeSub(false); setShowLabelSub(false); }}
                 className="w-full px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-2.5 text-gray-700 dark:text-gray-300"
               >
-                <MdBlock size={16} className="text-gray-400" /> Unsubscribe
+                <MdBlock size={16} className="text-gray-400" /> {t("bulk_actions.unsubscribe", "Unsubscribe")}
               </button>
 
               {/* Reply (only for 1 selected) */}
@@ -444,7 +444,7 @@ const BulkActionsToolbar = ({
                   onMouseEnter={() => { setShowSnoozeSub(false); setShowLabelSub(false); }}
                   className="w-full px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-2.5 text-gray-700 dark:text-gray-300 font-bold border-t border-gray-100 dark:border-gray-850 mt-1 pt-1"
                 >
-                  <MdReply size={16} className="text-gray-400" /> Reply
+                  <MdReply size={16} className="text-gray-400" /> {t("common.reply", "Reply")}
                 </button>
               )}
             </div>

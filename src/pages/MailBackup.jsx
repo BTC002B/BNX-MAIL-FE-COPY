@@ -229,17 +229,17 @@ const MailBackup = () => {
 
           {/* Secure Title */}
           <h2 className="text-lg font-bold mb-1.5" style={{ color: theme.text }}>
-            Secure Mail Backup
+            {t('mail_backup.secure_mail_backup', 'Secure Mail Backup')}
           </h2>
 
           {/* Description */}
           <p className="text-xs sm:text-sm leading-relaxed mb-6 px-2" style={{ color: theme.subText }}>
-            Your Mail Backup contains protected copies of your emails. Verify your identity to continue.
+            {t('mail_backup.verify_description', 'Your Mail Backup contains protected copies of your emails. Verify your identity to continue.')}
           </p>
 
           {/* Masked Email */}
           <div className="text-xs font-bold bg-black/[0.02] dark:bg-white/[0.02] py-2 px-4 rounded-full border border-gray-200/50 dark:border-gray-800/80 mb-6">
-            <span style={{ color: theme.subText }}>OTP sent to: </span>
+            <span style={{ color: theme.subText }}>{t('mail_backup.otp_sent_to', 'OTP sent to: ')}</span>
             <span style={{ color: theme.text }}>{maskEmail(user?.email)}</span>
           </div>
 
@@ -293,10 +293,10 @@ const MailBackup = () => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Verifying OTP...
+                {t('mail_backup.verifying', 'Verifying...')}
               </>
             ) : (
-              "Verify OTP"
+              t('mail_backup.verify_and_proceed', 'Verify & Proceed')
             )}
           </button>
 
@@ -307,7 +307,7 @@ const MailBackup = () => {
             className="text-xs font-bold hover:underline transition-all cursor-pointer disabled:opacity-50 disabled:no-underline"
             style={{ color: theme.accent || "#1E6FD9" }}
           >
-            {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP"}
+            {resendTimer > 0 ? `${t('mail_backup.resend_otp_in', 'Resend OTP in')} ${resendTimer}s` : t('common.resend_otp', 'Resend OTP')}
           </button>
         </div>
       </div>
@@ -331,19 +331,19 @@ const MailBackup = () => {
               <MdBackup size={18} />
             </span>
             <h2 className="text-lg font-bold" style={{ color: theme.text }}>
-              Mail Backup
+              {t('sidebar.mail_backup', 'Mail Backup')}
             </h2>
           </div>
           <button
             onClick={fetchBackups}
             className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 cursor-pointer"
-            title="Refresh backups"
+            title={t('common.refresh', 'Refresh')}
           >
             <MdRefresh size={18} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
         <p className="text-xs sm:text-sm max-w-2xl font-normal leading-relaxed mt-0.5" style={{ color: theme.subText }}>
-          Your emails are securely backed up and remain available even after the original email is permanently deleted.
+          {t('mail_backup.description', 'Your emails are securely backed up and remain available even after the original email is permanently deleted.')}
         </p>
       </div>
 
@@ -354,6 +354,11 @@ const MailBackup = () => {
       >
         {["all", "received", "sent"].map((filter) => {
           const isActive = activeFilter === filter;
+          const filterLabel = filter === 'all' 
+            ? t('common.all', 'All') 
+            : filter === 'received' 
+            ? t('mail_backup.received', 'Received') 
+            : t('sidebar.sent', 'Sent');
           return (
             <button
               key={filter}
@@ -365,7 +370,7 @@ const MailBackup = () => {
               }`}
               style={isActive ? { backgroundColor: theme.accent || "#1E6FD9", color: "#fff" } : { color: theme.subText }}
             >
-              {filter}
+              {filterLabel}
             </button>
           );
         })}

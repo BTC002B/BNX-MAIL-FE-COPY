@@ -1123,7 +1123,7 @@ const EmailDetails = ({
                           className="w-full text-left py-2.5 px-4 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-2 cursor-pointer text-sm font-medium text-indigo-500"
                         >
                           <MdAdd size={18} />
-                          Create New Label
+                          {t("sidebar.create_label", "Create New Label")}
                         </button>
                       </div>
                     </>
@@ -1139,7 +1139,7 @@ const EmailDetails = ({
               handleClose();
             }}
             className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-gray-500 dark:text-gray-400 hover:text-red-500 cursor-pointer"
-            title="Delete"
+            title={t("common.delete", "Delete")}
           >
             <MdDelete size={20} />
           </button>
@@ -1149,7 +1149,7 @@ const EmailDetails = ({
           <button
             onClick={handlePrint}
             className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-            title="Print"
+            title={t("common.print", "Print")}
           >
             <MdPrint size={20} />
           </button>
@@ -1158,7 +1158,7 @@ const EmailDetails = ({
             <button
               onClick={() => { setShowMoreOptions(!showMoreOptions); setShowLabels(false); setShowSnooze(false); }}
               className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-              title="More"
+              title={t("email_details.more_actions", "More")}
             >
               <MdMoreVert size={20} />
             </button>
@@ -1207,7 +1207,7 @@ const EmailDetails = ({
                   className="w-full text-left px-4 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-3 cursor-pointer text-gray-700 dark:text-gray-200 transition-colors"
                 >
                   <MdMarkEmailUnread size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">Mark as unread</span>
+                  <span className="text-sm font-medium">{t("common.mark_unread", "Mark as unread")}</span>
                 </button>
                 
                 <div className="border-t border-gray-100 dark:border-neutral-800 my-1"></div>
@@ -1217,21 +1217,21 @@ const EmailDetails = ({
                   className="w-full text-left px-4 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-3 cursor-pointer text-gray-700 dark:text-gray-200 transition-colors"
                 >
                   <MdBlock size={18} className="text-gray-500 shrink-0" />
-                  <span className="text-sm font-medium truncate">Unsubscribe from {cleanSenderEmail || "sender"}</span>
+                  <span className="text-sm font-medium truncate">{t("bulk_actions.unsubscribe", "Unsubscribe")} {cleanSenderEmail || ""}</span>
                 </button>
                 <button
                   onClick={() => { setShowBlockModal(true); setShowMoreOptions(false); }}
                   className="w-full text-left px-4 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-3 cursor-pointer text-gray-700 dark:text-gray-200 transition-colors"
                 >
                   <MdBlock size={18} className="text-gray-500 shrink-0" />
-                  <span className="text-sm font-medium">{isBlocked ? "Unblock" : "Block"}</span>
+                  <span className="text-sm font-medium">{isBlocked ? t("casbox.unblock", "Unblock") : t("casbox.block", "Block")}</span>
                 </button>
                 <button
                   onClick={() => { setShowReportModal(true); setShowMoreOptions(false); }}
                   className="w-full text-left px-4 py-2 hover:bg-orange-50 dark:hover:bg-orange-900/10 flex items-center gap-3 cursor-pointer text-orange-600 dark:text-orange-400 transition-colors"
                 >
                   <MdReport size={18} className="shrink-0" />
-                  <span className="text-sm font-medium">Report Spam / Abuse</span>
+                  <span className="text-sm font-medium">{t("common.report_spam", "Report Spam / Abuse")}</span>
                 </button>
                 <button
                   onClick={handlePrint}
@@ -1245,7 +1245,7 @@ const EmailDetails = ({
                   className="w-full text-left px-4 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-3 cursor-pointer text-gray-700 dark:text-gray-200 transition-colors"
                 >
                   <MdFileDownload size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">Download message</span>
+                  <span className="text-sm font-medium">{t("common.download", "Download message")}</span>
                 </button>
               </div>
             )}
@@ -1254,7 +1254,7 @@ const EmailDetails = ({
           <button
             onClick={() => onStar?.(email.uid)}
             className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer group"
-            title={email.starred ? "Unstar" : "Star"}
+            title={email.starred ? t("common.unstar", "Unstar") : t("common.star", "Star")}
           >
             <MdStar
               size={20}
@@ -1370,7 +1370,7 @@ const EmailDetails = ({
                     {m.attachments && m.attachments.length > 0 && (
                       <div className="mt-4 pt-4 border-t" style={{ borderColor: theme.border }}>
                         <p className="text-xs font-bold mb-2 text-gray-500 dark:text-gray-400 uppercase tracking-wider text-left">
-                          Attachments ({m.attachments.length})
+                          {t("email_details.attachments", "Attachments")} ({m.attachments.length})
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {m.attachments.map((file, idx) => (
@@ -1456,9 +1456,9 @@ const EmailDetails = ({
                       <button
                         onClick={handleUnsubscribeClick}
                         className="text-xs font-semibold text-red-500 hover:text-red-600 hover:underline cursor-pointer bg-red-500/10 dark:bg-red-500/20 px-2 py-0.5 rounded transition-all select-none"
-                        title="Unsubscribe from this sender"
+                        title={t("bulk_actions.unsubscribe", "Unsubscribe from this sender")}
                       >
-                        Unsubscribe
+                        {t("bulk_actions.unsubscribe", "Unsubscribe")}
                       </button>
                     )}
                   </p>
@@ -1524,7 +1524,7 @@ const EmailDetails = ({
           return (
             <div className="mt-8 pt-6 border-t" style={{ borderColor: theme.border }}>
               <p className="text-xs font-bold mb-4 text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Attachments ({visibleAttachments.length})
+                {t("email_details.attachments", "Attachments")} ({visibleAttachments.length})
               </p>
               <div className="flex flex-wrap gap-4">
                 {visibleAttachments.map((file, i) => {
@@ -1614,7 +1614,7 @@ const EmailDetails = ({
               {replyMode === 'forward' ? (
                 <input
                   type="text"
-                  placeholder="Forward to recipient..."
+                  placeholder={t("compose.to", "Forward to recipient...")}
                   value={forwardTo}
                   onChange={(e) => setForwardTo(e.target.value)}
                   className="flex-1 min-w-[200px] sm:min-w-[300px] bg-transparent border-none text-sm outline-none text-gray-800 dark:text-gray-200"
@@ -1667,7 +1667,7 @@ const EmailDetails = ({
               modules={{ toolbar: "#inline-reply-toolbar" }}
               value={replyBody}
               onChange={setReplyBody}
-              placeholder={replyMode === 'forward' ? "Type your forwarded message here..." : "Type your reply here..."}
+              placeholder={replyMode === 'forward' ? t("compose.body_placeholder", "Type your forwarded message here...") : t("compose.body_placeholder", "Type your reply here...")}
               className="h-full bg-white text-black"
             />
           </div>
@@ -1710,7 +1710,7 @@ const EmailDetails = ({
                   disabled={sendingReply}
                   className="px-5 py-2.5 text-white text-xs font-bold disabled:opacity-60 cursor-pointer hover:bg-black/10 transition-colors border-r border-white/20"
                 >
-                  {sendingReply ? "Sending…" : "Send"}
+                  {sendingReply ? t("common.sending", "Sending…") : t("common.send", "Send")}
                 </button>
                 <button
                   type="button"
@@ -1752,8 +1752,8 @@ const EmailDetails = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer text-gray-550 hover:text-gray-700 dark:hover:text-gray-300"
-                title="Attach files"
+                className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer text-gray-555 hover:text-gray-700 dark:hover:text-gray-300"
+                title={t("compose.attach_files", "Attach files")}
               >
                 <MdAttachFile size={18} className="transform rotate-45" />
               </button>
@@ -1761,7 +1761,7 @@ const EmailDetails = ({
               <button
                 type="button"
                 onClick={() => toast.success("Insert signature")}
-                className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer text-gray-550 hover:text-gray-700 dark:hover:text-gray-300"
+                className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer text-gray-555 hover:text-gray-700 dark:hover:text-gray-300"
                 title="Insert signature"
               >
                 <MdEditDocument size={18} />
@@ -1776,7 +1776,7 @@ const EmailDetails = ({
                   }
                 }}
                 className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:text-red-700 transition-colors cursor-pointer"
-                title="Discard draft"
+                title={t("compose.discard", "Discard draft")}
               >
                 <MdDelete size={18} />
               </button>
@@ -1806,7 +1806,7 @@ const EmailDetails = ({
                     ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-[0_2px_8px_-2px_rgba(37,99,235,0.5)]' 
                     : 'bg-white border hover:bg-gray-50 hover:shadow-sm text-gray-700'}`}
               >
-                <MdReply size={18} /> Reply
+                <MdReply size={18} /> {t("common.reply", "Reply")}
               </button>
               <button 
                 onClick={() => {
@@ -1820,7 +1820,7 @@ const EmailDetails = ({
                     ? 'bg-gray-800 hover:bg-gray-700 text-white shadow-sm' 
                     : 'bg-white border hover:bg-gray-50 hover:shadow-sm text-gray-700'}`}
               >
-                <MdForward size={18} /> Forward
+                <MdForward size={18} /> {t("common.forward", "Forward")}
               </button>
             </div>
           )}
