@@ -1758,7 +1758,7 @@ const Settings = () => {
                 {/* Theme palettes picker */}
                 <div className="flex flex-col gap-3 border-t pt-6" style={{ borderColor: theme.border }}>
                   <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t("settings.visual_theme_palette", "Visual Theme Palette")}</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-[12px] sm:gap-[16px] w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 w-full">
                     {[
                       { key: "Classic", label: t("settings.classic", "Classic") },
                       { key: "Dark", label: t("settings.dark", "Dark") },
@@ -1774,13 +1774,13 @@ const Settings = () => {
                           changeTheme(tKey);
                           setThemeMode(tKey === "Dark" ? "Dark" : "Light");
                         }}
-                        className={`h-[48px] px-[10px] text-[13.5px] font-medium rounded-[14px] border cursor-pointer transition-all shadow-sm flex items-center justify-center gap-[6px] shrink-0 ${currentThemeName === tKey ? "border-primary ring-2 ring-primary" : "hover:bg-black/5 dark:hover:bg-white/5"}`}
+                        className={`h-[46px] px-2.5 text-[13px] font-medium rounded-xl border cursor-pointer transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0 ${currentThemeName === tKey ? "border-primary ring-2 ring-primary" : "hover:bg-black/5 dark:hover:bg-white/5"}`}
                         style={currentThemeName === tKey ? { borderColor: theme.accent, color: theme.accent } : { borderColor: theme.border, color: theme.text }}
                       >
-                        <span className="whitespace-nowrap">{label}</span>
+                        <span className="truncate">{label}</span>
                         {tKey === "Classic" && (
                           <span
-                            className="px-[6px] py-[2px] text-[9px] leading-[12px] font-bold uppercase tracking-wider rounded-[4px] shrink-0 inline-flex items-center justify-center select-none"
+                            className="px-1.5 py-0.5 text-[9px] leading-none font-bold uppercase tracking-wider rounded shrink-0 inline-flex items-center justify-center select-none"
                             style={
                               currentThemeName === "Classic"
                                 ? { backgroundColor: `${theme.accent}15`, color: theme.accent }
