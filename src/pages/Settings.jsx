@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MdSettings,
@@ -70,6 +70,7 @@ const Settings = () => {
 
   const bgFileRef = useRef(null);
   const savingRef = useRef(false);
+  const mainContentRef = useRef(null);
   const [customBgUrl, setCustomBgUrl] = useState("");
   const [selectedWallpaper, setSelectedWallpaper] = useState(backgroundImage);
 
@@ -78,6 +79,22 @@ const Settings = () => {
   }, [backgroundImage]);
 
   const [activeTab, setActiveTab] = useState("accounts");
+
+  const scrollToTop = useCallback(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTop = 0;
+      if (typeof mainContentRef.current.scrollTo === "function") {
+        mainContentRef.current.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      }
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, []);
+
+  useEffect(() => {
+    scrollToTop();
+  }, [activeTab, scrollToTop]);
   const [emails, setEmails] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [externalSessions, setExternalSessions] = useState([]);
@@ -985,14 +1002,17 @@ const Settings = () => {
             icon={tab.icon}
             label={tab.label}
             active={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id);
+              scrollToTop();
+            }}
             theme={theme}
           />
         ))}
       </aside>
 
       {/* Settings Options Pane */}
-      <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto hidden-scrollbar flex justify-start" style={{ background: theme.cardBg }}>
+      <main ref={mainContentRef} className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto hidden-scrollbar flex justify-start" style={{ background: theme.cardBg }}>
         <div className="w-full">
           {/* accounts Tab */}
           {activeTab === "accounts" && (
