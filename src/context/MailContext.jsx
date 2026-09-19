@@ -27,27 +27,49 @@ export const MailProvider = ({ children }) => {
     const [labels, setLabels] = useState([]);
     const [totalEmails, setTotalEmails] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
+    const currentPageRef = useRef(1);
+
+    const updateCurrentPage = useCallback((page) => {
+        currentPageRef.current = page;
+        setCurrentPage(page);
+    }, []);
 
     useEffect(() => {
         currentFolderRef.current = currentFolder;
     }, [currentFolder]);
 
-    const fetchLabelEmails = useCallback(async (labelId, silent = false, page = 1) => {
+    const fetchLabelEmails = useCallback(async (labelId, silent = false, page = null) => {
+        const isFolderChange = currentFolderRef.current !== `label-${labelId}`;
+        const targetPage = isFolderChange
+            ? (page !== null && page !== undefined ? page : 1)
+            : (page !== null && page !== undefined ? page : currentPageRef.current);
 
-        if (currentFolderRef.current !== `label-${labelId}`) setCurrentPage(1);
-        else setCurrentPage(page);
+        updateCurrentPage(targetPage);
         if (!user) return;
         if (!silent) setLoading(true);
         // Only clear if the folder actually changed to avoid flashing on auto-polling/refresh
         setEmails(prev => (currentFolderRef.current === `label-${labelId}` ? prev : []));
         setCurrentFolder(`label-${labelId}`);
+        currentFolderRef.current = `label-${labelId}`;
         try {
             // Fetching all emails for a specific label
             // Assuming the endpoint follows the pattern /api/mail/labels/{id}
-            const res = await api.get(`${API_ENDPOINTS.MAIL.LABELS}/${labelId}?page=${page}&limit=${limit}`);
+            const res = await api.get(`${API_ENDPOINTS.MAIL.LABELS}/${labelId}?page=${targetPage}&limit=${limit}`);
             if (res.data?.success) {
                 const data = res.data.data;
-                setTotalEmails(data.totalCount || 0);
+                const totalCount = data.totalCount || 0;
+                setTotalEmails(totalCount);
+
+                const totalPages = Math.max(1, Math.ceil(totalCount / limit));
+                if (targetPage > totalPages) {
+                    const validPage = totalPages;
+                    updateCurrentPage(validPage);
+                    if (validPage !== targetPage) {
+                        fetchLabelEmails(labelId, silent, validPage);
+                        return;
+                    }
+                }
+
                 const normalizedEmails = (data.emails || data || []).map(m => ({
                     ...m,
                     isRead: m.isRead !== undefined ? Boolean(m.isRead) : (m.read !== undefined ? Boolean(m.read) : false),
@@ -68,25 +90,26 @@ export const MailProvider = ({ children }) => {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [user, limit]);
+    }, [user, limit, updateCurrentPage]);
 
-    const fetchEmailsSilently = useCallback(async (folder, page = 1) => {
+    const fetchEmailsSilently = useCallback(async (folder, page = null) => {
         if (!user) return;
         const folderKey = folder.toLowerCase();
+        const targetPage = (page !== null && page !== undefined) ? page : (currentFolderRef.current.toLowerCase() === folderKey ? currentPageRef.current : 1);
         try {
             let res;
             switch (folderKey) {
-                case 'inbox': res = await mailAPI.getInbox(page, limit); break;
-                case 'sent': res = await mailAPI.getSent(page, limit); break;
+                case 'inbox': res = await mailAPI.getInbox(targetPage, limit); break;
+                case 'sent': res = await mailAPI.getSent(targetPage, limit); break;
                 case 'draft':
-                case 'drafts': res = await mailAPI.getDrafts(page, limit); break;
-                case 'starred': res = await mailAPI.getStarred(page, limit); break;
-                case 'trash': res = await mailAPI.getTrash(page, limit); break;
-                case 'spam': res = await mailAPI.getSpam(page, limit); break;
-                case 'snoozed': res = await mailAPI.getSnoozed(page, limit); break;
-                case 'archive': res = await mailAPI.getArchive(page, limit); break;
-                case 'unread': res = await mailAPI.getUnread(page, limit); break;
-                default: res = await mailAPI.getInbox(page, limit);
+                case 'drafts': res = await mailAPI.getDrafts(targetPage, limit); break;
+                case 'starred': res = await mailAPI.getStarred(targetPage, limit); break;
+                case 'trash': res = await mailAPI.getTrash(targetPage, limit); break;
+                case 'spam': res = await mailAPI.getSpam(targetPage, limit); break;
+                case 'snoozed': res = await mailAPI.getSnoozed(targetPage, limit); break;
+                case 'archive': res = await mailAPI.getArchive(targetPage, limit); break;
+                case 'unread': res = await mailAPI.getUnread(targetPage, limit); break;
+                default: res = await mailAPI.getInbox(targetPage, limit);
             }
 
             if (res && res.data?.success) {
@@ -126,8 +149,8 @@ export const MailProvider = ({ children }) => {
 
                 // Update caches
                 if (!pagesCache.current[folderKey]) pagesCache.current[folderKey] = {};
-                pagesCache.current[folderKey][page] = normalizedEmails;
-                sessionStorage.setItem(`bnx_cache_${user.email}_${folderKey}_${page}`, JSON.stringify(normalizedEmails));
+                pagesCache.current[folderKey][targetPage] = normalizedEmails;
+                sessionStorage.setItem(`bnx_cache_${user.email}_${folderKey}_${targetPage}`, JSON.stringify(normalizedEmails));
 
                 // Only update active screen if it matches the current folder
                 if (currentFolderRef.current.toLowerCase() === folderKey) {
@@ -142,39 +165,39 @@ export const MailProvider = ({ children }) => {
         }
     }, [user, limit]);
 
-    const fetchEmails = useCallback(async (folder = currentFolderRef.current, silent = false, page = 1) => {
-        const folderKey = folder.toLowerCase();
+    const fetchEmails = useCallback(async (folder = currentFolderRef.current, silent = false, page = null) => {
+        const folderKey = (folder || currentFolderRef.current).toLowerCase();
+        const isFolderChange = currentFolderRef.current.toLowerCase() !== folderKey;
+        const targetPage = isFolderChange
+            ? (page !== null && page !== undefined ? page : 1)
+            : (page !== null && page !== undefined ? page : currentPageRef.current);
         
-        if (currentFolderRef.current.toLowerCase() !== folderKey) {
-            setCurrentPage(1);
-        } else {
-            setCurrentPage(page);
-        }
+        updateCurrentPage(targetPage);
         
         if (!user) return;
 
         // 1. Check in-memory cache
-        if (!silent && pagesCache.current[folderKey] && pagesCache.current[folderKey][page]) {
-            setEmails(pagesCache.current[folderKey][page]);
+        if (!silent && pagesCache.current[folderKey] && pagesCache.current[folderKey][targetPage]) {
+            setEmails(pagesCache.current[folderKey][targetPage]);
             setCurrentFolder(folder);
             currentFolderRef.current = folder;
-            fetchEmailsSilently(folder, page);
+            fetchEmailsSilently(folder, targetPage);
             return;
         }
 
         // 2. Check sessionStorage cache (cross-refresh persistence)
-        const sessionCached = sessionStorage.getItem(`bnx_cache_${user.email}_${folderKey}_${page}`);
+        const sessionCached = sessionStorage.getItem(`bnx_cache_${user.email}_${folderKey}_${targetPage}`);
         if (!silent && sessionCached) {
             try {
                 const parsed = JSON.parse(sessionCached);
                 if (Array.isArray(parsed)) {
                     if (!pagesCache.current[folderKey]) pagesCache.current[folderKey] = {};
-                    pagesCache.current[folderKey][page] = parsed;
+                    pagesCache.current[folderKey][targetPage] = parsed;
                     
                     setEmails(parsed);
                     setCurrentFolder(folder);
                     currentFolderRef.current = folder;
-                    fetchEmailsSilently(folder, page);
+                    fetchEmailsSilently(folder, targetPage);
                     return;
                 }
             } catch (e) {
@@ -194,16 +217,16 @@ export const MailProvider = ({ children }) => {
         try {
             let res;
             switch (folder.toLowerCase()) {
-                case 'inbox': res = await mailAPI.getInbox(page, limit); break;
-                case 'sent': res = await mailAPI.getSent(page, limit); break;
+                case 'inbox': res = await mailAPI.getInbox(targetPage, limit); break;
+                case 'sent': res = await mailAPI.getSent(targetPage, limit); break;
                 case 'draft':
-                case 'drafts': res = await mailAPI.getDrafts(page, limit); break;
-                case 'starred': res = await mailAPI.getStarred(page, limit); break;
-                case 'trash': res = await mailAPI.getTrash(page, limit); break;
-                case 'spam': res = await mailAPI.getSpam(page, limit); break;
-                case 'snoozed': res = await mailAPI.getSnoozed(page, limit); break;
-                case 'archive': res = await mailAPI.getArchive(page, limit); break;
-                case 'unread': res = await mailAPI.getUnread(page, limit); break;
+                case 'drafts': res = await mailAPI.getDrafts(targetPage, limit); break;
+                case 'starred': res = await mailAPI.getStarred(targetPage, limit); break;
+                case 'trash': res = await mailAPI.getTrash(targetPage, limit); break;
+                case 'spam': res = await mailAPI.getSpam(targetPage, limit); break;
+                case 'snoozed': res = await mailAPI.getSnoozed(targetPage, limit); break;
+                case 'archive': res = await mailAPI.getArchive(targetPage, limit); break;
+                case 'unread': res = await mailAPI.getUnread(targetPage, limit); break;
                 case 'all-inbox':
                 case 'allinbox': {
                     const sessionsStr = localStorage.getItem('bnx_sessions');
@@ -364,14 +387,26 @@ export const MailProvider = ({ children }) => {
                 
                 // Update Cache
                 if (!pagesCache.current[folderKey]) pagesCache.current[folderKey] = {};
-                pagesCache.current[folderKey][page] = normalizedEmails;
+                pagesCache.current[folderKey][targetPage] = normalizedEmails;
                 if (user?.email) {
-                    sessionStorage.setItem(`bnx_cache_${user.email}_${folderKey}_${page}`, JSON.stringify(normalizedEmails));
+                    sessionStorage.setItem(`bnx_cache_${user.email}_${folderKey}_${targetPage}`, JSON.stringify(normalizedEmails));
                 }
                 
-                // Only update state if this is still the active page
+                // Only update active screen if it matches the current folder
                 if (currentFolderRef.current.toLowerCase() === folderKey) {
-                    setTotalEmails(data.totalCount || 0);
+                    const totalCount = data.totalCount || 0;
+                    setTotalEmails(totalCount);
+
+                    const totalPages = Math.max(1, Math.ceil(totalCount / limit));
+                    if (targetPage > totalPages) {
+                        const validPage = totalPages;
+                        updateCurrentPage(validPage);
+                        if (validPage !== targetPage) {
+                            fetchEmails(folder, silent, validPage);
+                            return;
+                        }
+                    }
+
                     setEmails(normalizedEmails);
                     const countKey = folderKey.replace('-', '').replace(' ', '');
                     setUnreadCounts(prev => ({ ...prev, [countKey]: data.unreadCount || 0 }));
@@ -383,7 +418,7 @@ export const MailProvider = ({ children }) => {
         } finally {
             if (!silent && currentFolderRef.current.toLowerCase() === folderKey) setLoading(false);
         }
-    }, [user, limit]);
+    }, [user, limit, updateCurrentPage, fetchEmailsSilently]);
 
     const fetchLabels = useCallback(async () => {
         if (!user) return;
@@ -494,12 +529,12 @@ export const MailProvider = ({ children }) => {
 
         const interval = setInterval(() => {
             if (!document.hidden) {
-                console.log('⏰ Auto-polling emails for:', currentFolderRef.current);
+                console.log('⏰ Auto-polling emails for:', currentFolderRef.current, 'page:', currentPageRef.current);
                 if (currentFolderRef.current.startsWith('label-')) {
                     const labelId = currentFolderRef.current.replace('label-', '');
-                    fetchLabelEmails(labelId, true);
+                    fetchLabelEmails(labelId, true, currentPageRef.current);
                 } else {
-                    fetchEmails(currentFolderRef.current, true);
+                    fetchEmails(currentFolderRef.current, true, currentPageRef.current);
                 }
             }
         }, 30000);
@@ -522,18 +557,18 @@ export const MailProvider = ({ children }) => {
                 // Rollback if failed
                 if (currentFolder.startsWith('label-')) {
                     const labelId = currentFolder.replace('label-', '');
-                    fetchLabelEmails(labelId);
+                    fetchLabelEmails(labelId, false, currentPageRef.current);
                 } else {
-                    fetchEmails(currentFolder);
+                    fetchEmails(currentFolder, false, currentPageRef.current);
                 }
                 toast.error('Failed to update star');
             }
         } catch (error) {
             if (currentFolder.startsWith('label-')) {
                 const labelId = currentFolder.replace('label-', '');
-                fetchLabelEmails(labelId);
+                fetchLabelEmails(labelId, false, currentPageRef.current);
             } else {
-                fetchEmails(currentFolder);
+                fetchEmails(currentFolder, false, currentPageRef.current);
             }
             toast.error('Failed to update star');
         }
@@ -571,7 +606,7 @@ export const MailProvider = ({ children }) => {
                 invalidateCache(currentFolderRef.current);
             }
             if (currentFolderRef.current?.toLowerCase() === 'unread') {
-                fetchEmails('unread', true);
+                fetchEmails('unread', true, currentPageRef.current);
             }
         } catch (error) {
             console.error('Mark unread failed:', error);
@@ -657,9 +692,9 @@ export const MailProvider = ({ children }) => {
             if (!silent) toast.success('Label applied');
             if (currentFolder.startsWith('label-')) {
                 const currentLabelId = currentFolder.replace('label-', '');
-                fetchLabelEmails(currentLabelId);
+                fetchLabelEmails(currentLabelId, false, currentPageRef.current);
             } else {
-                fetchEmails(currentFolder);
+                fetchEmails(currentFolder, false, currentPageRef.current);
             }
         } catch (error) {
             if (!silent) toast.error('Failed to apply label');
