@@ -29,7 +29,6 @@ export const SignupProvider = ({ children }) => {
 
         // Business Details
         businessName: '',
-        businessType: '',
         registrationNumber: '',
         ownerFirstName: '',
         ownerLastName: '',

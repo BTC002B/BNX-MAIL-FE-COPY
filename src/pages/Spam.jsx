@@ -2,7 +2,8 @@ import { useTranslation } from "../context/LanguageContext";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMail } from "../context/MailContext";
-import { MdReport } from "react-icons/md";
+import { MdReport, MdDelete } from "react-icons/md";
+import toast from "react-hot-toast";
 import EmailList from "../components/EmailList";
 import EmailDetails from "../components/EmailDetails";
 import { useTheme } from "../context/ThemeContext";
@@ -11,15 +12,16 @@ import BulkActionsToolbar from "../components/BulkActionsToolbar";
 import ReadingPaneLayout from "../components/ReadingPaneLayout";
 
 const Spam = ({ searchQuery }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { theme, readingPaneMode } = useTheme();
   const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleArchive, openCompose } = useMail();
   const [selectedEmailUid, setSelectedEmailUid] = useState(null);
   const selectedEmail = emails.find((e) => String(e.uid) === String(selectedEmailUid));
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const handleToggleSelect = (uid) => {
-  const { t } = useTranslation();
     const strUid = String(uid);
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -27,6 +29,27 @@ const Spam = ({ searchQuery }) => {
       else next.add(strUid);
       return next;
     });
+  };
+
+  const handleDeleteAllSpam = async () => {
+    if (emails.length === 0) return;
+    try {
+      setIsDeletingAll(true);
+      toast.loading("Deleting all spam messages...", { id: "delete-all-spam" });
+      await Promise.all(
+        emails.map((e) => handleMoveToTrash(e.uid, e.folderName || 'spam', true))
+      );
+      setSelectedIds(new Set());
+      setSelectedEmailUid(null);
+      toast.success("All spam messages moved to trash", { id: "delete-all-spam" });
+      await fetchEmails('spam', false, 1);
+    } catch (err) {
+      console.error("Failed to delete all spam:", err);
+      toast.error("Failed to delete all spam messages", { id: "delete-all-spam" });
+      await fetchEmails('spam', false, 1);
+    } finally {
+      setIsDeletingAll(false);
+    }
   };
 
 
@@ -117,6 +140,17 @@ const handleReply = (email) => {
                   ({emails.length})
                 </span>
               </h2>
+              {emails.length > 0 && (
+                <button
+                  onClick={handleDeleteAllSpam}
+                  disabled={isDeletingAll}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Delete all spam emails"
+                >
+                  <MdDelete size={16} />
+                  Delete All
+                </button>
+              )}
             </div>
           
   );

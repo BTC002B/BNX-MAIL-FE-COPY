@@ -18,10 +18,7 @@ export const MailProvider = ({ children }) => {
         if (!folder) return;
         const folderKey = folder.toLowerCase();
         delete pagesCache.current[folderKey];
-        if (user?.email) {
-            sessionStorage.removeItem(`bnx_cache_${user.email}_${folderKey}_1`);
-        }
-    }, [user]);
+    }, []);
     const [loading, setLoading] = useState(false);
     const [unreadCounts, setUnreadCounts] = useState({ inbox: 0, spam: 0, trash: 0 });
     const [labels, setLabels] = useState([]);
@@ -74,7 +71,10 @@ export const MailProvider = ({ children }) => {
                     ...m,
                     isRead: m.isRead !== undefined ? Boolean(m.isRead) : (m.read !== undefined ? Boolean(m.read) : false),
                     starred: m.starred ?? m.isStarred ?? false
-                })).filter(m => m.folderName?.toLowerCase() !== 'trash');
+                })).filter(m => {
+                    const isTrash = m.folderName?.toLowerCase() === 'trash' || m.folderName?.toLowerCase() === 'deleted' || m.isTrash === true || m.isDeleted === true || m.deleted === true;
+                    return !isTrash;
+                });
 
                 normalizedEmails.sort((a, b) => {
                     const dateA = new Date(a.date || a.receivedDate || a.sentDate || 0);
@@ -119,8 +119,11 @@ export const MailProvider = ({ children }) => {
                     isRead: m.isRead !== undefined ? Boolean(m.isRead) : (m.read !== undefined ? Boolean(m.read) : false),
                     starred: m.starred ?? m.isStarred ?? false
                 }));
-                if (folderKey === 'starred') {
-                    normalizedEmails = normalizedEmails.filter(m => m.folderName?.toLowerCase() !== 'trash');
+                if (folderKey !== 'trash') {
+                    normalizedEmails = normalizedEmails.filter(m => {
+                        const isTrash = m.folderName?.toLowerCase() === 'trash' || m.folderName?.toLowerCase() === 'deleted' || m.isTrash === true || m.isDeleted === true || m.deleted === true;
+                        return !isTrash;
+                    });
                 }
 
                 if (user?.email) {
@@ -150,7 +153,6 @@ export const MailProvider = ({ children }) => {
                 // Update caches
                 if (!pagesCache.current[folderKey]) pagesCache.current[folderKey] = {};
                 pagesCache.current[folderKey][targetPage] = normalizedEmails;
-                sessionStorage.setItem(`bnx_cache_${user.email}_${folderKey}_${targetPage}`, JSON.stringify(normalizedEmails));
 
                 // Only update active screen if it matches the current folder
                 if (currentFolderRef.current.toLowerCase() === folderKey) {
@@ -176,33 +178,13 @@ export const MailProvider = ({ children }) => {
         
         if (!user) return;
 
-        // 1. Check in-memory cache
-        if (!silent && pagesCache.current[folderKey] && pagesCache.current[folderKey][targetPage]) {
+        // Check in-memory cache if available and silent
+        if (silent && pagesCache.current[folderKey] && pagesCache.current[folderKey][targetPage]) {
             setEmails(pagesCache.current[folderKey][targetPage]);
             setCurrentFolder(folder);
             currentFolderRef.current = folder;
             fetchEmailsSilently(folder, targetPage);
             return;
-        }
-
-        // 2. Check sessionStorage cache (cross-refresh persistence)
-        const sessionCached = sessionStorage.getItem(`bnx_cache_${user.email}_${folderKey}_${targetPage}`);
-        if (!silent && sessionCached) {
-            try {
-                const parsed = JSON.parse(sessionCached);
-                if (Array.isArray(parsed)) {
-                    if (!pagesCache.current[folderKey]) pagesCache.current[folderKey] = {};
-                    pagesCache.current[folderKey][targetPage] = parsed;
-                    
-                    setEmails(parsed);
-                    setCurrentFolder(folder);
-                    currentFolderRef.current = folder;
-                    fetchEmailsSilently(folder, targetPage);
-                    return;
-                }
-            } catch (e) {
-                console.error("Failed to parse session cache", e);
-            }
         }
 
         if (!silent) {
@@ -353,8 +335,11 @@ export const MailProvider = ({ children }) => {
                     isRead: m.isRead !== undefined ? Boolean(m.isRead) : (m.read !== undefined ? Boolean(m.read) : false),
                     starred: m.starred ?? m.isStarred ?? false
                 }));
-                if (folder === 'starred') {
-                    normalizedEmails = normalizedEmails.filter(m => m.folderName?.toLowerCase() !== 'trash');
+                if (folderKey !== 'trash') {
+                    normalizedEmails = normalizedEmails.filter(m => {
+                        const isTrash = m.folderName?.toLowerCase() === 'trash' || m.folderName?.toLowerCase() === 'deleted' || m.isTrash === true || m.isDeleted === true || m.deleted === true;
+                        return !isTrash;
+                    });
                 }
 
                 // Filter logic for Inbox and Sent folders based on currently logged-in user's email ID
@@ -388,9 +373,6 @@ export const MailProvider = ({ children }) => {
                 // Update Cache
                 if (!pagesCache.current[folderKey]) pagesCache.current[folderKey] = {};
                 pagesCache.current[folderKey][targetPage] = normalizedEmails;
-                if (user?.email) {
-                    sessionStorage.setItem(`bnx_cache_${user.email}_${folderKey}_${targetPage}`, JSON.stringify(normalizedEmails));
-                }
                 
                 // Only update active screen if it matches the current folder
                 if (currentFolderRef.current.toLowerCase() === folderKey) {
@@ -471,6 +453,12 @@ export const MailProvider = ({ children }) => {
                                         isRead: m.isRead !== undefined ? Boolean(m.isRead) : (m.read !== undefined ? Boolean(m.read) : false),
                                         starred: m.starred ?? m.isStarred ?? false
                                     }));
+                                    if (folderKey !== 'trash') {
+                                        normalized = normalized.filter(m => {
+                                            const isTrash = m.folderName?.toLowerCase() === 'trash' || m.folderName?.toLowerCase() === 'deleted' || m.isTrash === true || m.isDeleted === true || m.deleted === true;
+                                            return !isTrash;
+                                        });
+                                    }
 
                                     // Apply user filters to Inbox & Sent
                                     if (user?.email) {
@@ -499,7 +487,6 @@ export const MailProvider = ({ children }) => {
 
                                     if (!pagesCache.current[folderKey]) pagesCache.current[folderKey] = {};
                                     pagesCache.current[folderKey][1] = normalized;
-                                    sessionStorage.setItem(`bnx_cache_${user.email}_${folderKey}_1`, JSON.stringify(normalized));
                                 }
                             } catch (e) {
                                 console.error(`Failed to pre-fetch folder ${folder}:`, e);
@@ -615,13 +602,17 @@ export const MailProvider = ({ children }) => {
 
     const handleMoveToTrash = async (uid, folder, silent = false) => {
         try {
-            await mailAPI.trash(uid, folder);
+            const targetFolder = folder || currentFolderRef.current || 'inbox';
+            await mailAPI.trash(uid, targetFolder);
             setEmails(prev => prev.filter(m => String(m.uid) !== String(uid)));
+            setTotalEmails(prev => Math.max(0, prev - 1));
             invalidateCache('trash');
             if (folder) invalidateCache(folder);
+            if (currentFolderRef.current) invalidateCache(currentFolderRef.current);
             if (!silent) toast.success('Moved to trash');
         } catch (error) {
             if (!silent) toast.error('Failed to move to trash');
+            throw error;
         }
     };
 

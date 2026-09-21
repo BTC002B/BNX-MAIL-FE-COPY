@@ -12,13 +12,13 @@ import BulkActionsToolbar from "../components/BulkActionsToolbar";
 import ReadingPaneLayout from "../components/ReadingPaneLayout";
 
 const Trash = ({ searchQuery }) => {
+  const { t } = useTranslation();
   const { theme, readingPaneMode } = useTheme();
   const { emails, loading, fetchEmails, handleDeletePermanently } = useMail();
   const [selectedEmail, setSelectedEmail] = useState(null);
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const handleToggleSelect = (uid) => {
-  const { t } = useTranslation();
     const strUid = String(uid);
     setSelectedIds((prev) => {
       const next = new Set(prev);
