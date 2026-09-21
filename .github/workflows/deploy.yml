@@ -40,6 +40,12 @@ jobs:
           build-args: |
             VITE_API_URL=${{ secrets.VITE_API_URL }}
             VITE_WS_URL=${{ secrets.VITE_WS_URL }}
+            VITE_APP_CALENDAR_API=${{ secrets.VITE_APP_CALENDAR_API }}
+            VITE_CONTACT_API_BASE_URL=${{ secrets.VITE_CONTACT_API_BASE_URL }}
+            VITE_NOTES_API_BASE_URL=${{ secrets.VITE_NOTES_API_BASE_URL }}
+            VITE_CALCULATOR_API_BASE_URL=${{ secrets.VITE_CALCULATOR_API_BASE_URL }}
+            VITE_OPEN_METEO_API=${{ secrets.VITE_OPEN_METEO_API }}
+            VITE_BIGDATA_CLOUD_API=${{ secrets.VITE_BIGDATA_CLOUD_API }}
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
