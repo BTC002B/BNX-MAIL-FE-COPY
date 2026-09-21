@@ -866,20 +866,6 @@ const Casbox = () => {
             >
               <MdArchive size={20} />
             </button>
-            <button
-              onClick={() => handleSnoozeChat()}
-              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400 hover:text-blue-500 cursor-pointer"
-              title="Snooze"
-            >
-              <MdAccessTime size={20} />
-            </button>
-            <button
-              onClick={handleDeleteChat}
-              className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-gray-500 dark:text-gray-400 hover:text-red-500 cursor-pointer"
-              title="Delete"
-            >
-              <MdDelete size={20} />
-            </button>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
@@ -923,14 +909,6 @@ const Casbox = () => {
                 </div>
               )}
             </div>
-            <button
-              onClick={handleToggleStarChat}
-              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title={isChatStarred ? "Starred" : "Star"}
-              style={{ color: isChatStarred ? "#e3b341" : "rgb(107,114,128)" }}
-            >
-              {isChatStarred ? <MdStar size={20} /> : <MdStarBorder size={20} />}
-            </button>
           </div>
         </div>
 
