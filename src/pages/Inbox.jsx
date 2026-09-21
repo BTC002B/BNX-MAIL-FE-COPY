@@ -187,13 +187,6 @@ const Inbox = ({ searchQuery }) => {
     <div className="flex flex-col border-b border-gray-100 dark:border-gray-800 bg-transparent shrink-0">
       <div className="p-4 sm:p-5 flex items-center justify-between border-b border-gray-100/50 dark:border-gray-800/50">
         <div className="flex items-center gap-3">
-          <span
-            className="px-4 py-1.5 text-xs font-bold rounded-full shadow-sm text-white tracking-wide flex items-center gap-1.5 uppercase select-none"
-            style={{ background: `linear-gradient(135deg, ${theme.accent || "#135bec"} 0%, #3b82f6 100%)` }}
-          >
-            <MdInbox size={15} /> {availableTabs.find(t => t.id === activeTab)?.label}
-          </span>
-
           <button
             onClick={() => fetchEmails(availableTabs.find(t => t.id === activeTab)?.category ? "inbox" : activeTab.toLowerCase())}
             disabled={loading}
