@@ -664,7 +664,7 @@ const Templates = () => {
                 >
                   Template Content
                 </label>
-                <div className="rounded-xl border bg-white relative" style={{ borderColor: theme.border }}>
+                <div className="rounded-xl border bg-white relative overflow-hidden" style={{ borderColor: theme.border }}>
                   <ReactQuill
                     theme="snow"
                     modules={quillModules}
@@ -672,8 +672,7 @@ const Templates = () => {
                     value={formBody}
                     onChange={setFormBody}
                     placeholder="Type your prefilled email body here..."
-                    className="text-black"
-                    style={{ height: "200px" }}
+                    className="text-black template-editor"
                   />
                 </div>
               </div>

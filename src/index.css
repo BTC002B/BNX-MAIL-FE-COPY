@@ -349,6 +349,23 @@ aside.sidebar-collapsed hr {
   cursor: pointer !important;
 }
 
+/* Remove default square borders from Quill editors inside rounded containers */
+.compose-quill .ql-toolbar.ql-snow,
+.template-editor .ql-toolbar.ql-snow {
+  border: none !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.compose-quill .ql-container.ql-snow,
+.template-editor .ql-container.ql-snow {
+  border: none !important;
+}
+
+.template-editor .ql-editor {
+  min-height: 160px !important;
+  max-height: 250px !important;
+}
+
 /* Custom styling for contenteditable placeholder in Colab Broadcast modal */
 .custom-broadcast-editable:empty::before {
   content: attr(placeholder);
