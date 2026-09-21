@@ -197,14 +197,15 @@ const EmailDetails = ({
     }
   };
 
-  const handleUnsubscribeClick = async () => {
-    if (!cleanSenderEmail) return;
-    const confirmUnsubscribe = window.confirm(`Are you sure you want to unsubscribe and block future emails from ${cleanSenderEmail}?`);
+  const handleUnsubscribeClick = async (targetSender = null) => {
+    const emailToUnsub = targetSender || cleanSenderEmail;
+    if (!emailToUnsub) return;
+    const confirmUnsubscribe = window.confirm(`Are you sure you want to unsubscribe and block future emails from ${emailToUnsub}?`);
     if (confirmUnsubscribe) {
       try {
         toast.loading("Unsubscribing...", { id: "unsubscribe" });
-        await mailAPI.unsubscribe(cleanSenderEmail);
-        toast.success(`Unsubscribed from ${cleanSenderEmail}`, { id: "unsubscribe" });
+        await mailAPI.unsubscribe(emailToUnsub);
+        toast.success(`Unsubscribed from ${emailToUnsub}`, { id: "unsubscribe" });
         if (fetchEmails) {
           fetchEmails(currentFolder || "inbox");
         }
@@ -1336,6 +1337,27 @@ const EmailDetails = ({
                                 Blocked
                               </span>
                             )}
+                            {(() => {
+                              const mCleanSender = m.from?.includes("<")
+                                ? m.from.split("<")[1].split(">")[0].trim()
+                                : (m.from || "").trim();
+                              const isMsgSystem = mCleanSender.toLowerCase().includes("mailer-daemon") || 
+                                                  mCleanSender.toLowerCase().includes("postmaster") || 
+                                                  mCleanSender.toLowerCase().includes("noreply") ||
+                                                  mCleanSender.toLowerCase().includes("no-reply");
+                              return mCleanSender && !isMsgSystem ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUnsubscribeClick(mCleanSender);
+                                  }}
+                                  className="text-xs font-semibold text-red-500 hover:text-red-600 hover:underline cursor-pointer bg-red-500/10 dark:bg-red-500/20 px-2 py-0.5 rounded transition-all select-none"
+                                  title={t("bulk_actions.unsubscribe", "Unsubscribe from this sender")}
+                                >
+                                  {t("bulk_actions.unsubscribe", "Unsubscribe")}
+                                </button>
+                              ) : null;
+                            })()}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">
                             to <span className="font-medium text-gray-700 dark:text-gray-300">{m.to || "me"}</span>
