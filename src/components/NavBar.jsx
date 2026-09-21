@@ -183,7 +183,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
     >
       <div className="flex items-center justify-between w-full relative">
         {/* LEFT */}
-        <div className="flex items-center gap-2 sm:gap-4 lg:gap-8 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-6 lg:gap-12 shrink-0 md:flex-1">
           {/* Mobile Menu Toggle Button */}
           <button
             onClick={onOpenMenu}
@@ -211,7 +211,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
           {/* COMPOSE (Hidden on mobile/tablet, shown as floating button instead) */}
           <button
             onClick={() => openCompose(currentTab === 'chat' ? { mode: 'casbox' } : null)}
-            className="hidden lg:flex items-center gap-2.5 px-5 py-2 rounded-full font-semibold shadow-sm transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] bg-white dark:bg-[#303134] border border-gray-200/50 dark:border-gray-700/50 text-gray-700 dark:text-gray-200 ml-2 lg:ml-6"
+            className="hidden lg:flex items-center gap-2.5 px-5 py-2 rounded-full font-semibold shadow-sm transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] bg-white dark:bg-[#303134] border border-gray-200/50 dark:border-gray-700/50 text-gray-700 dark:text-gray-200 ml-4 lg:ml-12"
           >
             <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.accent || "#135bec" }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -221,7 +221,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
         </div>
 
         {/* CENTER: SEGMENTED CONTROL */}
-        <div className="flex items-center bg-white/10 backdrop-blur-sm shadow-sm rounded-full p-1 border border-white/10 shrink-0 mx-2 sm:mx-4">
+        <div className="md:absolute md:left-1/2 md:-translate-x-1/2 flex items-center bg-white/10 backdrop-blur-sm shadow-sm rounded-full p-1 border border-white/10 shrink-0 mx-auto">
           <button
             onClick={() => navigate('/inbox')}
             className={`px-3 sm:px-6 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors ${currentTab === 'mail' ? 'bg-white text-[#1e3a8a] shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
@@ -237,10 +237,10 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
         </div>
 
         {/* RIGHT */}
-        <div className="flex items-center justify-end gap-1.5 sm:gap-3 flex-1 min-w-0">
+        <div className="flex items-center justify-end gap-1 sm:gap-3 md:flex-1 shrink-0">
 
           {/* SEARCH */}
-          <form onSubmit={handleSearch} className="hidden sm:flex flex-1 max-w-[160px] md:max-w-[220px] lg:max-w-[280px] min-w-0" ref={searchContainerRef}>
+          <form onSubmit={handleSearch} className="hidden sm:flex flex-1 max-w-[140px] md:max-w-[200px] lg:max-w-[260px] mr-1 sm:mr-2" ref={searchContainerRef}>
             <div className="relative group w-full">
               <input
                 type="text"
