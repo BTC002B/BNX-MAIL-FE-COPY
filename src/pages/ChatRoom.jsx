@@ -841,8 +841,8 @@ const ChatRoom = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {chat?.type === 'GROUP' && (
+        {chat?.type === 'GROUP' && (
+          <div className="flex items-center gap-2">
             <button 
               onClick={() => setShowComposeModal(true)}
               className="md:hidden p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors" 
@@ -851,11 +851,8 @@ const ChatRoom = () => {
             >
               <MdEmail size={22} />
             </button>
-          )}
-          <button className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors" style={{ color: theme.subText }}>
-            <MdMoreVert size={22} />
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Main Split Container */}
