@@ -240,7 +240,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
         <div className="flex items-center justify-end gap-1 sm:gap-3 md:flex-1 shrink-0">
 
           {/* SEARCH */}
-          <form onSubmit={handleSearch} className="hidden sm:flex flex-1 max-w-[140px] md:max-w-[200px] lg:max-w-[260px] mr-1 sm:mr-2" ref={searchContainerRef}>
+          <form onSubmit={handleSearch} className="hidden sm:flex shrink-0 w-32 md:w-40 lg:w-48 mr-1 sm:mr-2" ref={searchContainerRef}>
             <div className="relative group w-full">
               <input
                 type="text"
@@ -251,10 +251,10 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                   setShowSearchResults(true);
                 }}
                 placeholder={t('navbar.search_placeholder', 'Search mail...')}
-                className="w-full px-3 sm:px-4 py-1.5 sm:py-2 pl-8 sm:pl-10 rounded-full text-xs sm:text-[13px] placeholder:text-white/60 bg-white/10 hover:bg-white/20 focus:bg-white focus:text-gray-900 text-white focus:shadow-sm border border-transparent outline-none transition-all duration-200"
+                className="w-full px-2.5 sm:px-3 py-1 sm:py-1.5 pl-7 sm:pl-8 rounded-full text-xs placeholder:text-white/60 bg-white/10 hover:bg-white/20 focus:bg-white focus:text-gray-900 text-white focus:shadow-sm border border-transparent outline-none transition-all duration-200"
               />
               <svg
-                className="absolute left-2.5 sm:left-3.5 top-2 sm:top-2.5 h-3.5 sm:h-4 w-3.5 sm:w-4 transition-colors text-white/60 group-focus-within:text-gray-500"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 transition-colors text-white/60 group-focus-within:text-gray-500 pointer-events-none"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
