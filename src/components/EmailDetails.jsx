@@ -1703,24 +1703,15 @@ const EmailDetails = ({
           {/* Bottom Toolbar Row */}
           <div className="flex items-center justify-between mt-1 flex-wrap gap-4">
             <div className="flex items-center gap-3 flex-wrap">
-              {/* Split Send Button */}
-              <div className="inline-flex items-center rounded-full overflow-hidden shadow-sm hover:shadow transition-all bg-[#0b57d0]">
-                <button
-                  type="button"
-                  onClick={handleSendReply}
-                  disabled={sendingReply}
-                  className="px-5 py-2.5 text-white text-xs font-bold disabled:opacity-60 cursor-pointer hover:bg-black/10 transition-colors border-r border-white/20"
-                >
-                  {sendingReply ? t("common.sending", "Sending…") : t("common.send", "Send")}
-                </button>
-                <button
-                  type="button"
-                  disabled={sendingReply}
-                  className="px-3 py-2.5 text-white disabled:opacity-60 cursor-pointer flex items-center justify-center hover:bg-black/10 transition-colors"
-                >
-                  <MdArrowDropDown size={16} />
-                </button>
-              </div>
+              {/* Send Button */}
+              <button
+                type="button"
+                onClick={handleSendReply}
+                disabled={sendingReply}
+                className="px-6 py-2.5 text-white text-xs font-bold rounded-full shadow-sm hover:shadow transition-all bg-[#0b57d0] hover:bg-[#0b57d0]/90 disabled:opacity-60 cursor-pointer"
+              >
+                {sendingReply ? t("common.sending", "Sending…") : t("common.send", "Send")}
+              </button>
 
               {/* Formatting bar container - always visible now next to Send button */}
               <div 
