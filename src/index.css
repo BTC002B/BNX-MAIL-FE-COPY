@@ -320,6 +320,17 @@ aside.sidebar-collapsed hr {
   font-family: 'Times New Roman', serif !important;
 }
 
+/* Quill tooltip positioning and visibility fix */
+.ql-snow .ql-tooltip {
+  z-index: 100 !important;
+  max-width: calc(100% - 24px) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 8px !important;
+}
+.ql-snow .ql-container {
+  overflow: visible !important;
+}
+
 /* Custom styling for contenteditable placeholder in Colab Broadcast modal */
 .custom-broadcast-editable:empty::before {
   content: attr(placeholder);

@@ -39,46 +39,43 @@ Quill.register(Size, true);
 Quill.register('modules/imageResize', ImageResize);
 
 const handleQuillLink = function(value) {
-  if (!value) {
-    this.quill.format('link', false);
-    return;
-  }
-  const range = this.quill.getSelection(true);
-  if (!range) return;
-
-  let defaultUrl = '';
-  if (range.length > 0) {
-    const format = this.quill.getFormat(range);
-    if (format.link) {
-      defaultUrl = typeof format.link === 'string' ? format.link : '';
+  if (value) {
+    const range = this.quill.getSelection(true);
+    if (!range) return;
+    let preview = '';
+    if (range.length > 0) {
+      const format = this.quill.getFormat(range);
+      if (format.link) {
+        preview = typeof format.link === 'string' ? format.link : '';
+      } else {
+        const text = this.quill.getText(range);
+        if (/^\S+@\S+\.\S+$/.test(text) && !text.startsWith('mailto:')) {
+          preview = 'mailto:' + text;
+        }
+      }
     }
-  }
+    const { tooltip } = this.quill.theme;
+    tooltip.edit('link', preview);
+    requestAnimationFrame(() => {
+      if (tooltip && tooltip.root) {
+        const container = tooltip.quill.root.parentElement;
+        const containerRect = container ? container.getBoundingClientRect() : null;
+        const bounds = tooltip.quill.getBounds(range);
 
-  const inputUrl = window.prompt('Enter link URL:', defaultUrl || 'https://');
-  if (inputUrl === null) return;
-
-  const trimmedUrl = inputUrl.trim();
-  if (!trimmedUrl) {
-    this.quill.format('link', false);
-    return;
-  }
-
-  let finalUrl = trimmedUrl;
-  if (
-    !/^https?:\/\//i.test(finalUrl) &&
-    !/^mailto:/i.test(finalUrl) &&
-    !/^tel:/i.test(finalUrl) &&
-    !finalUrl.startsWith('#')
-  ) {
-    finalUrl = 'https://' + finalUrl;
-  }
-
-  if (range.length === 0) {
-    this.quill.insertText(range.index, finalUrl, 'link', finalUrl);
-    this.quill.setSelection(range.index + finalUrl.length, 0);
+        let top = (bounds ? bounds.bottom : 0) + 8;
+        let left = 12;
+        if (bounds) {
+          left = Math.max(12, bounds.left);
+          if (containerRect && left + tooltip.root.offsetWidth > containerRect.width - 12) {
+            left = Math.max(12, containerRect.width - tooltip.root.offsetWidth - 12);
+          }
+        }
+        tooltip.root.style.left = `${left}px`;
+        tooltip.root.style.top = `${top}px`;
+      }
+    });
   } else {
-    this.quill.formatText(range.index, range.length, 'link', finalUrl);
-    this.quill.setSelection(range.index + range.length, 0);
+    this.quill.format('link', false);
   }
 };
 
@@ -898,6 +895,18 @@ const FloatingCompose = () => {
         )}
 
         <style>{`
+          .compose-quill .ql-container {
+            overflow: visible !important;
+            position: relative !important;
+          }
+          .compose-quill .ql-snow .ql-tooltip,
+          .reply-composer-style .ql-snow .ql-tooltip {
+            z-index: 100 !important;
+            max-width: calc(100% - 24px) !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+            border-radius: 8px !important;
+            position: absolute !important;
+          }
           .compose-quill .ql-editor {
             font-family: ${getFontFamilyCss(defaultFontFamily)};
             font-size: ${getFontSizeCss(defaultFontSize)};
@@ -1057,35 +1066,35 @@ const FloatingCompose = () => {
 
             {/* CC */}
             {!isReply && showCc && composeMode === "email" && (
-              <div className="flex items-center gap-2 border-b py-1.5 shrink-0 animate-fade-in" style={{ borderColor: theme.border }}>
-                <span className="text-xs font-semibold w-10 text-gray-500">Cc:</span>
-                  <input
-                    name="cc"
-                    value={formData.cc}
-                    onChange={handleChange}
-                    className="flex-1 bg-transparent text-sm outline-none border-none"
-                    style={{ color: theme.text }}
-                    placeholder="carboncopy@example.com"
-                    spellCheck="false"
-                  />
-                </div>
-              )}
+              <div className="flex px-4 py-2 border-b items-center text-sm dark:border-gray-800 shrink-0 animate-fade-in" style={{ borderColor: theme.border }}>
+                <div className="text-gray-400 dark:text-gray-500 w-10">Cc:</div>
+                <input
+                  type="text"
+                  name="cc"
+                  value={formData.cc}
+                  onChange={handleChange}
+                  className="flex-1 outline-none bg-transparent dark:text-gray-100 placeholder-gray-400"
+                  placeholder="carboncopy@example.com"
+                  spellCheck="false"
+                />
+              </div>
+            )}
 
-              {/* BCC */}
-              {!isReply && showBcc && composeMode === "email" && (
-                <div className="flex items-center gap-2 border-b py-1.5 shrink-0 animate-fade-in" style={{ borderColor: theme.border }}>
-                  <span className="text-xs font-semibold w-10 text-gray-500">Bcc:</span>
-                  <input
-                    name="bcc"
-                    value={formData.bcc}
-                    onChange={handleChange}
-                    className="flex-1 bg-transparent text-sm outline-none border-none"
-                    style={{ color: theme.text }}
-                    placeholder="blindcopy@example.com"
-                    spellCheck="false"
-                  />
-                </div>
-              )}
+            {/* BCC */}
+            {!isReply && showBcc && composeMode === "email" && (
+              <div className="flex px-4 py-2 border-b items-center text-sm dark:border-gray-800 shrink-0 animate-fade-in" style={{ borderColor: theme.border }}>
+                <div className="text-gray-400 dark:text-gray-500 w-10">Bcc:</div>
+                <input
+                  type="text"
+                  name="bcc"
+                  value={formData.bcc}
+                  onChange={handleChange}
+                  className="flex-1 outline-none bg-transparent dark:text-gray-100 placeholder-gray-400"
+                  placeholder="blindcopy@example.com"
+                  spellCheck="false"
+                />
+              </div>
+            )}
 
               {/* SUBJECT */}
               {!isReply && (
