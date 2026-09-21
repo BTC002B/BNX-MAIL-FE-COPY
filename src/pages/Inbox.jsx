@@ -186,12 +186,12 @@ const Inbox = ({ searchQuery }) => {
   ) : (
     <div className="flex flex-col border-b border-gray-100 dark:border-gray-800 bg-transparent shrink-0">
       {/* TABS */}
-      <div className="flex px-4 pt-1 items-center gap-2 sm:gap-4 text-sm font-medium">
+      <div className="flex px-4 pt-1 items-center gap-2 sm:gap-3 text-sm font-medium">
         {/* Edit Button */}
-        <div className="relative shrink-0 border-r border-gray-100 dark:border-gray-800 pr-2 sm:pr-4">
+        <div className="relative shrink-0 border-r border-gray-200 dark:border-gray-700 pr-2">
           <button
             onClick={() => setShowTabMenu(!showTabMenu)}
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-gray-500 transition-colors cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-gray-500 transition-colors cursor-pointer"
             title="Edit Tabs"
           >
             <MdEdit size={18} />
@@ -230,7 +230,7 @@ const Inbox = ({ searchQuery }) => {
         <button
           onClick={() => fetchEmails(availableTabs.find(t => t.id === activeTab)?.category ? "inbox" : activeTab.toLowerCase())}
           disabled={loading}
-          className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-50 flex items-center justify-center cursor-pointer shrink-0"
+          className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-50 flex items-center justify-center cursor-pointer shrink-0"
           title={t("common.refresh", "Refresh mail")}
         >
           <MdRefresh size={18} className={loading ? "animate-spin" : ""} />
