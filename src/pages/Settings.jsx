@@ -1573,10 +1573,11 @@ const Settings = () => {
                               ✕
                             </button>
                           </div>
-                          <div className="bg-white text-black rounded-md overflow-hidden border">
+                          <div className="bg-white text-black rounded-md border relative">
                             <ReactQuill
                               theme="snow"
                               modules={quillModules}
+                              bounds="self"
                               value={sig.content}
                               onChange={(content) => updateSignature(sig.id, "content", content)}
                               className="h-32 mb-10"

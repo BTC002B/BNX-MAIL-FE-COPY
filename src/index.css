@@ -326,9 +326,27 @@ aside.sidebar-collapsed hr {
   max-width: calc(100% - 24px) !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
   border-radius: 8px !important;
+  position: absolute !important;
+  background-color: #fff !important;
+  border: 1px solid #e2e8f0 !important;
 }
 .ql-snow .ql-container {
   overflow: visible !important;
+  position: relative !important;
+}
+.ql-snow .ql-tooltip input[type="text"] {
+  border-radius: 6px !important;
+  border: 1px solid #cbd5e1 !important;
+  outline: none !important;
+  padding: 3px 8px !important;
+}
+.ql-snow .ql-tooltip input[type="text"]:focus {
+  border-color: #3b82f6 !important;
+}
+.ql-snow .ql-tooltip a.ql-action::after {
+  font-weight: 600 !important;
+  color: #2563eb !important;
+  cursor: pointer !important;
 }
 
 /* Custom styling for contenteditable placeholder in Colab Broadcast modal */

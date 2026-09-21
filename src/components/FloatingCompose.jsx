@@ -1117,6 +1117,7 @@ const FloatingCompose = () => {
                 <ReactQuill
                   theme="snow"
                   modules={dynamicQuillModules}
+                  bounds="self"
                   value={formData.body}
                   onChange={(content) => setFormData((prev) => ({ ...prev, body: content }))}
                   placeholder={composeData?.forward ? "Type your forwarded message here..." : "Type your message here..."}

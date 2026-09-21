@@ -1665,6 +1665,7 @@ const EmailDetails = ({
             <ReactQuill
               theme="snow"
               modules={{ toolbar: "#inline-reply-toolbar" }}
+              bounds="self"
               value={replyBody}
               onChange={setReplyBody}
               placeholder={replyMode === 'forward' ? t("compose.body_placeholder", "Type your forwarded message here...") : t("compose.body_placeholder", "Type your reply here...")}
