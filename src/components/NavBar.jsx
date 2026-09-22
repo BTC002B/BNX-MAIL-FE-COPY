@@ -240,7 +240,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
         <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 shrink-0 min-w-0">
 
           {/* SEARCH */}
-          <form onSubmit={handleSearch} className="flex shrink items-center min-w-[90px] w-24 sm:w-36 md:w-44 lg:w-56 focus-within:w-36 sm:focus-within:w-44 md:focus-within:w-52 lg:focus-within:w-64 transition-all duration-200" ref={searchContainerRef}>
+          <form onSubmit={handleSearch} className="flex shrink items-center min-w-[80px] w-20 sm:w-28 md:w-32 lg:w-40 focus-within:w-28 sm:focus-within:w-36 md:focus-within:w-40 lg:focus-within:w-48 transition-all duration-200" ref={searchContainerRef}>
             <div className="relative group w-full">
               <input
                 type="text"
@@ -251,10 +251,10 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
                   setShowSearchResults(true);
                 }}
                 placeholder={t('navbar.search_placeholder', 'Search mail...')}
-                className="w-full px-2.5 sm:px-3 py-1 sm:py-1.5 pl-7 sm:pl-8 rounded-full text-xs placeholder:text-white/60 bg-white/10 hover:bg-white/20 focus:bg-white focus:text-gray-900 text-white focus:shadow-sm border border-transparent outline-none transition-all duration-200 truncate placeholder:truncate"
+                className="w-full px-2 py-1 pl-6 sm:pl-7.5 rounded-full text-xs placeholder:text-white/60 bg-white/10 hover:bg-white/20 focus:bg-white focus:text-gray-900 text-white focus:shadow-sm border border-transparent outline-none transition-all duration-200 truncate placeholder:truncate"
               />
               <svg
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 transition-colors text-white/60 group-focus-within:text-gray-500 pointer-events-none"
+                className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 sm:h-3.5 sm:w-3.5 transition-colors text-white/60 group-focus-within:text-gray-500 pointer-events-none"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
