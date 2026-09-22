@@ -195,7 +195,7 @@ const AppContent = () => {
 
   return (
     <div className="flex flex-col h-screen h-[100dvh] max-h-screen overflow-hidden relative" style={rootStyle}>
-      {/* Premium Background: Blurred Cover + Contained Image */}
+      {/* Background Wallpaper: Full Cover across entire viewport */}
       {backgroundImage && (
         <>
           <div
@@ -204,22 +204,18 @@ const AppContent = () => {
               backgroundImage: `url(${backgroundImage})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
-              filter: "blur(24px) brightness(0.8)",
-              transform: "scale(1.1)",
+              backgroundRepeat: "no-repeat",
+              width: "100%",
+              height: "100%",
             }}
           />
           <div
             className="absolute inset-0 pointer-events-none z-0"
             style={{
-              backgroundImage: `url(${backgroundImage})`,
-              backgroundSize: "contain",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
+              backgroundColor: theme.mode === "dark" ? "rgba(0, 0, 0, 0.25)" : "rgba(255, 255, 255, 0.12)",
+              width: "100%",
+              height: "100%",
             }}
-          />
-          <div
-            className="absolute inset-0 pointer-events-none z-0"
-            style={{ backgroundColor: theme.mode === "dark" ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.2)" }}
           />
         </>
       )}

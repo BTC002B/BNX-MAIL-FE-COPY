@@ -21,7 +21,7 @@ const EmailList = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { theme, emailsPerPage } = useTheme();
+  const { theme, emailsPerPage, backgroundImage } = useTheme();
   const { isComposeOpen, totalEmails, currentPage, handlePageChange, loading } = useMail();
 
   const [snoozeOpenUid, setSnoozeOpenUid] = useState(null);
@@ -87,7 +87,7 @@ const EmailList = ({
   };
 
   const paginationControls = emails.length > 0 && (
-    <div className="flex items-center justify-between gap-2 pl-4 pr-20 lg:px-6 py-4 border-t border-gray-100 dark:border-gray-800/60 bg-black/[0.01] dark:bg-white/[0.01] shrink-0">
+    <div className="flex items-center justify-between gap-2 pl-4 pr-4 lg:px-6 py-4 border-t border-gray-100 dark:border-gray-800/60 bg-transparent shrink-0">
       <div className="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400 shrink-0">
         <span className="hidden sm:inline">Showing </span>
         <span className="font-medium text-gray-700 dark:text-gray-300">{startIndex + 1}</span>
@@ -379,7 +379,7 @@ const EmailList = ({
 
                     {/* Quick actions that fade-in on row hover */}
                     <div
-                      className={`absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 dark:bg-gray-900 dark:bg-slate-900 pl-2 transition-opacity duration-150 ${snoozeOpenUid === email.uid ? 'opacity-100 z-50' : 'opacity-0 group-hover:opacity-100 z-10'}`}
+                      className={`absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 ${backgroundImage ? 'bg-transparent' : 'bg-white/90 dark:bg-gray-900/90'} backdrop-blur-sm rounded-lg px-1 transition-opacity duration-150 ${snoozeOpenUid === email.uid ? 'opacity-100 z-50' : 'opacity-0 group-hover:opacity-100 z-10'}`}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
