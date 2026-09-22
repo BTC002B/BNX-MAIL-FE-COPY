@@ -1,5 +1,5 @@
 import { useTranslation } from "../context/LanguageContext";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { mailAPI, blockedContactsAPI } from "../services/api";
 import {
@@ -8,119 +8,199 @@ import {
   MdNotificationsOff,
   MdRefresh,
   MdMarkEmailRead,
-  MdBlock
+  MdBlock,
+  MdErrorOutline
 } from "react-icons/md";
 import toast from "react-hot-toast";
 
-const Subscriptions = () => {
+const Subscriptions = ({ searchQuery: propSearchQuery = "" }) => {
   const { t } = useTranslation();
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [senders, setSenders] = useState([]);
   const [blockedSenders, setBlockedSenders] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all"); // 'all', 'subscribed', 'unsubscribed'
+  const [actionLoading, setActionLoading] = useState({});
 
-  const fetchSubscriptionsData = async () => {
+  const parseSender = (senderString) => {
+    if (!senderString) return { name: "Unknown", email: "" };
+    if (typeof senderString === "object") {
+      const email = senderString.email || senderString.senderEmail || senderString.address || "";
+      const name = senderString.name || senderString.sender || (email ? email.split("@")[0] : "Unknown");
+      return { name, email };
+    }
+    const str = String(senderString).trim();
+    if (str.includes("<") && str.includes(">")) {
+      const name = str.substring(0, str.indexOf("<")).replace(/["']/g, "").trim();
+      const email = str.substring(str.indexOf("<") + 1, str.indexOf(">")).trim();
+      return { name: name || (email ? email.split("@")[0] : "Unknown"), email };
+    }
+    return { name: str.split("@")[0] || str, email: str };
+  };
+
+  const fetchSubscriptionsData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      // 1. Fetch inbox emails directly to extract senders
-      const emailsRes = await mailAPI.getInbox(150);
-      const emailsList = emailsRes.data?.data?.emails || [];
-      
-      // 2. Fetch backend blocked senders
-      const blockedRes = await blockedContactsAPI.getBlockedContacts();
-      const blockedList = (blockedRes.data?.data || []).map(item => typeof item === "string" ? item : item.email);
-      setBlockedSenders(blockedList);
+      // Fetch data from available sources concurrently
+      const [subscriptionsResult, inboxResult, blockedResult] = await Promise.allSettled([
+        mailAPI.getSubscriptions ? mailAPI.getSubscriptions() : Promise.reject("Not implemented"),
+        mailAPI.getInbox(1, 150),
+        blockedContactsAPI.getBlockedContacts()
+      ]);
 
-      // 3. Extract unique senders
+      // 1. Process Blocked / Unsubscribed Contacts
+      const blockedSet = new Set();
+      if (blockedResult.status === "fulfilled" && blockedResult.value?.data) {
+        const rawBlocked = blockedResult.value.data.data || blockedResult.value.data || [];
+        const blockedArr = Array.isArray(rawBlocked) ? rawBlocked : [];
+        blockedArr.forEach((item) => {
+          const email = typeof item === "string" ? item : (item?.email || item?.senderEmail || "");
+          if (email) {
+            blockedSet.add(email.trim().toLowerCase());
+          }
+        });
+      }
+
       const sendersMap = new Map();
-      emailsList.forEach((email) => {
-        if (!email.from) return;
-        const parsed = parseSender(email.from);
-        if (!parsed.email) return;
-        
-        const lowerEmail = parsed.email.toLowerCase();
-        if (!sendersMap.has(lowerEmail)) {
-          sendersMap.set(lowerEmail, {
-            name: parsed.name,
-            email: parsed.email,
-            count: 1
-          });
-        } else {
-          const existing = sendersMap.get(lowerEmail);
-          existing.count += 1;
-        }
-      });
 
-      // Also ensure that senders currently blocked that might not be in the recent inbox are displayed
-      blockedList.forEach((blockedEmail) => {
+      // 2. Process Dedicated Subscriptions API (if backend provides it)
+      if (subscriptionsResult.status === "fulfilled" && subscriptionsResult.value?.data) {
+        const subData = subscriptionsResult.value.data.data || subscriptionsResult.value.data || [];
+        const subList = Array.isArray(subData) ? subData : (subData.subscriptions || subData.senders || []);
+        if (Array.isArray(subList)) {
+          subList.forEach((sub) => {
+            const parsed = parseSender(sub.from || sub.email || sub.senderEmail || sub);
+            if (!parsed.email) return;
+            const lowerEmail = parsed.email.toLowerCase();
+            const isSubBlocked = sub.isBlocked === true || sub.unsubscribed === true || sub.status === "unsubscribed";
+            if (isSubBlocked) {
+              blockedSet.add(lowerEmail);
+            }
+            sendersMap.set(lowerEmail, {
+              name: parsed.name || (parsed.email ? parsed.email.split("@")[0] : "Unknown"),
+              email: parsed.email,
+              count: typeof sub.count === "number" ? sub.count : 0
+            });
+          });
+        }
+      }
+
+      // 3. Process Inbox Emails to extract all sender contacts
+      if (inboxResult.status === "fulfilled" && inboxResult.value?.data) {
+        const rawInbox = inboxResult.value.data.data || inboxResult.value.data || {};
+        const emailsList = Array.isArray(rawInbox) ? rawInbox : (rawInbox.emails || []);
+        emailsList.forEach((email) => {
+          const senderInfo = email.from || email.senderEmail || email.sender;
+          if (!senderInfo) return;
+          const parsed = parseSender(senderInfo);
+          if (!parsed.email) return;
+
+          const lowerEmail = parsed.email.toLowerCase();
+          if (!sendersMap.has(lowerEmail)) {
+            sendersMap.set(lowerEmail, {
+              name: parsed.name || (parsed.email ? parsed.email.split("@")[0] : "Unknown"),
+              email: parsed.email,
+              count: 1
+            });
+          } else {
+            const existing = sendersMap.get(lowerEmail);
+            existing.count = (existing.count || 0) + 1;
+            if (parsed.name && (!existing.name || existing.name === existing.email.split("@")[0])) {
+              existing.name = parsed.name;
+            }
+          }
+        });
+      }
+
+      // 4. Ensure all blocked/unsubscribed senders are represented in the list
+      blockedSet.forEach((blockedEmail) => {
         const lowerEmail = blockedEmail.toLowerCase();
         if (!sendersMap.has(lowerEmail)) {
           sendersMap.set(lowerEmail, {
-            name: blockedEmail.split('@')[0],
+            name: blockedEmail.split("@")[0] || "Unknown",
             email: blockedEmail,
             count: 0
           });
         }
       });
 
+      setBlockedSenders(Array.from(blockedSet));
       setSenders(Array.from(sendersMap.values()));
-    } catch (error) {
-      console.error("Error loading subscriptions:", error);
+    } catch (err) {
+      console.error("Error loading subscriptions:", err);
+      setError("Failed to load subscription data");
       toast.error("Failed to load subscription data");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchSubscriptionsData();
-  }, []);
-
-  const parseSender = (senderString) => {
-    if (!senderString) return { name: 'Unknown', email: '' };
-    if (senderString.includes('<') && senderString.includes('>')) {
-      const name = senderString.substring(0, senderString.indexOf('<')).replace(/"/g, '').trim();
-      const email = senderString.substring(senderString.indexOf('<') + 1, senderString.indexOf('>')).trim();
-      return { name: name || email.split('@')[0], email };
-    }
-    return { name: senderString.split('@')[0], email: senderString.trim() };
-  };
+  }, [fetchSubscriptionsData]);
 
   const handleToggleBlock = async (senderEmail, isBlocked) => {
-    const toastMessage = isBlocked ? "Unblocked sender" : "Blocked sender";
-    
+    if (!senderEmail) return;
+    const lowerEmail = senderEmail.toLowerCase();
+    setActionLoading(prev => ({ ...prev, [lowerEmail]: true }));
+
+    const toastMessage = isBlocked
+      ? t("subscriptions.resubscribed", "Subscribed successfully")
+      : t("subscriptions.unsubscribed", "Unsubscribed successfully");
+
     try {
       if (isBlocked) {
-        await blockedContactsAPI.unblockSender(senderEmail);
+        // Subscribe / Unblock sender
+        await Promise.allSettled([
+          mailAPI.subscribe ? mailAPI.subscribe(senderEmail) : Promise.resolve(),
+          blockedContactsAPI.unblockSender(senderEmail)
+        ]);
+        setBlockedSenders(prev => prev.filter(e => (typeof e === "string" ? e : e?.email || "").toLowerCase() !== lowerEmail));
       } else {
-        await blockedContactsAPI.blockSender(senderEmail);
+        // Unsubscribe / Block sender
+        await Promise.allSettled([
+          mailAPI.unsubscribe ? mailAPI.unsubscribe(senderEmail) : Promise.resolve(),
+          blockedContactsAPI.blockSender(senderEmail)
+        ]);
+        setBlockedSenders(prev => {
+          const exists = prev.some(e => (typeof e === "string" ? e : e?.email || "").toLowerCase() === lowerEmail);
+          return exists ? prev : [...prev, senderEmail];
+        });
       }
       toast.success(toastMessage);
-      
-      // Update local state
-      if (isBlocked) {
-        setBlockedSenders(prev => prev.filter(e => e.toLowerCase() !== senderEmail.toLowerCase()));
-      } else {
-        setBlockedSenders(prev => [...prev, senderEmail]);
-      }
     } catch (error) {
       console.error("Error toggling subscription:", error);
-      toast.error("Failed to update status");
+      toast.error(t("subscriptions.update_failed", "Failed to update status"));
+    } finally {
+      setActionLoading(prev => ({ ...prev, [lowerEmail]: false }));
     }
   };
 
+  const effectiveSearch = (localSearchQuery || propSearchQuery || "").trim().toLowerCase();
+
   const filteredSenders = senders.filter((sender) => {
-    const isBlocked = blockedSenders.some(b => b.toLowerCase() === sender.email.toLowerCase());
-    
+    if (!sender || !sender.email) return false;
+    const senderEmailLower = sender.email.toLowerCase();
+    const isBlocked = blockedSenders.some(b => {
+      const email = typeof b === "string" ? b : (b?.email || "");
+      return email.toLowerCase() === senderEmailLower;
+    });
+
     // Tab filter
     if (activeFilter === "subscribed" && isBlocked) return false;
     if (activeFilter === "unsubscribed" && !isBlocked) return false;
-    
+
     // Search query filter
-    const query = searchQuery.toLowerCase();
-    return sender.name.toLowerCase().includes(query) || sender.email.toLowerCase().includes(query);
+    if (effectiveSearch) {
+      const nameMatch = (sender.name || "").toLowerCase().includes(effectiveSearch);
+      const emailMatch = senderEmailLower.includes(effectiveSearch);
+      if (!nameMatch && !emailMatch) return false;
+    }
+
+    return true;
   });
 
   return (
@@ -133,14 +213,14 @@ const Subscriptions = () => {
               className="px-4 py-1.5 text-xs font-bold rounded-full shadow-sm text-white tracking-wide flex items-center gap-1.5 uppercase select-none"
               style={{ background: `linear-gradient(135deg, ${theme.accent || "#135bec"} 0%, #3b82f6 100%)` }}
             >
-              <MdNotificationsActive size={15} /> Subscriptions ({filteredSenders.length})
+              <MdNotificationsActive size={15} /> {t("sidebar.subscriptions", "Subscriptions")} ({filteredSenders.length})
             </span>
 
             <button
               onClick={fetchSubscriptionsData}
               disabled={loading}
               className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-50 flex items-center justify-center cursor-pointer"
-              title="Refresh subscriptions"
+              title={t("common.refresh", "Refresh subscriptions")}
             >
               <MdRefresh size={18} className={loading ? "animate-spin" : ""} />
             </button>
@@ -159,7 +239,7 @@ const Subscriptions = () => {
                   : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               }`}
             >
-              All Senders
+              {t("subscriptions.all_senders", "All Senders")}
             </button>
             <button
               onClick={() => setActiveFilter("subscribed")}
@@ -169,7 +249,7 @@ const Subscriptions = () => {
                   : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               }`}
             >
-              Subscribed
+              {t("subscriptions.subscribed", "Subscribed")}
             </button>
             <button
               onClick={() => setActiveFilter("unsubscribed")}
@@ -179,7 +259,7 @@ const Subscriptions = () => {
                   : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               }`}
             >
-              Unsubscribed
+              {t("subscriptions.unsubscribed", "Unsubscribed")}
             </button>
           </div>
 
@@ -190,9 +270,9 @@ const Subscriptions = () => {
             </span>
             <input
               type="text"
-              placeholder="Search senders..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("subscriptions.search_placeholder", "Search senders...")}
+              value={localSearchQuery}
+              onChange={(e) => setLocalSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-800 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
               style={{ outlineColor: theme.accent }}
             />
@@ -201,22 +281,56 @@ const Subscriptions = () => {
       </div>
 
       {/* SENDERS LIST SECTION */}
-      <div className="flex-1 overflow-y-auto hidden-scrollbar p-4 ">
+      <div className="flex-1 overflow-y-auto hidden-scrollbar p-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12 text-gray-500">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" style={{ borderColor: theme.accent }}></div>
-            <span className="mt-3 text-xs">Loading subscriptions...</span>
+            <span className="mt-3 text-xs">{t("subscriptions.loading", "Loading subscriptions...")}</span>
+          </div>
+        ) : error && senders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center text-gray-500">
+            <MdErrorOutline size={48} className="opacity-40 text-red-500 mb-3" />
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{error}</p>
+            <button
+              onClick={fetchSubscriptionsData}
+              className="mt-3 px-4 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:opacity-90 transition-opacity cursor-pointer"
+              style={{ background: theme.accent || "#135bec" }}
+            >
+              {t("common.try_again", "Try Again")}
+            </button>
           </div>
         ) : filteredSenders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-gray-500">
             <MdNotificationsOff size={48} className="opacity-20 mb-3" />
-            <p className="text-sm font-medium">No senders found</p>
-            <p className="text-xs opacity-60 mt-1">Try changing the tab filter or search query</p>
+            <p className="text-sm font-medium">
+              {effectiveSearch
+                ? t("subscriptions.no_matching_senders", "No senders match your search")
+                : activeFilter === "subscribed"
+                ? t("subscriptions.no_subscribed", "No active subscriptions found")
+                : activeFilter === "unsubscribed"
+                ? t("subscriptions.no_unsubscribed", "No unsubscribed senders found")
+                : t("subscriptions.no_senders", "No senders found")}
+            </p>
+            <p className="text-xs opacity-60 mt-1">
+              {effectiveSearch
+                ? t("subscriptions.try_different_search", "Try refining your search keyword")
+                : activeFilter !== "all"
+                ? t("subscriptions.try_other_tabs", "Check other tabs or refresh to view senders")
+                : t("subscriptions.empty_subtitle", "Emails received in your inbox will appear here")}
+            </p>
           </div>
         ) : (
           <div className="grid gap-3 max-w-4xl mx-auto">
             {filteredSenders.map((sender) => {
-              const isBlocked = blockedSenders.some(b => b.toLowerCase() === sender.email.toLowerCase());
+              const senderEmailLower = (sender.email || "").toLowerCase();
+              const isBlocked = blockedSenders.some(b => {
+                const email = typeof b === "string" ? b : (b?.email || "");
+                return email.toLowerCase() === senderEmailLower;
+              });
+              const isItemLoading = Boolean(actionLoading[senderEmailLower]);
+              const displayName = sender.name || (sender.email ? sender.email.split("@")[0] : "Unknown");
+              const initialLetter = (displayName || "U").charAt(0).toUpperCase();
+
               return (
                 <div
                   key={sender.email}
@@ -230,19 +344,19 @@ const Subscriptions = () => {
                         opacity: isBlocked ? 0.6 : 1
                       }}
                     >
-                      {sender.name.charAt(0).toUpperCase()}
+                      {initialLetter}
                     </div>
                     
                     <div className="min-w-0">
                       <h4 className={`text-sm font-semibold truncate ${isBlocked ? "text-gray-400 dark:text-gray-500 line-through" : "text-gray-800 dark:text-gray-200"}`}>
-                        {sender.name}
+                        {displayName}
                       </h4>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {sender.email}
                       </p>
                       {sender.count > 0 && (
                         <span className="inline-block mt-1 text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full font-medium">
-                          {sender.count} email{sender.count > 1 ? "s" : ""} in inbox
+                          {sender.count} {sender.count === 1 ? t("subscriptions.email_single", "email in inbox") : t("subscriptions.email_plural", "emails in inbox")}
                         </span>
                       )}
                     </div>
@@ -258,19 +372,21 @@ const Subscriptions = () => {
                       }`}
                     >
                       {isBlocked ? <MdBlock size={13} /> : <MdMarkEmailRead size={13} />}
-                      {isBlocked ? "Unsubscribed" : "Subscribed"}
+                      {isBlocked ? t("subscriptions.unsubscribed", "Unsubscribed") : t("subscriptions.subscribed", "Subscribed")}
                     </span>
 
                     {/* Action Button */}
                     <button
                       onClick={() => handleToggleBlock(sender.email, isBlocked)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                      disabled={isItemLoading}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer disabled:opacity-50 flex items-center gap-1.5 ${
                         isBlocked
                           ? "bg-white hover:bg-green-50/50 text-green-600 border-green-200 hover:border-green-300 dark:bg-transparent dark:hover:bg-green-950/10 dark:text-green-400 dark:border-green-900/40"
                           : "bg-white hover:bg-red-50/50 text-red-600 border-red-200 hover:border-red-300 dark:bg-transparent dark:hover:bg-red-950/10 dark:text-red-400 dark:border-red-900/40"
                       }`}
                     >
-                      {isBlocked ? "Subscribe" : "Unsubscribe"}
+                      {isItemLoading && <span className="animate-spin text-xs">●</span>}
+                      {isBlocked ? t("subscriptions.subscribe", "Subscribe") : t("subscriptions.unsubscribe", "Unsubscribe")}
                     </button>
                   </div>
                 </div>

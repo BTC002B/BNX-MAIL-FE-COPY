@@ -204,7 +204,10 @@ const EmailDetails = ({
     if (confirmUnsubscribe) {
       try {
         toast.loading("Unsubscribing...", { id: "unsubscribe" });
-        await mailAPI.unsubscribe(emailToUnsub);
+        await Promise.allSettled([
+          mailAPI.unsubscribe ? mailAPI.unsubscribe(emailToUnsub) : Promise.resolve(),
+          blockedContactsAPI.blockSender(emailToUnsub)
+        ]);
         toast.success(`Unsubscribed from ${emailToUnsub}`, { id: "unsubscribe" });
         if (fetchEmails) {
           fetchEmails(currentFolder || "inbox");
