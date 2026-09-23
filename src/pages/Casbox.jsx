@@ -157,6 +157,8 @@ const Casbox = () => {
   }, [showMoreMenu]);
 
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [conversationToDelete, setConversationToDelete] = useState(null);
+  const [isDeletingConversation, setIsDeletingConversation] = useState(false);
   const listMenuRef = React.useRef(null);
 
   useEffect(() => {
@@ -373,6 +375,44 @@ const Casbox = () => {
       console.error("Failed to unarchive message", err);
       toast.error("Failed to unarchive message");
       fetchMessages(true);
+    }
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!conversationToDelete) return;
+    const targetContact = conversationToDelete.contact;
+    if (!targetContact) return;
+
+    try {
+      setIsDeletingConversation(true);
+      await casboxAPI.deleteConversation(targetContact);
+
+      // Only remove the conversation from UI after backend confirms successful deletion
+      setMessages(prev => prev.filter(m => {
+        if (targetContact.toLowerCase() === user?.email?.toLowerCase()) {
+          return !(m.senderEmail?.toLowerCase() === user?.email?.toLowerCase() && m.receiverEmail?.toLowerCase() === user?.email?.toLowerCase());
+        }
+        const other = m.senderEmail?.toLowerCase() === user?.email?.toLowerCase() ? m.receiverEmail : m.senderEmail;
+        return other?.toLowerCase() !== targetContact.toLowerCase();
+      }));
+
+      // Close thread if currently viewing this conversation
+      if (selectedMessage) {
+        const other = selectedMessage.senderEmail?.toLowerCase() === user?.email?.toLowerCase() ? selectedMessage.receiverEmail : selectedMessage.senderEmail;
+        if (other?.toLowerCase() === targetContact.toLowerCase()) {
+          setSelectedMessage(null);
+        }
+      }
+
+      setOpenMenuId(null);
+      setConversationToDelete(null);
+      toast.success("Conversation deleted");
+    } catch (err) {
+      console.error("Failed to delete conversation", err);
+      // Keep conversation in UI list and show error message
+      toast.error("Unable to delete conversation. Please try again.");
+    } finally {
+      setIsDeletingConversation(false);
     }
   };
 
@@ -919,6 +959,17 @@ const Casbox = () => {
                               Archive
                             </button>
                           )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(null);
+                              setConversationToDelete(chat);
+                            }}
+                            className="w-full text-left px-3.5 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 transition-colors"
+                          >
+                            <MdDeleteOutline size={16} className="text-red-500 dark:text-red-400" />
+                            Delete
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1069,6 +1120,16 @@ const Casbox = () => {
                 <MdArchive size={20} />
               )}
             </button>
+            <button
+              onClick={() => {
+                const other = getOtherUserEmail(selectedMessage);
+                setConversationToDelete({ contact: other });
+              }}
+              className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
+              title="Delete conversation"
+            >
+              <MdDeleteOutline size={20} />
+            </button>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
@@ -1108,6 +1169,16 @@ const Casbox = () => {
                     className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-2"
                   >
                     View Blocked Users
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      setConversationToDelete({ contact: otherUserEmail });
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 flex items-center gap-2"
+                  >
+                    <MdDeleteOutline size={16} />
+                    Delete Conversation
                   </button>
                 </div>
               )}
@@ -1430,6 +1501,55 @@ const Casbox = () => {
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {conversationToDelete && (
+          <div
+            className="fixed inset-0 bg-black/60 z-[2000] flex items-center justify-center animate-fade-in p-4 backdrop-blur-sm"
+            onClick={() => {
+              if (!isDeletingConversation) {
+                setConversationToDelete(null);
+              }
+            }}
+          >
+            <div
+              className="bg-white dark:bg-[#1e1e1e] rounded-2xl w-full max-w-sm shadow-2xl flex flex-col overflow-hidden p-6 border border-gray-100 dark:border-gray-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 mb-4 mx-auto">
+                <MdDeleteOutline size={26} />
+              </div>
+
+              <h3 className="font-bold text-lg text-center text-gray-900 dark:text-white mb-2">
+                Delete this conversation?
+              </h3>
+              <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-6">
+                This will delete all messages with <span className="font-medium text-gray-700 dark:text-gray-300">{conversationToDelete.contact}</span>. This action cannot be undone.
+              </p>
+
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  disabled={isDeletingConversation}
+                  onClick={() => setConversationToDelete(null)}
+                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingConversation}
+                  onClick={handleDeleteConversation}
+                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  {isDeletingConversation && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  )}
+                  Delete
+                </button>
               </div>
             </div>
           </div>

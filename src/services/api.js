@@ -369,6 +369,7 @@ export const casboxAPI = {
     markAsDelivered: () => api.post('/api/casbox/delivered'),
     archiveMessage: (id, archived = true) => api.patch(`/api/casbox/${id}/archive?archived=${archived}`),
     updateArchiveStatus: (messageIds, archived = true) => api.patch('/api/casbox/archive', { messageIds, archived }),
+    deleteConversation: (contactEmailOrId) => api.delete(`/api/casbox/conversation/${encodeURIComponent(contactEmailOrId)}`),
 };
 
 // Report APIs
