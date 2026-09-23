@@ -1,7 +1,7 @@
 import { useTranslation } from "../context/LanguageContext";
 import React, { useState } from 'react';
-import { useQuery, useMutation, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Search, Plus, X, User, Phone, Mail, Briefcase, AlertCircle } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Search, Plus, X, User, Phone, Mail, Briefcase, AlertCircle, Edit2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const queryClient = new QueryClient({
@@ -23,11 +23,15 @@ const getAppColor = (appName) => {
   return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
 };
 
+const initialFormState = { name: '', email: '', phonenumber: '', role: '' };
+
 function ContactPanelInner() {
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', phonenumber: '', role: '' });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [formData, setFormData] = useState(initialFormState);
 
   const { data: contacts = [], isLoading, error, refetch } = useQuery({
     queryKey: ['global-contacts'],
@@ -47,6 +51,29 @@ function ContactPanelInner() {
     }
   });
 
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingId(null);
+    setFormData(initialFormState);
+  };
+
+  const openAddModal = () => {
+    setEditingId(null);
+    setFormData(initialFormState);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (contact) => {
+    setEditingId(contact.id || contact._id);
+    setFormData({
+      name: contact.name || '',
+      email: contact.email || '',
+      phonenumber: contact.phonenumber || contact.phone || '',
+      role: contact.role || contact.designation || contact.jobTitle || ''
+    });
+    setIsModalOpen(true);
+  };
+
   const createMutation = useMutation({
     mutationFn: async (payload) => {
       const token = localStorage.getItem('accessToken');
@@ -58,13 +85,15 @@ function ContactPanelInner() {
         },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error('Failed to add contact');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.message || 'Failed to add contact');
+      }
       return res.json();
     },
     onSuccess: () => {
       toast.success('Contact added successfully');
-      setShowAddForm(false);
-      setFormData({ name: '', email: '', phonenumber: '', role: '' });
+      closeModal();
       refetch();
     },
     onError: (err) => {
@@ -72,10 +101,70 @@ function ContactPanelInner() {
     }
   });
 
-  const handleAddSubmit = (e) => {
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, payload }) => {
+      const token = localStorage.getItem('accessToken');
+      let res = await fetch(`${API_BASE}/update/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // Fallback in case endpoint is /edit/:id or /:id
+      if (!res.ok && (res.status === 404 || res.status === 405)) {
+        res = await fetch(`${API_BASE}/edit/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok && (res.status === 404 || res.status === 405)) {
+          res = await fetch(`${API_BASE}/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+        }
+      }
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.message || 'Failed to update contact');
+      }
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      qc.setQueryData(['global-contacts'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map(c => (c.id === variables.id || c._id === variables.id) ? { ...c, ...variables.payload } : c);
+      });
+      toast.success('Contact updated successfully');
+      closeModal();
+      refetch();
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to update contact');
+    }
+  });
+
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.name || !formData.email) return;
-    createMutation.mutate(formData);
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, payload: formData });
+    } else {
+      createMutation.mutate(formData);
+    }
   };
 
   const filteredContacts = contacts.filter(c => {
@@ -83,7 +172,8 @@ function ContactPanelInner() {
     return (
       (c.name || '').toLowerCase().includes(term) ||
       (c.email || '').toLowerCase().includes(term) ||
-      (c.phonenumber || '').toLowerCase().includes(term)
+      (c.phonenumber || '').toLowerCase().includes(term) ||
+      (c.role || '').toLowerCase().includes(term)
     );
   });
 
@@ -95,8 +185,10 @@ function ContactPanelInner() {
           Global Contacts
         </h2>
         <button 
-          onClick={() => setShowAddForm(true)}
-          className="p-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg transition-colors flex items-center justify-center shadow-sm border border-blue-100 dark:border-blue-800/50"
+          onClick={openAddModal}
+          className="p-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg transition-colors flex items-center justify-center shadow-sm border border-blue-100 dark:border-blue-800/50 cursor-pointer"
+          title="Add Contact"
+          aria-label="Add Contact"
         >
           <Plus size={16} strokeWidth={2.5} />
         </button>
@@ -134,63 +226,82 @@ function ContactPanelInner() {
           </div>
         ) : (
           <div className="flex flex-col gap-2.5">
-            {filteredContacts.map(contact => (
-              <div key={contact.id} className="p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm rounded-xl hover:shadow-md transition-shadow group">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1">{contact.name}</h3>
-                  {contact.applicationName && (
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${getAppColor(contact.applicationName)}`}>
-                      {contact.applicationName.replace('_', ' ')}
-                    </span>
-                  )}
+            {filteredContacts.map(contact => {
+              const contactId = contact.id || contact._id;
+              return (
+                <div key={contactId} className="p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm rounded-xl hover:shadow-md transition-shadow group">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1 pr-2 min-w-0">
+                      <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">{contact.name}</h3>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {contact.applicationName && (
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${getAppColor(contact.applicationName)}`}>
+                          {contact.applicationName.replace('_', ' ')}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditModal(contact);
+                        }}
+                        className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors cursor-pointer"
+                        title="Edit Contact"
+                        aria-label="Edit Contact"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {contact.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail size={12} className="opacity-70 shrink-0" />
+                        <span className="truncate">{contact.email}</span>
+                      </div>
+                    )}
+                    {contact.phonenumber && (
+                      <div className="flex items-center gap-2">
+                        <Phone size={12} className="opacity-70 shrink-0" />
+                        <span className="truncate">{contact.phonenumber}</span>
+                      </div>
+                    )}
+                    {contact.role && (
+                      <div className="flex items-center gap-2">
+                        <Briefcase size={12} className="opacity-70 shrink-0" />
+                        <span className="truncate">{contact.role}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                
-                <div className="space-y-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {contact.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail size={12} className="opacity-70" />
-                      <span className="truncate">{contact.email}</span>
-                    </div>
-                  )}
-                  {contact.phonenumber && (
-                    <div className="flex items-center gap-2">
-                      <Phone size={12} className="opacity-70" />
-                      <span className="truncate">{contact.phonenumber}</span>
-                    </div>
-                  )}
-                  {contact.role && (
-                    <div className="flex items-center gap-2">
-                      <Briefcase size={12} className="opacity-70" />
-                      <span className="truncate">{contact.role}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Add Contact Modal - Bottom Sheet Style */}
-      {showAddForm && (
+      {/* Add / Edit Contact Modal - Bottom Sheet Style */}
+      {isModalOpen && (
         <div className="absolute inset-0 z-20 flex flex-col justify-end overflow-hidden pointer-events-none rounded-xl">
           <div 
             className="absolute inset-0 bg-black/30 dark:bg-black/50 pointer-events-auto transition-opacity"
-            onClick={() => setShowAddForm(false)}
+            onClick={closeModal}
           />
           
           <div className="relative bg-white dark:bg-gray-800 flex flex-col rounded-t-2xl p-5 max-h-[90%] overflow-y-auto hidden-scrollbar shadow-2xl pointer-events-auto border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                <Plus size={18} className="text-blue-500" />
-                Add Contact
+                {editingId ? <Edit2 size={18} className="text-blue-500" /> : <Plus size={18} className="text-blue-500" />}
+                {editingId ? 'Edit Contact' : 'Add Contact'}
               </h3>
-              <button onClick={() => setShowAddForm(false)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+              <button onClick={closeModal} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer">
                 <X size={16} />
               </button>
             </div>
             
-            <form onSubmit={handleAddSubmit} className="flex flex-col gap-3.5 text-sm">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 text-sm">
               <div>
                 <label className="block mb-1.5 text-xs font-medium text-gray-600 dark:text-gray-300">Full Name *</label>
                 <input 
@@ -198,7 +309,7 @@ function ContactPanelInner() {
                   placeholder="Jane Smith"
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
-                  className="w-full bg-gray-50 dark:bg-gray-900/50 px-3 py-2.5 rounded-lg outline-none border border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400" 
+                  className="w-full bg-gray-50 dark:bg-gray-900/50 px-3 py-2.5 rounded-lg outline-none border border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 text-gray-800 dark:text-gray-100" 
                 />
               </div>
               
@@ -210,7 +321,7 @@ function ContactPanelInner() {
                   placeholder="jane@example.com"
                   value={formData.email}
                   onChange={e => setFormData({...formData, email: e.target.value})}
-                  className="w-full bg-gray-50 dark:bg-gray-900/50 px-3 py-2.5 rounded-lg outline-none border border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400" 
+                  className="w-full bg-gray-50 dark:bg-gray-900/50 px-3 py-2.5 rounded-lg outline-none border border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 text-gray-800 dark:text-gray-100" 
                 />
               </div>
 
@@ -221,7 +332,7 @@ function ContactPanelInner() {
                     placeholder="+1 234 567 890"
                     value={formData.phonenumber}
                     onChange={e => setFormData({...formData, phonenumber: e.target.value})}
-                    className="w-full bg-gray-50 dark:bg-gray-900/50 px-3 py-2.5 rounded-lg outline-none border border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400" 
+                    className="w-full bg-gray-50 dark:bg-gray-900/50 px-3 py-2.5 rounded-lg outline-none border border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 text-gray-800 dark:text-gray-100" 
                   />
                 </div>
                 <div className="flex-1">
@@ -230,17 +341,17 @@ function ContactPanelInner() {
                     placeholder="e.g. Supplier"
                     value={formData.role}
                     onChange={e => setFormData({...formData, role: e.target.value})}
-                    className="w-full bg-gray-50 dark:bg-gray-900/50 px-3 py-2.5 rounded-lg outline-none border border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400" 
+                    className="w-full bg-gray-50 dark:bg-gray-900/50 px-3 py-2.5 rounded-lg outline-none border border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-400 text-gray-800 dark:text-gray-100" 
                   />
                 </div>
               </div>
 
               <button 
-                disabled={createMutation.isPending} 
+                disabled={isSubmitting} 
                 type="submit" 
-                className="mt-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm shadow-blue-500/20 disabled:opacity-50 transition-all active:scale-[0.98]"
+                className="mt-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm shadow-blue-500/20 disabled:opacity-50 transition-all active:scale-[0.98] cursor-pointer"
               >
-                {createMutation.isPending ? 'Saving...' : 'Save Contact'}
+                {isSubmitting ? 'Saving...' : (editingId ? 'Save Changes' : 'Save Contact')}
               </button>
             </form>
           </div>
