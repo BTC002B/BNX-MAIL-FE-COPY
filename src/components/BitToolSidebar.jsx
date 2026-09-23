@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  MdCalendarToday, MdCalculate, MdPeople, MdSecurity, MdKeyboard,
+  MdCalendarToday, MdCalculate, MdPeople, MdKeyboard,
   MdTranslate, MdFilterCenterFocus, MdCloudQueue, MdNewspaper,
   MdAdd, MdCheck, MdClose, MdOutlineEdit, MdTune, MdApps, MdOutlineNoteAlt
 } from "react-icons/md";
@@ -12,14 +12,13 @@ import ContactPanel from "./ContactPanel";
 import NotesPanel from "./NotesPanel";
 import CalcPopover from "./CalcPopover";
 import WeatherPanel from "./WeatherPanel";
-import betalogo from '../assets/beta2.png'
+import betalogo from '../assets/beta2.png';
 
 // Tools Definition
 const ALL_TOOLS = [
   { id: "calendar", name: "Calendar", icon: MdCalendarToday, color: "#f59e0b", ringClass: "border-[#f59e0b]", textClass: "text-[#f59e0b]", bgClass: "bg-amber-50 dark:bg-amber-950/20" },
   { id: "calculator", name: "Calculator", icon: MdCalculate, color: "#10b981", ringClass: "border-[#10b981]", textClass: "text-[#10b981]", bgClass: "bg-emerald-50 dark:bg-emerald-950/20" },
   { id: "contacts", name: "Contacts", icon: MdPeople, color: "#3b82f6", ringClass: "border-[#3b82f6]", textClass: "text-[#3b82f6]", bgClass: "bg-blue-50 dark:bg-blue-950/20" },
-  { id: "security", name: "Security", icon: MdSecurity, color: "#0d9488", ringClass: "border-[#0d9488]", textClass: "text-[#0d9488]", bgClass: "bg-teal-50 dark:bg-teal-950/20" },
   { id: "notes", name: "Sticky Notes", icon: MdOutlineNoteAlt, color: "#eab308", ringClass: "border-[#eab308]", textClass: "text-[#eab308]", bgClass: "bg-yellow-50 dark:bg-yellow-950/20" },
   { id: "keyboard", name: "Keyboard", icon: MdKeyboard, color: "#6366f1", ringClass: "border-[#6366f1]", textClass: "text-[#6366f1]", bgClass: "bg-indigo-50 dark:bg-indigo-950/20" },
   { id: "weather", name: "Weather", icon: MdCloudQueue, color: "#06b6d4", ringClass: "border-[#06b6d4]", textClass: "text-[#06b6d4]", bgClass: "bg-cyan-50 dark:bg-cyan-950/20" }
@@ -35,7 +34,7 @@ const BitToolSidebar = ({
   onDeleteNote
 }) => {
   const { theme, backgroundImage } = useTheme();
-  const [pinnedTools, setPinnedTools] = useState(["calendar", "calculator", "contacts", "security", "notes"]);
+  const [pinnedTools, setPinnedTools] = useState(["calendar", "calculator", "contacts", "notes"]);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTool, setSelectedTool] = useState(null);
   const [showAppLauncher, setShowAppLauncher] = useState(false);
@@ -47,15 +46,8 @@ const BitToolSidebar = ({
   const [calcInput, setCalcInput] = useState("");
   const [calcResult, setCalcResult] = useState("");
 
-
-
   // Contacts Search State
   const [contactsSearch, setContactsSearch] = useState("");
-
-  // Security Scan State
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanResult, setScanResult] = useState("System Protected");
 
   // Weather State
   const [weatherCity, setWeatherCity] = useState("New York");
@@ -95,24 +87,6 @@ const BitToolSidebar = ({
     }
   };
 
-
-  // Security Scan Trigger
-  const handleStartScan = () => {
-    setIsScanning(true);
-    setScanProgress(0);
-    setScanResult("Scanning for threats...");
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10;
-      setScanProgress(progress);
-      if (progress >= 100) {
-        clearInterval(interval);
-        setIsScanning(false);
-        setScanResult("✓ System Secure. 0 threats found.");
-      }
-    }, 200);
-  };
-
   const renderMiniApp = () => {
     switch (selectedTool) {
       case "calendar":
@@ -123,28 +97,6 @@ const BitToolSidebar = ({
         return <ContactPanel />;
       case "notes":
         return <NotesPanel />;
-      case "security":
-        return (
-          <div className="flex flex-col h-full items-center text-center text-gray-700 dark:text-gray-200">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${isScanning ? "bg-teal-500/10 text-teal-500 animate-pulse" : "bg-teal-500 text-white shadow-md"}`}>
-              <MdSecurity size={36} />
-            </div>
-            <h5 className="font-bold text-sm mb-1">{scanResult}</h5>
-            <p className="text-xs opacity-60 mb-6">Last scanned: Today, {new Date().toLocaleTimeString()}</p>
-            {isScanning && (
-              <div className="w-full bg-gray-200 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden mb-6">
-                <div className="bg-teal-500 h-full transition-all duration-200" style={{ width: `${scanProgress}%` }} />
-              </div>
-            )}
-            <button
-              disabled={isScanning}
-              onClick={handleStartScan}
-              className="px-6 py-2.5 rounded-xl text-white font-bold text-xs bg-teal-500 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
-            >
-              {isScanning ? "Scanning..." : "Start System Scan"}
-            </button>
-          </div>
-        );
       case "keyboard":
         return (
           <div className="flex flex-col h-full text-gray-700 dark:text-gray-200 text-xs">
