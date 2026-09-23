@@ -755,19 +755,13 @@ const Casbox = () => {
           >
             {t('casbox.requests', 'Requests')} {requestMessages.length > 0 && <span className="flex h-2 w-2 rounded-full bg-red-500"></span>}
           </button>
-          <div className="h-4 w-[1px] bg-gray-300/60 dark:bg-gray-700/60 mx-1" />
           <button
             onClick={() => { setActiveTab('archive'); setSelectedMessage(null); }}
-            className={`px-3 sm:px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'archive' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            className={`px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center ${activeTab === 'archive' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
             title={t('sidebar.archive', 'Archive')}
+            aria-label={t('sidebar.archive', 'Archive')}
           >
-            <span className="text-gray-400 dark:text-gray-500 font-bold">→</span>
-            {t('sidebar.archive', 'Archive')}
-            {archivedMessages.length > 0 && (
-              <span className={`font-normal hidden sm:inline ${activeTab === 'archive' ? 'opacity-80' : 'opacity-60'}`}>
-                ({archivedMessages.length})
-              </span>
-            )}
+            <MdArchive size={17} />
           </button>
         </div>
 
@@ -829,7 +823,7 @@ const Casbox = () => {
                 </div>
 
                 <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                  <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
                         {isMe ? `To: ${otherEmail?.split('@')[0]}` : otherEmail?.split('@')[0]}
@@ -838,30 +832,17 @@ const Casbox = () => {
                         {isMe ? 'Sent' : 'Received'}
                       </span>
                     </div>
-                    <span className="text-xs font-medium text-gray-400 dark:text-gray-500 shrink-0">
-                      {parseTimestamp(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px] font-normal">
-                      {isMe ? "You: " : ""}{msg.body}
-                    </span>
-
                     <div className="flex items-center gap-1 shrink-0">
-                      {isMe && (
-                        <span className="shrink-0">
-                          {getStatusIcon(msg.status)}
-                        </span>
-                      )}
-
+                      <span className="text-xs font-medium text-gray-400 dark:text-gray-500 shrink-0">
+                        {parseTimestamp(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                       <div className="relative shrink-0" ref={openMenuId === `archive-${msg.id}` ? listMenuRef : null}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenMenuId(prev => prev === `archive-${msg.id}` ? null : `archive-${msg.id}`);
                           }}
-                          className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                          className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                           title="More options"
                         >
                           <MdMoreVert size={18} />
@@ -880,6 +861,20 @@ const Casbox = () => {
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px] font-normal">
+                      {isMe ? "You: " : ""}{msg.body}
+                    </span>
+
+                    {isMe && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="shrink-0">
+                          {getStatusIcon(msg.status)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -920,38 +915,21 @@ const Casbox = () => {
                 </div>
 
                 <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className={`text-sm truncate ${unreadCount > 0 ? 'font-extrabold text-gray-900 dark:text-white' : 'font-semibold text-gray-800 dark:text-gray-200'}`}>
                       {otherEmail.split('@')[0]}
                     </span>
-                    <span className={`text-xs ${unreadCount > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-400 dark:text-gray-500'}`}>
-                      {parseTimestamp(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px] font-normal">
-                      {isMe ? "You: " : ""}{msg.body}
-                    </span>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {unreadCount > 0 ? (
-                        <span className="bg-blue-500 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
-                          {unreadCount}
-                        </span>
-                      ) : isMe ? (
-                        <span className="shrink-0">
-                          {getStatusIcon(msg.status)}
-                        </span>
-                      ) : null}
-
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className={`text-xs ${unreadCount > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-400 dark:text-gray-500'}`}>
+                        {parseTimestamp(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                       <div className="relative shrink-0" ref={openMenuId === chat.contact ? listMenuRef : null}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenMenuId(prev => prev === chat.contact ? null : chat.contact);
                           }}
-                          className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                          className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                           title="More options"
                         >
                           <MdMoreVert size={18} />
@@ -970,6 +948,26 @@ const Casbox = () => {
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px] font-normal">
+                      {isMe ? "You: " : ""}{msg.body}
+                    </span>
+
+                    {(unreadCount > 0 || (isMe && getStatusIcon(msg.status))) && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {unreadCount > 0 ? (
+                          <span className="bg-blue-500 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
+                            {unreadCount}
+                          </span>
+                        ) : isMe ? (
+                          <span className="shrink-0">
+                            {getStatusIcon(msg.status)}
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
