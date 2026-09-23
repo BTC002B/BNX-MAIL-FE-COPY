@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { useMail } from "../context/MailContext";
 import { casboxAPI, api, userAPI, mailAPI } from "../services/api";
-import { MdCheck, MdDoneAll, MdStarBorder, MdStar, MdDeleteOutline, MdRefresh, MdSend, MdClose, MdRemoveRedEye, MdFileDownload, MdReply, MdBlock, MdArrowBack, MdArchive, MdUnarchive, MdAccessTime, MdLabel, MdDelete, MdMoreVert, MdInsertEmoticon } from "react-icons/md";
+import { MdCheck, MdDoneAll, MdStarBorder, MdStar, MdDeleteOutline, MdRefresh, MdSend, MdClose, MdRemoveRedEye, MdFileDownload, MdReply, MdBlock, MdArrowBack, MdArchive, MdUnarchive, MdAccessTime, MdLabel, MdDelete, MdMoreVert, MdInsertEmoticon, MdChevronRight, MdChevronLeft } from "react-icons/md";
 import toast from "react-hot-toast";
 import ReadingPaneLayout from "../components/ReadingPaneLayout";
 import logo from "../assets/bnx-remove.png";
@@ -90,7 +90,8 @@ const Casbox = () => {
 
   const [selectedMessage, setSelectedMessage] = useState(null);
 
-  const [activeTab, setActiveTab] = useState('received');
+  const [activeTab, setActiveTab] = useState('messages');
+  const [showArchive, setShowArchive] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
 
   const [acceptedContacts, setAcceptedContacts] = useState([]);
@@ -665,10 +666,14 @@ const Casbox = () => {
     !knownContacts.has(msg.senderEmail) && !acceptedContacts.includes(msg.senderEmail)
   );
 
-  const filteredMessages = activeTab === 'received' ? receivedMessages
-    : activeTab === 'sent' ? sentMessages
-      : activeTab === 'requests' ? requestMessages
-        : archivedMessages;
+  const mainMessages = activeUnarchived.filter(msg => {
+    if (msg.senderEmail === user?.email) return true;
+    return knownContacts.has(msg.senderEmail) || acceptedContacts.includes(msg.senderEmail);
+  });
+
+  const filteredMessages = (activeTab === 'messages' || activeTab === 'received' || activeTab === 'sent') ? mainMessages
+    : activeTab === 'requests' ? requestMessages
+      : archivedMessages;
 
   // Group messages by conversation contact
   const conversationGroups = {};
@@ -738,16 +743,10 @@ const Casbox = () => {
       <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2 shrink-0 bg-transparent">
         <div className="flex items-center bg-gray-100/80 dark:bg-gray-800/80 p-1 rounded-lg shrink-0">
           <button
-            onClick={() => { setActiveTab('received'); setSelectedMessage(null); }}
-            className={`px-3 sm:px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'received' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            onClick={() => { setActiveTab('messages'); setSelectedMessage(null); }}
+            className={`px-3 sm:px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'messages' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
           >
-            {t('casbox.received', 'Received')} <span className={`font-normal hidden sm:inline ${activeTab === 'received' ? 'opacity-80' : 'opacity-60'}`}>({receivedMessages.length})</span>
-          </button>
-          <button
-            onClick={() => { setActiveTab('sent'); setSelectedMessage(null); }}
-            className={`px-3 sm:px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'sent' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-          >
-            {t('sidebar.sent', 'Sent')} <span className={`font-normal hidden sm:inline ${activeTab === 'sent' ? 'opacity-80' : 'opacity-60'}`}>({sentMessages.length})</span>
+            {t('casbox.messages', 'Messages')} <span className={`font-normal hidden sm:inline ${activeTab === 'messages' ? 'opacity-80' : 'opacity-60'}`}>({mainMessages.length})</span>
           </button>
           <button
             onClick={() => { setActiveTab('requests'); setSelectedMessage(null); }}
@@ -756,13 +755,33 @@ const Casbox = () => {
             {t('casbox.requests', 'Requests')} {requestMessages.length > 0 && <span className="flex h-2 w-2 rounded-full bg-red-500"></span>}
           </button>
           <button
-            onClick={() => { setActiveTab('archive'); setSelectedMessage(null); }}
-            className={`px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center ${activeTab === 'archive' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-            title={t('sidebar.archive', 'Archive')}
-            aria-label={t('sidebar.archive', 'Archive')}
+            onClick={() => {
+              if (showArchive && activeTab === 'archive') {
+                setActiveTab('messages');
+                setSelectedMessage(null);
+              }
+              setShowArchive(prev => !prev);
+            }}
+            className="p-1.5 rounded-md transition-all flex items-center justify-center text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-700/60"
+            title={showArchive ? t('common.collapse', 'Collapse') : t('sidebar.archive', 'Archive')}
+            aria-label={showArchive ? "Collapse Archive" : "Expand Archive"}
           >
-            <MdArchive size={17} />
+            {showArchive ? <MdChevronLeft size={18} /> : <MdChevronRight size={18} />}
           </button>
+          {showArchive && (
+            <button
+              onClick={() => { setActiveTab('archive'); setSelectedMessage(null); }}
+              className={`px-3 sm:px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 animate-in fade-in duration-150 ${activeTab === 'archive' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+              title={t('sidebar.archive', 'Archive')}
+            >
+              {t('sidebar.archive', 'Archive')}
+              {archivedMessages.length > 0 && (
+                <span className={`font-normal hidden sm:inline ${activeTab === 'archive' ? 'opacity-80' : 'opacity-60'}`}>
+                  ({archivedMessages.length})
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         <div className="flex-1"></div>
@@ -984,7 +1003,7 @@ const Casbox = () => {
       setAcceptedContacts(newAccepted);
       await userAPI.updateSettings({ casboxAccepted: newAccepted });
       toast.success("Request accepted");
-      setActiveTab("received");
+      setActiveTab("messages");
     } catch (e) {
       toast.error("Failed to accept request");
       setAcceptedContacts(acceptedContacts);
