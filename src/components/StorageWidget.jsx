@@ -53,13 +53,13 @@ const StorageWidget = ({ isDesktopOpen }) => {
     .replace('of {limit} used', `of 1 GB ${t('storage.used_of', 'used')}`);
 
   return (
-    <a 
+    <a
       href="/storage-management"
       target="_blank"
       rel="noopener noreferrer"
       className={`mx-3 mb-2 p-4 flex items-center justify-between hover:bg-black/5 rounded-2xl transition-all cursor-pointer block ${!isDesktopOpen ? 'items-center justify-center p-2' : ''}`}
-      style={{ 
-        textDecoration: 'none', 
+      style={{
+        textDecoration: 'none',
         color: '#1f2937',
         backgroundColor: '#ffffff',
         border: '1px solid #e5e7eb'
