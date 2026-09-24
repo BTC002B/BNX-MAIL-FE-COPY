@@ -9,7 +9,102 @@ const VirtualKeyboard = ({ onClose }) => {
   const [isCtrl, setIsCtrl] = useState(false);
   const [isAlt, setIsAlt] = useState(false);
 
+  // Draggable position state & refs
+  const [position, setPosition] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const keyboardRef = useRef(null);
+  const dragStartRef = useRef(null);
+
   const lastTargetRef = useRef(null);
+
+  // Keep keyboard inside viewport on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (!keyboardRef.current) return;
+      setPosition((prev) => {
+        if (!prev) return prev;
+        const rect = keyboardRef.current.getBoundingClientRect();
+        const minX = 8;
+        const maxX = Math.max(8, window.innerWidth - rect.width - 8);
+        const minY = 8;
+        const maxY = Math.max(8, window.innerHeight - rect.height - 8);
+        return {
+          x: Math.max(minX, Math.min(prev.x, maxX)),
+          y: Math.max(minY, Math.min(prev.y, maxY)),
+        };
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Handle dragging the keyboard via the header
+  const handlePointerDown = (e) => {
+    // Only drag with primary pointer (left click or touch)
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    // Don't drag if clicking buttons (like close button)
+    if (e.target.closest("button")) return;
+
+    e.preventDefault();
+
+    if (!keyboardRef.current) return;
+    const rect = keyboardRef.current.getBoundingClientRect();
+    const initialLeft = rect.left;
+    const initialTop = rect.top;
+
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialLeft,
+      initialTop,
+      keyboardWidth: rect.width,
+      keyboardHeight: rect.height,
+    };
+
+    setPosition({ x: initialLeft, y: initialTop });
+    setIsDragging(true);
+
+    const handlePointerMove = (moveEvent) => {
+      if (!dragStartRef.current) return;
+      const {
+        startX,
+        startY,
+        initialLeft,
+        initialTop,
+        keyboardWidth,
+        keyboardHeight,
+      } = dragStartRef.current;
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+
+      let newX = initialLeft + deltaX;
+      let newY = initialTop + deltaY;
+
+      // Clamping within visible viewport boundaries
+      const minX = 8;
+      const maxX = Math.max(8, window.innerWidth - keyboardWidth - 8);
+      const minY = 8;
+      const maxY = Math.max(8, window.innerHeight - keyboardHeight - 8);
+
+      newX = Math.max(minX, Math.min(newX, maxX));
+      newY = Math.max(minY, Math.min(newY, maxY));
+
+      setPosition({ x: newX, y: newY });
+    };
+
+    const handlePointerUp = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+  };
 
   // Keep track of the active or last focused input/textarea/contentEditable element
   useEffect(() => {
@@ -643,15 +738,32 @@ const VirtualKeyboard = ({ onClose }) => {
 
   return (
     <div
+      ref={keyboardRef}
       id="virtual-keyboard-root"
-      className="fixed bottom-4 right-16 sm:right-20 z-[999] w-[calc(100vw-80px)] max-w-[620px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200/90 dark:border-gray-800 p-3.5 select-none animate-fade-in"
+      className={`fixed z-[999] w-[calc(100vw-80px)] max-w-[620px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200/90 dark:border-gray-800 p-3.5 select-none ${
+        position ? "" : "bottom-4 right-16 sm:right-20 animate-fade-in"
+      }`}
       style={{
-        boxShadow: "0 20px 45px -10px rgba(0, 0, 0, 0.22), 0 0 1px 1px rgba(0,0,0,0.05)"
+        boxShadow:
+          "0 20px 45px -10px rgba(0, 0, 0, 0.22), 0 0 1px 1px rgba(0,0,0,0.05)",
+        ...(position
+          ? {
+              left: `${position.x}px`,
+              top: `${position.y}px`,
+              bottom: "auto",
+              right: "auto",
+            }
+          : {}),
       }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 mb-2 border-b border-gray-100 dark:border-gray-800">
-        <div className="flex items-center gap-2">
+      {/* Draggable Header */}
+      <div
+        onPointerDown={handlePointerDown}
+        className={`flex items-center justify-between pb-3 mb-2 border-b border-gray-100 dark:border-gray-800 touch-none select-none ${
+          isDragging ? "cursor-grabbing" : "cursor-grab"
+        }`}
+      >
+        <div className="flex items-center gap-2 pointer-events-none">
           <div className="w-6 h-6 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
             <MdKeyboard size={16} />
           </div>
@@ -660,7 +772,11 @@ const VirtualKeyboard = ({ onClose }) => {
           </span>
         </div>
         <button
-          onClick={onClose}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
           className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
           title="Close Virtual Keyboard"
         >
