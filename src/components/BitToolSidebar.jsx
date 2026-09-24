@@ -19,7 +19,7 @@ import betalogo from '../assets/beta2.png';
 const ALL_TOOLS = [
   { id: "calendar", name: "Calendar", icon: MdCalendarToday, color: "#f59e0b", ringClass: "border-[#f59e0b]", textClass: "text-[#f59e0b]", bgClass: "bg-amber-50 dark:bg-amber-950/20" },
   { id: "calculator", name: "Calculator", icon: MdCalculate, color: "#10b981", ringClass: "border-[#10b981]", textClass: "text-[#10b981]", bgClass: "bg-emerald-50 dark:bg-emerald-950/20" },
-  { id: "contacts", name: "Contacts", icon: MdPeople, color: "#3b82f6", ringClass: "border-[#3b82f6]", textClass: "text-[#3b82f6]", bgClass: "bg-blue-50 dark:bg-blue-950/20" },
+  { id: "contacts", name: "Connections", icon: MdPeople, color: "#3b82f6", ringClass: "border-[#3b82f6]", textClass: "text-[#3b82f6]", bgClass: "bg-blue-50 dark:bg-blue-950/20" },
   { id: "notes", name: "Notes", icon: MdOutlineNoteAlt, color: "#eab308", ringClass: "border-[#eab308]", textClass: "text-[#eab308]", bgClass: "bg-yellow-50 dark:bg-yellow-950/20" },
   { id: "keyboard", name: "Keyboard", icon: MdKeyboard, color: "#6366f1", ringClass: "border-[#6366f1]", textClass: "text-[#6366f1]", bgClass: "bg-indigo-50 dark:bg-indigo-950/20" },
   { id: "weather", name: "Weather", tooltipName: "Cloud", icon: MdCloudQueue, color: "#06b6d4", ringClass: "border-[#06b6d4]", textClass: "text-[#06b6d4]", bgClass: "bg-cyan-50 dark:bg-cyan-950/20" }
@@ -245,9 +245,9 @@ const BitToolSidebar = ({
                   <img src={betalogo} alt="beta-apps" className="w-6 h-6 object-contain" />
                 </button>
                 {hoveredTool === 'apps' && (
-                  <div className="tool-tooltip absolute top-full mt-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
-                    <span className="truncate block">Apps</span>
-                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-b-[4px] border-b-gray-900/95 dark:border-b-gray-800" />
+                  <div className="tool-tooltip bg-gray-900/95 dark:bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded shadow-md pointer-events-none select-none whitespace-nowrap flex items-center">
+                    <span>Apps</span>
+                    <span className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] w-0 h-0 border-y-[4px] border-y-transparent border-l-[4px] border-l-gray-900/95 dark:border-l-gray-800" />
                   </div>
                 )}
               </div>
@@ -281,9 +281,9 @@ const BitToolSidebar = ({
 
                     {/* CUSTOM POPOVER TOOLTIP */}
                     {hoveredTool === tool.id && (
-                      <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
-                        <span className="truncate block">{isPinned ? "Unpin" : "Pin"}</span>
-                        <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
+                      <div className="tool-tooltip bg-gray-900/95 dark:bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded shadow-md pointer-events-none select-none whitespace-nowrap flex items-center">
+                        <span>{isPinned ? `Unpin ${tool.tooltipName || tool.name}` : `Pin ${tool.tooltipName || tool.name}`}</span>
+                        <span className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] w-0 h-0 border-y-[4px] border-y-transparent border-l-[4px] border-l-gray-900/95 dark:border-l-gray-800" />
                       </div>
                     )}
                   </div>
@@ -316,9 +316,9 @@ const BitToolSidebar = ({
 
                       {/* TOOLTIP */}
                       {hoveredTool === tool.id && (
-                        <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
-                          <span className="truncate block">{tool.tooltipName || tool.name}</span>
-                          <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
+                        <div className="tool-tooltip bg-gray-900/95 dark:bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded shadow-md pointer-events-none select-none whitespace-nowrap flex items-center">
+                          <span>{tool.tooltipName || tool.name}</span>
+                          <span className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] w-0 h-0 border-y-[4px] border-y-transparent border-l-[4px] border-l-gray-900/95 dark:border-l-gray-800" />
                         </div>
                       )}
                     </div>
@@ -343,9 +343,9 @@ const BitToolSidebar = ({
                   <MdCheck size={18} />
                 </button>
                 {hoveredTool === 'save-pins' && (
-                  <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
-                    <span className="truncate block">Save</span>
-                    <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
+                  <div className="tool-tooltip bg-gray-900/95 dark:bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded shadow-md pointer-events-none select-none whitespace-nowrap flex items-center">
+                    <span>Save</span>
+                    <span className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] w-0 h-0 border-y-[4px] border-y-transparent border-l-[4px] border-l-gray-900/95 dark:border-l-gray-800" />
                   </div>
                 )}
               </div>
@@ -365,9 +365,9 @@ const BitToolSidebar = ({
                   <MdAdd size={18} />
                 </button>
                 {hoveredTool === 'edit-pins' && (
-                  <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
-                    <span className="truncate block">Edit</span>
-                    <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
+                  <div className="tool-tooltip bg-gray-900/95 dark:bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded shadow-md pointer-events-none select-none whitespace-nowrap flex items-center">
+                    <span>Edit</span>
+                    <span className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] w-0 h-0 border-y-[4px] border-y-transparent border-l-[4px] border-l-gray-900/95 dark:border-l-gray-800" />
                   </div>
                 )}
               </div>
@@ -393,9 +393,9 @@ const BitToolSidebar = ({
               <MdOutlineEdit size={18} />
             </button>
             {hoveredTool === 'keyboard-util' && (
-              <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
-                <span className="truncate block">Keyboard</span>
-                <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
+              <div className="tool-tooltip bg-gray-900/95 dark:bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded shadow-md pointer-events-none select-none whitespace-nowrap flex items-center">
+                <span>Keyboard</span>
+                <span className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] w-0 h-0 border-y-[4px] border-y-transparent border-l-[4px] border-l-gray-900/95 dark:border-l-gray-800" />
               </div>
             )}
           </div>
@@ -414,9 +414,9 @@ const BitToolSidebar = ({
               <MdTune size={18} />
             </button>
             {hoveredTool === 'customize-util' && (
-              <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
-                <span className="truncate block">Customize</span>
-                <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
+              <div className="tool-tooltip bg-gray-900/95 dark:bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded shadow-md pointer-events-none select-none whitespace-nowrap flex items-center">
+                <span>Customize</span>
+                <span className="absolute left-full top-1/2 -translate-y-1/2 -ml-[1px] w-0 h-0 border-y-[4px] border-y-transparent border-l-[4px] border-l-gray-900/95 dark:border-l-gray-800" />
               </div>
             )}
           </div>
