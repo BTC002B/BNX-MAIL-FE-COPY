@@ -5,8 +5,8 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { useMail } from "../context/MailContext";
-import { casboxAPI, api, userAPI, mailAPI } from "../services/api";
-import { MdCheck, MdDoneAll, MdStarBorder, MdStar, MdDeleteOutline, MdRefresh, MdSend, MdClose, MdRemoveRedEye, MdFileDownload, MdReply, MdBlock, MdArrowBack, MdArchive, MdUnarchive, MdAccessTime, MdLabel, MdDelete, MdMoreVert, MdInsertEmoticon, MdChevronRight, MdChevronLeft } from "react-icons/md";
+import { casboxAPI, api, userAPI, mailAPI, contactAliasAPI } from "../services/api";
+import { MdCheck, MdDoneAll, MdStarBorder, MdStar, MdDeleteOutline, MdRefresh, MdSend, MdClose, MdRemoveRedEye, MdFileDownload, MdReply, MdBlock, MdArrowBack, MdArchive, MdUnarchive, MdAccessTime, MdLabel, MdDelete, MdMoreVert, MdInsertEmoticon, MdChevronRight, MdChevronLeft, MdEdit } from "react-icons/md";
 import toast from "react-hot-toast";
 import ReadingPaneLayout from "../components/ReadingPaneLayout";
 import logo from "../assets/bnx-remove.png";
@@ -160,6 +160,191 @@ const Casbox = () => {
   const [conversationToDelete, setConversationToDelete] = useState(null);
   const [isDeletingConversation, setIsDeletingConversation] = useState(false);
   const listMenuRef = React.useRef(null);
+
+  const [contactAliases, setContactAliases] = useState({});
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [editingContact, setEditingContact] = useState(null);
+  const [customNameInput, setCustomNameInput] = useState("");
+  const [isSavingAlias, setIsSavingAlias] = useState(false);
+
+  const fetchAliases = async () => {
+    try {
+      const res = await contactAliasAPI.getAllAliases();
+      if (res.data && Array.isArray(res.data)) {
+        const map = {};
+        res.data.forEach(item => {
+          if (item.customName && item.customName.trim()) {
+            const trimmed = item.customName.trim();
+            if (item.contactUserId) map[String(item.contactUserId)] = trimmed;
+            if (item.contactEmail) map[item.contactEmail.toLowerCase()] = trimmed;
+            if (item.contactUsername) map[item.contactUsername.toLowerCase()] = trimmed;
+          }
+        });
+        setContactAliases(prev => ({ ...prev, ...map }));
+      }
+    } catch (e) {
+      console.error("Failed to load contact aliases", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchAliases();
+  }, []);
+
+  const getDisplayName = (emailOrUsername, msg) => {
+    if (!emailOrUsername) return "";
+    const key = emailOrUsername.toLowerCase();
+    const local = (emailOrUsername.includes('@') ? emailOrUsername.split('@')[0] : emailOrUsername).toLowerCase();
+    if (contactAliases[key]) return contactAliases[key];
+    if (contactAliases[local]) return contactAliases[local];
+    if (msg) {
+      if (msg.customName && msg.customName.trim()) return msg.customName.trim();
+      if (msg.contactDisplayName && msg.contactDisplayName.trim()) return msg.contactDisplayName.trim();
+    }
+    return emailOrUsername.includes('@') ? emailOrUsername.split('@')[0] : emailOrUsername;
+  };
+
+  const getOriginalName = (emailOrUsername, msg) => {
+    if (!emailOrUsername) return "";
+    if (msg?.contactUsername) return msg.contactUsername;
+    return emailOrUsername.includes('@') ? emailOrUsername.split('@')[0] : emailOrUsername;
+  };
+
+  const getContactInitial = (emailOrUsername, msg) => {
+    const name = getDisplayName(emailOrUsername, msg);
+    return name ? name.charAt(0).toUpperCase() : "?";
+  };
+
+  const handleOpenEditNameModal = (chatOrMsg, e) => {
+    if (e) e.stopPropagation();
+    setOpenMenuId(null);
+    setShowMoreMenu(false);
+
+    const contactEmail = chatOrMsg.contact || (chatOrMsg.senderEmail === user?.email ? chatOrMsg.receiverEmail : chatOrMsg.senderEmail);
+    const msg = chatOrMsg.latestMessage || (chatOrMsg.body !== undefined ? chatOrMsg : null);
+    const originalName = getOriginalName(contactEmail, msg);
+    const currentName = getDisplayName(contactEmail, msg);
+    const hasCustomAlias = contactAliases[contactEmail.toLowerCase()] || 
+                           contactAliases[contactEmail.split('@')[0].toLowerCase()] || 
+                           (msg?.customName && msg.customName.trim());
+
+    setEditingContact({
+      contact: contactEmail,
+      contactUserId: msg?.contactUserId,
+      originalName: originalName,
+      currentName: currentName,
+      hasCustomAlias: Boolean(hasCustomAlias),
+      msg: msg
+    });
+    setCustomNameInput(hasCustomAlias ? currentName : "");
+    setShowEditNameModal(true);
+  };
+
+  const handleSaveContactName = async (e) => {
+    if (e) e.preventDefault();
+    if (!editingContact) return;
+
+    const contactTarget = editingContact.contact;
+    const trimmedInput = customNameInput.trim();
+    const contactIdOrIdentifier = editingContact.contactUserId || contactTarget;
+
+    try {
+      setIsSavingAlias(true);
+
+      if (!trimmedInput) {
+        // Deleting / resetting custom alias to restore original username
+        await contactAliasAPI.deleteAlias(contactIdOrIdentifier);
+
+        // Update local contactAliases state
+        setContactAliases(prev => {
+          const updated = { ...prev };
+          delete updated[contactTarget.toLowerCase()];
+          delete updated[contactTarget.split('@')[0].toLowerCase()];
+          if (editingContact.contactUserId) {
+            delete updated[String(editingContact.contactUserId)];
+          }
+          return updated;
+        });
+
+        // Update messages in state
+        setMessages(prev => prev.map(m => {
+          const other = m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail;
+          if (other && other.toLowerCase() === contactTarget.toLowerCase()) {
+            return {
+              ...m,
+              customName: null,
+              contactDisplayName: m.contactUsername || contactTarget.split('@')[0]
+            };
+          }
+          return m;
+        }));
+
+        // Update threadMessages
+        setThreadMessages(prev => prev.map(m => {
+          const other = m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail;
+          if (other && other.toLowerCase() === contactTarget.toLowerCase()) {
+            return {
+              ...m,
+              customName: null,
+              contactDisplayName: m.contactUsername || contactTarget.split('@')[0]
+            };
+          }
+          return m;
+        }));
+
+        toast.success(`Contact name reset to ${editingContact.originalName}`);
+      } else {
+        // Setting / updating custom alias
+        const res = await contactAliasAPI.setAlias(contactIdOrIdentifier, trimmedInput);
+        const savedName = res.data?.customName || trimmedInput;
+
+        // Update local contactAliases state
+        setContactAliases(prev => ({
+          ...prev,
+          [contactTarget.toLowerCase()]: savedName,
+          [contactTarget.split('@')[0].toLowerCase()]: savedName,
+          ...(editingContact.contactUserId ? { [String(editingContact.contactUserId)]: savedName } : {})
+        }));
+
+        // Update messages in state
+        setMessages(prev => prev.map(m => {
+          const other = m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail;
+          if (other && other.toLowerCase() === contactTarget.toLowerCase()) {
+            return {
+              ...m,
+              customName: savedName,
+              contactDisplayName: savedName
+            };
+          }
+          return m;
+        }));
+
+        // Update threadMessages
+        setThreadMessages(prev => prev.map(m => {
+          const other = m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail;
+          if (other && other.toLowerCase() === contactTarget.toLowerCase()) {
+            return {
+              ...m,
+              customName: savedName,
+              contactDisplayName: savedName
+            };
+          }
+          return m;
+        }));
+
+        toast.success("Contact name updated");
+      }
+
+      setShowEditNameModal(false);
+      setEditingContact(null);
+      setCustomNameInput("");
+    } catch (err) {
+      console.error("Failed to save contact name", err);
+      toast.error(err.response?.data?.message || "Failed to update contact name");
+    } finally {
+      setIsSavingAlias(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -605,6 +790,16 @@ const Casbox = () => {
     try {
       messageSub = stompClient.subscribe('/user/queue/casbox/messages', (msg) => {
         const newMsg = JSON.parse(msg.body);
+        if (newMsg.customName && newMsg.customName.trim()) {
+          const val = newMsg.customName.trim();
+          const other = newMsg.senderEmail === user?.email ? newMsg.receiverEmail : newMsg.senderEmail;
+          setContactAliases(prev => ({
+            ...prev,
+            ...(other ? { [other.toLowerCase()]: val, [other.split('@')[0].toLowerCase()]: val } : {}),
+            ...(newMsg.contactUsername ? { [newMsg.contactUsername.toLowerCase()]: val } : {}),
+            ...(newMsg.contactUserId ? { [String(newMsg.contactUserId)]: val } : {})
+          }));
+        }
         setMessages(prev => {
           if (prev.some(m => m.id === newMsg.id)) return prev;
           return [newMsg, ...prev];
@@ -641,7 +836,27 @@ const Casbox = () => {
     try {
       if (!background) setLoading(true);
       const res = await casboxAPI.getAllMessages();
-      setMessages(res.data || []);
+      const msgs = res.data || [];
+      setMessages(msgs);
+
+      // Collect any aliases returned in the messages DTOs
+      const dtoAliases = {};
+      msgs.forEach(m => {
+        if (m.customName && m.customName.trim()) {
+          const val = m.customName.trim();
+          if (m.contactUserId) dtoAliases[String(m.contactUserId)] = val;
+          const other = m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail;
+          if (other) {
+            dtoAliases[other.toLowerCase()] = val;
+            dtoAliases[other.split('@')[0].toLowerCase()] = val;
+          }
+          if (m.contactUsername) dtoAliases[m.contactUsername.toLowerCase()] = val;
+        }
+      });
+      if (Object.keys(dtoAliases).length > 0) {
+        setContactAliases(prev => ({ ...prev, ...dtoAliases }));
+      }
+
       if (selectedContactRef.current) {
         const contactEmail = selectedContactRef.current;
         casboxAPI.getThread(contactEmail).then(r => setThreadMessages(r.data || [])).catch(console.error);
@@ -915,14 +1130,14 @@ const Casbox = () => {
 
               <div className="shrink-0 mr-3.5">
                 <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm">
-                  {otherEmail.charAt(0).toUpperCase()}
+                  {getContactInitial(otherEmail, msg)}
                 </div>
               </div>
 
               <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className={`text-sm truncate ${unreadCount > 0 ? 'font-extrabold text-gray-900 dark:text-white' : 'font-semibold text-gray-800 dark:text-gray-200'}`}>
-                    {otherEmail.split('@')[0]}
+                    {getDisplayName(otherEmail, msg)}
                   </span>
                   <div className="flex items-center gap-1 shrink-0">
                     <span className={`text-xs ${unreadCount > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-400 dark:text-gray-500'}`}>
@@ -942,6 +1157,13 @@ const Casbox = () => {
 
                       {openMenuId === chat.contact && (
                         <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl z-30 py-1 animate-in fade-in duration-150">
+                          <button
+                            onClick={(e) => handleOpenEditNameModal(chat, e)}
+                            className="w-full text-left px-3.5 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 flex items-center gap-2 transition-colors"
+                          >
+                            <MdEdit size={16} className="text-gray-500 dark:text-gray-400" />
+                            {t('casbox.edit_name', 'Edit Name')}
+                          </button>
                           {activeTab === 'archive' ? (
                             <button
                               onClick={(e) => handleUnarchiveMessage(chat, e)}
@@ -1145,6 +1367,16 @@ const Casbox = () => {
                 <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
                   <button
                     onClick={() => {
+                      setShowMoreMenu(false);
+                      handleOpenEditNameModal({ contact: otherUserEmail, latestMessage: selectedMessage });
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-2"
+                  >
+                    <MdEdit size={16} className="text-gray-500 dark:text-gray-400" />
+                    {t('casbox.edit_contact_name', 'Edit Contact Name')}
+                  </button>
+                  <button
+                    onClick={() => {
                       handleToggleStarChat();
                       setShowMoreMenu(false);
                     }}
@@ -1202,11 +1434,11 @@ const Casbox = () => {
             </button>
 
             <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-base">
-              {otherUserEmail.charAt(0).toUpperCase()}
+              {getContactInitial(otherUserEmail, selectedMessage)}
             </div>
 
             <div className="flex flex-col">
-              <span className="font-bold text-sm text-gray-900 dark:text-gray-100">{otherUserEmail.split('@')[0]}</span>
+              <span className="font-bold text-sm text-gray-900 dark:text-gray-100">{getDisplayName(otherUserEmail, selectedMessage)}</span>
               <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">{otherUserEmail}</span>
             </div>
           </div>
@@ -1227,7 +1459,8 @@ const Casbox = () => {
             sortedThread.map((msg, index) => {
               const isMe = msg.senderEmail === user?.email;
               const senderEmail = msg.senderEmail || "";
-              const senderLabel = senderEmail ? senderEmail.split("@")[0] : "";
+              const senderLabel = isMe ? (user?.username || senderEmail.split("@")[0]) : getDisplayName(senderEmail, msg);
+              const senderInitial = isMe ? (user?.username || senderEmail).charAt(0).toUpperCase() : getContactInitial(senderEmail, msg);
 
               return (
                 <div key={msg.id || index} className="flex items-start gap-4 sm:gap-6 w-full py-1">
@@ -1248,7 +1481,7 @@ const Casbox = () => {
                             ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
                             : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
                         }`}>
-                          {senderLabel.charAt(0).toUpperCase()}
+                          {senderInitial}
                         </div>
                         {/* Green online dot */}
                         <div className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full border border-white dark:border-[#121212]" />
@@ -1527,7 +1760,7 @@ const Casbox = () => {
                 Delete this conversation?
               </h3>
               <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-6">
-                This will delete all messages with <span className="font-medium text-gray-700 dark:text-gray-300">{conversationToDelete.contact}</span>. This action cannot be undone.
+                This will delete all messages with <span className="font-medium text-gray-700 dark:text-gray-300">{getDisplayName(conversationToDelete.contact, conversationToDelete.latestMessage)}</span>. This action cannot be undone.
               </p>
 
               <div className="flex items-center justify-center gap-3">
@@ -1551,6 +1784,107 @@ const Casbox = () => {
                   Delete
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {showEditNameModal && editingContact && (
+          <div
+            className="fixed inset-0 bg-black/60 z-[2000] flex items-center justify-center animate-fade-in p-4 backdrop-blur-sm"
+            onClick={() => {
+              if (!isSavingAlias) {
+                setShowEditNameModal(false);
+                setEditingContact(null);
+              }
+            }}
+          >
+            <div
+              className="bg-white dark:bg-[#1e1e1e] rounded-2xl w-full max-w-sm shadow-2xl flex flex-col overflow-hidden p-6 border border-gray-100 dark:border-gray-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 mb-4 mx-auto">
+                <MdEdit size={24} />
+              </div>
+
+              <h3 className="font-bold text-lg text-center text-gray-900 dark:text-white mb-1">
+                {t('casbox.edit_contact_name', 'Edit Contact Name')}
+              </h3>
+
+              <div className="text-center mb-4">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  Current Name:{" "}
+                  <span className="font-semibold text-gray-800 dark:text-gray-200">
+                    {editingContact.currentName}
+                  </span>
+                </div>
+                {editingContact.hasCustomAlias && (
+                  <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                    Original username:{" "}
+                    <span className="font-mono text-gray-600 dark:text-gray-300">
+                      {editingContact.originalName}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <form onSubmit={handleSaveContactName}>
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
+                    Custom Name
+                  </label>
+                  <input
+                    type="text"
+                    autoFocus
+                    value={customNameInput}
+                    onChange={(e) => setCustomNameInput(e.target.value)}
+                    placeholder={editingContact.originalName || "e.g. Rahul"}
+                    maxLength={150}
+                    disabled={isSavingAlias}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-black/20 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100 transition-all"
+                  />
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5 leading-tight">
+                    Only you will see this name. The contact's account name is not changed.
+                  </p>
+                </div>
+
+                {editingContact.hasCustomAlias && (
+                  <div className="mb-4 flex justify-end">
+                    <button
+                      type="button"
+                      disabled={isSavingAlias}
+                      onClick={() => setCustomNameInput("")}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium cursor-pointer"
+                    >
+                      Clear custom name (restore original)
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-center gap-3 mt-2">
+                  <button
+                    type="button"
+                    disabled={isSavingAlias}
+                    onClick={() => {
+                      setShowEditNameModal(false);
+                      setEditingContact(null);
+                    }}
+                    className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingAlias}
+                    className="flex-1 px-4 py-2.5 text-sm font-semibold text-white rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                    style={{ backgroundColor: theme?.accent || "#135bec" }}
+                  >
+                    {isSavingAlias && (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    )}
+                    Save
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

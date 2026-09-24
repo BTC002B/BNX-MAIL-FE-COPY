@@ -370,6 +370,19 @@ export const casboxAPI = {
     archiveMessage: (id, archived = true) => api.patch(`/api/casbox/${id}/archive?archived=${archived}`),
     updateArchiveStatus: (messageIds, archived = true) => api.patch('/api/casbox/archive', { messageIds, archived }),
     deleteConversation: (contactEmailOrId) => api.delete(`/api/casbox/conversation/${encodeURIComponent(contactEmailOrId)}`),
+    // Contact alias endpoints
+    getAllAliases: () => api.get('/api/contact-aliases'),
+    getAlias: (contactUserId) => api.get(`/api/contact-aliases/${encodeURIComponent(contactUserId)}`),
+    setAlias: (contactUserId, customName) => api.put(`/api/contact-aliases/${encodeURIComponent(contactUserId)}`, { customName }),
+    deleteAlias: (contactUserId) => api.delete(`/api/contact-aliases/${encodeURIComponent(contactUserId)}`),
+};
+
+// Contact Alias APIs
+export const contactAliasAPI = {
+    getAllAliases: () => api.get('/api/contact-aliases'),
+    getAlias: (contactUserId) => api.get(`/api/contact-aliases/${encodeURIComponent(contactUserId)}`),
+    setAlias: (contactUserId, customName) => api.put(`/api/contact-aliases/${encodeURIComponent(contactUserId)}`, { customName }),
+    deleteAlias: (contactUserId) => api.delete(`/api/contact-aliases/${encodeURIComponent(contactUserId)}`),
 };
 
 // Report APIs

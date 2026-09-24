@@ -449,7 +449,9 @@
     "blocked_users": "Blocked Users",
     "no_chats": "No chats yet",
     "you": "You",
-    "new_broadcast": "New Casbox Broadcast"
+    "new_broadcast": "New Casbox Broadcast",
+    "edit_name": "Edit Name",
+    "edit_contact_name": "Edit Contact Name"
   },
   "notifications": {
     "title": "Notifications",

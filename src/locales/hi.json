@@ -449,7 +449,9 @@
     "blocked_users": "अवरुद्ध उपयोगकर्ता",
     "no_chats": "अभी तक कोई चैट नहीं",
     "you": "आप",
-    "new_broadcast": "नया कैसबॉक्स प्रसारण"
+    "new_broadcast": "नया कैसबॉक्स प्रसारण",
+    "edit_name": "नाम संपादित करें",
+    "edit_contact_name": "संपर्क नाम संपादित करें"
   },
   "notifications": {
     "title": "सूचनाएं",
