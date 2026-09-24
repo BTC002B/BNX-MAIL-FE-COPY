@@ -943,8 +943,16 @@ const Casbox = () => {
     }
 
     return () => {
-      if (messageSub) messageSub.unsubscribe();
-      if (statusSub) statusSub.unsubscribe();
+      try {
+        if (messageSub && stompClient && (stompClient.connected || isConnected)) {
+          messageSub.unsubscribe();
+        }
+      } catch (e) {}
+      try {
+        if (statusSub && stompClient && (stompClient.connected || isConnected)) {
+          statusSub.unsubscribe();
+        }
+      } catch (e) {}
     };
   }, [stompClient, isConnected]);
 
@@ -1135,14 +1143,44 @@ const Casbox = () => {
     }
   };
 
-  const displayedConnections = connections.filter(conn => {
-    const email = conn.contactEmail?.toLowerCase();
-    const uname = conn.contactUsername?.toLowerCase();
-    if (blockedContacts.some(b => b.toLowerCase() === email || b.toLowerCase() === uname)) {
-      return false;
+  const displayedConnections = React.useMemo(() => {
+    const list = [...connections];
+
+    if (conversationList && conversationList.length > 0) {
+      conversationList.forEach(chat => {
+        const contactEmail = chat.contact;
+        if (!contactEmail || contactEmail === user?.email) return;
+        const lower = contactEmail.toLowerCase();
+        const local = lower.includes('@') ? lower.split('@')[0] : lower;
+
+        const alreadyExists = list.some(c => {
+          const cEmail = c.contactEmail?.toLowerCase();
+          const cUser = c.contactUsername?.toLowerCase();
+          return cEmail === lower || cEmail === local || cUser === lower || cUser === local;
+        });
+
+        if (!alreadyExists) {
+          list.push({
+            id: contactEmail,
+            contactEmail: contactEmail,
+            contactUsername: getOriginalName(contactEmail, chat.latestMessage),
+            contactDisplayName: getDisplayName(contactEmail, chat.latestMessage),
+            status: 'CONNECTED',
+            contactUserId: chat.latestMessage?.contactUserId
+          });
+        }
+      });
     }
-    return true;
-  });
+
+    return list.filter(conn => {
+      const email = conn.contactEmail?.toLowerCase();
+      const uname = conn.contactUsername?.toLowerCase();
+      if (blockedContacts.some(b => b.toLowerCase() === email || b.toLowerCase() === uname)) {
+        return false;
+      }
+      return true;
+    });
+  }, [connections, conversationList, blockedContacts, user?.email, contactAliases]);
 
   const headerComponent = (
     <div className="flex flex-col shrink-0">
