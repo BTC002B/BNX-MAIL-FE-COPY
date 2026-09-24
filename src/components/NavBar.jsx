@@ -211,7 +211,7 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
           {/* COMPOSE (Hidden on mobile/tablet, shown as floating button instead) */}
           <button
             onClick={() => openCompose(currentTab === 'chat' ? { mode: 'casbox' } : null)}
-            className="hidden xl:flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold shadow-sm transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] bg-white dark:bg-[#303134] border border-gray-200/50 dark:border-gray-700/50 text-gray-700 dark:text-gray-200 ml-16 shrink-0"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 md:px-4 py-1.5 rounded-full font-semibold shadow-sm transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] bg-white dark:bg-[#303134] border border-gray-200/50 dark:border-gray-700/50 text-gray-700 dark:text-gray-200 ml-1.5 sm:ml-3 md:ml-6 lg:ml-10 xl:ml-16 shrink-0 cursor-pointer"
           >
             <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.accent || "#135bec" }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -554,19 +554,9 @@ const NavBar = ({ searchQuery, setSearchQuery, onOpenMenu, onToggleDesktopSideba
           </button>
         </div>
       </div>
-
-      {/* Floating Action Button (Mobile/Tablet Only) */}
-      <button
-        onClick={() => openCompose(currentTab === 'chat' ? { mode: 'casbox' } : null)}
-        className="lg:hidden fixed bottom-6 right-6 z-[60] flex items-center justify-center w-14 h-14 rounded-2xl shadow-lg transition-transform hover:scale-105 active:scale-95 text-white"
-        style={{ background: theme.accent || "#135bec" }}
-      >
-        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-        </svg>
-      </button>
     </nav>
   );
 };
 
 export default NavBar;
+
