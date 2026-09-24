@@ -20,9 +20,9 @@ const ALL_TOOLS = [
   { id: "calendar", name: "Calendar", icon: MdCalendarToday, color: "#f59e0b", ringClass: "border-[#f59e0b]", textClass: "text-[#f59e0b]", bgClass: "bg-amber-50 dark:bg-amber-950/20" },
   { id: "calculator", name: "Calculator", icon: MdCalculate, color: "#10b981", ringClass: "border-[#10b981]", textClass: "text-[#10b981]", bgClass: "bg-emerald-50 dark:bg-emerald-950/20" },
   { id: "contacts", name: "Contacts", icon: MdPeople, color: "#3b82f6", ringClass: "border-[#3b82f6]", textClass: "text-[#3b82f6]", bgClass: "bg-blue-50 dark:bg-blue-950/20" },
-  { id: "notes", name: "Sticky Notes", icon: MdOutlineNoteAlt, color: "#eab308", ringClass: "border-[#eab308]", textClass: "text-[#eab308]", bgClass: "bg-yellow-50 dark:bg-yellow-950/20" },
+  { id: "notes", name: "Notes", icon: MdOutlineNoteAlt, color: "#eab308", ringClass: "border-[#eab308]", textClass: "text-[#eab308]", bgClass: "bg-yellow-50 dark:bg-yellow-950/20" },
   { id: "keyboard", name: "Keyboard", icon: MdKeyboard, color: "#6366f1", ringClass: "border-[#6366f1]", textClass: "text-[#6366f1]", bgClass: "bg-indigo-50 dark:bg-indigo-950/20" },
-  { id: "weather", name: "Weather", icon: MdCloudQueue, color: "#06b6d4", ringClass: "border-[#06b6d4]", textClass: "text-[#06b6d4]", bgClass: "bg-cyan-50 dark:bg-cyan-950/20" }
+  { id: "weather", name: "Weather", tooltipName: "Cloud", icon: MdCloudQueue, color: "#06b6d4", ringClass: "border-[#06b6d4]", textClass: "text-[#06b6d4]", bgClass: "bg-cyan-50 dark:bg-cyan-950/20" }
 ];
 
 const BitToolSidebar = ({
@@ -218,7 +218,7 @@ const BitToolSidebar = ({
 
         {/* Right Sidebar Strip */}
         <div
-          className="w-[60px] flex flex-col items-center pb-4 h-full justify-between select-none shrink-0"
+          className="right-tools-sidebar relative w-[60px] flex flex-col items-center pb-4 h-full justify-between select-none shrink-0"
         >
         <div className="flex flex-col items-center w-full">
           {/* HEADER / EDIT MODE LABEL */}
@@ -230,18 +230,26 @@ const BitToolSidebar = ({
                 Edit<br />Pins
               </div>
             ) : (
-              <div className="relative">
+              <div className="tool-item relative">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedTool(selectedTool === 'apps' ? null : 'apps');
+                    setHoveredTool(null);
                   }}
+                  onMouseEnter={() => setHoveredTool('apps')}
+                  onMouseLeave={() => setHoveredTool(null)}
+                  aria-label="Beta Ecosystem"
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer border ${selectedTool === 'apps' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400'}`}
-                  title="Beta Ecosystem"
                 >
-                  {/* <MdApps size={22} /> */}
                   <img src={betalogo} alt="beta-apps" className="w-6 h-6 object-contain" />
                 </button>
+                {hoveredTool === 'apps' && (
+                  <div className="tool-tooltip absolute top-full mt-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
+                    <span className="truncate block">Apps</span>
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-b-[4px] border-b-gray-900/95 dark:border-b-gray-800" />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -257,11 +265,12 @@ const BitToolSidebar = ({
                 const isPinned = pinnedTools.includes(tool.id);
                 const Icon = tool.icon;
                 return (
-                  <div key={tool.id} className="relative group">
+                  <div key={tool.id} className="tool-item relative">
                     <button
                       onClick={() => handleTogglePin(tool.id)}
                       onMouseEnter={() => setHoveredTool(tool.id)}
                       onMouseLeave={() => setHoveredTool(null)}
+                      aria-label={isPinned ? `Unpin ${tool.name}` : `Pin ${tool.name}`}
                       className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer border-2 ${isPinned
                           ? `${tool.ringClass} ${tool.bgClass} ${tool.textClass}`
                           : "border-dashed border-gray-300 dark:border-gray-700 bg-transparent text-gray-400 hover:border-gray-400"
@@ -272,8 +281,9 @@ const BitToolSidebar = ({
 
                     {/* CUSTOM POPOVER TOOLTIP */}
                     {hoveredTool === tool.id && (
-                      <div className="absolute right-[52px] top-1/2 -translate-y-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded shadow-md whitespace-nowrap z-50">
-                        {isPinned ? `Unpin ${tool.name}` : `Pin ${tool.name}`}
+                      <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
+                        <span className="truncate block">{isPinned ? "Unpin" : "Pin"}</span>
+                        <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
                       </div>
                     )}
                   </div>
@@ -287,11 +297,15 @@ const BitToolSidebar = ({
                   const Icon = tool.icon;
                   const isSelected = selectedTool === tool.id;
                   return (
-                    <div key={tool.id} className="relative">
+                    <div key={tool.id} className="tool-item relative">
                       <button
-                        onClick={() => setSelectedTool(isSelected ? null : tool.id)}
+                        onClick={() => {
+                          setSelectedTool(isSelected ? null : tool.id);
+                          setHoveredTool(null);
+                        }}
                         onMouseEnter={() => setHoveredTool(tool.id)}
                         onMouseLeave={() => setHoveredTool(null)}
+                        aria-label={tool.name}
                         className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer border-2 ${isSelected
                             ? `${tool.ringClass} ${tool.bgClass} ${tool.textClass} scale-95 shadow-inner`
                             : `border-transparent hover:scale-105 ${tool.bgClass} ${tool.textClass} shadow-sm`
@@ -302,8 +316,9 @@ const BitToolSidebar = ({
 
                       {/* TOOLTIP */}
                       {hoveredTool === tool.id && (
-                        <div className="absolute right-[52px] top-1/2 -translate-y-1/2 bg-gray-800 text-white text-[11px] font-medium px-2 py-1 rounded shadow-md whitespace-nowrap z-50">
-                          {tool.name}
+                        <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
+                          <span className="truncate block">{tool.tooltipName || tool.name}</span>
+                          <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
                         </div>
                       )}
                     </div>
@@ -314,22 +329,48 @@ const BitToolSidebar = ({
             {/* PLUS ICON / CHECKMARK ICON */}
             {isEditing ? (
               // Green Checkmark Button
-              <button
-                onClick={() => setIsEditing(false)}
-                className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer mt-2"
-                title="Save Pins"
-              >
-                <MdCheck size={18} />
-              </button>
+              <div className="tool-item relative mt-2">
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setHoveredTool(null);
+                  }}
+                  onMouseEnter={() => setHoveredTool('save-pins')}
+                  onMouseLeave={() => setHoveredTool(null)}
+                  aria-label="Save Pins"
+                  className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                >
+                  <MdCheck size={18} />
+                </button>
+                {hoveredTool === 'save-pins' && (
+                  <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
+                    <span className="truncate block">Save</span>
+                    <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
+                  </div>
+                )}
+              </div>
             ) : (
               // Plus Button (Dashed ring)
-              <button
-                onClick={() => setIsEditing(true)}
-                className="w-10 h-10 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-600 flex items-center justify-center transition-all cursor-pointer"
-                title="Edit Pins"
-              >
-                <MdAdd size={18} />
-              </button>
+              <div className="tool-item relative">
+                <button
+                  onClick={() => {
+                    setIsEditing(true);
+                    setHoveredTool(null);
+                  }}
+                  onMouseEnter={() => setHoveredTool('edit-pins')}
+                  onMouseLeave={() => setHoveredTool(null)}
+                  aria-label="Edit Pins"
+                  className="w-10 h-10 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-600 flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <MdAdd size={18} />
+                </button>
+                {hoveredTool === 'edit-pins' && (
+                  <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
+                    <span className="truncate block">Edit</span>
+                    <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -338,21 +379,47 @@ const BitToolSidebar = ({
         <div className="flex flex-col items-center gap-3.5 w-full mt-auto">
           <div className="w-8 h-[1px] bg-gray-200 dark:bg-gray-800" />
 
-          <button
-            className="w-10 h-10 rounded-xl border border-gray-200/60 dark:border-gray-850 hover:bg-gray-50 dark:hover:bg-gray-850 text-gray-500 dark:text-gray-400 flex items-center justify-center transition-all cursor-pointer bg-white/50 dark:bg-gray-900/50 shadow-sm"
-            title="Virtual Keyboard"
-            onClick={() => setSelectedTool(selectedTool === 'keyboard' ? null : 'keyboard')}
-          >
-            <MdOutlineEdit size={18} />
-          </button>
+          <div className="tool-item relative">
+            <button
+              className="w-10 h-10 rounded-xl border border-gray-200/60 dark:border-gray-850 hover:bg-gray-50 dark:hover:bg-gray-850 text-gray-500 dark:text-gray-400 flex items-center justify-center transition-all cursor-pointer bg-white/50 dark:bg-gray-900/50 shadow-sm"
+              aria-label="Virtual Keyboard"
+              onClick={() => {
+                setSelectedTool(selectedTool === 'keyboard' ? null : 'keyboard');
+                setHoveredTool(null);
+              }}
+              onMouseEnter={() => setHoveredTool('keyboard-util')}
+              onMouseLeave={() => setHoveredTool(null)}
+            >
+              <MdOutlineEdit size={18} />
+            </button>
+            {hoveredTool === 'keyboard-util' && (
+              <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
+                <span className="truncate block">Keyboard</span>
+                <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
+              </div>
+            )}
+          </div>
 
-          <button
-            className="w-10 h-10 rounded-xl border border-gray-200/60 dark:border-gray-850 hover:bg-gray-50 dark:hover:bg-gray-850 text-gray-500 dark:text-gray-400 flex items-center justify-center transition-all cursor-pointer bg-white/50 dark:bg-gray-900/50 shadow-sm"
-            title="Customize Sidebar"
-            onClick={() => setIsEditing(true)}
-          >
-            <MdTune size={18} />
-          </button>
+          <div className="tool-item relative">
+            <button
+              className="w-10 h-10 rounded-xl border border-gray-200/60 dark:border-gray-850 hover:bg-gray-50 dark:hover:bg-gray-850 text-gray-500 dark:text-gray-400 flex items-center justify-center transition-all cursor-pointer bg-white/50 dark:bg-gray-900/50 shadow-sm"
+              aria-label="Customize Sidebar"
+              onClick={() => {
+                setIsEditing(true);
+                setHoveredTool(null);
+              }}
+              onMouseEnter={() => setHoveredTool('customize-util')}
+              onMouseLeave={() => setHoveredTool(null)}
+            >
+              <MdTune size={18} />
+            </button>
+            {hoveredTool === 'customize-util' && (
+              <div className="tool-tooltip absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900/95 dark:bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg pointer-events-none select-none z-30 max-w-[56px] text-center truncate">
+                <span className="truncate block">Customize</span>
+                <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] border-t-gray-900/95 dark:border-t-gray-800" />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
