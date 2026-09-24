@@ -1,5 +1,5 @@
 import { useTranslation } from "../context/LanguageContext";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -76,6 +76,87 @@ const POPULAR_EMOJIS = [
   "❤️", "🩷", "🧡", "💛", "💚", "💙", "🩵", "💜", "🖤", "🩶", "🤍", "🤎", "💔", "❤️‍🔥", "❤️‍🩹", "❣️", "💕", "💞", "💓", "💗",
   "🎉", "✨", "🔥", "💡", "🌟", "🎈", "🎁", "💬", "✉️", "📅", "💻", "📱", "⌚", "📷", "🎨", "🎵", "✈️", "🚗", "🏠", "💼"
 ];
+
+const resolveAvatarUrl = (url, identifier) => {
+  if (!url || typeof url !== 'string' || !url.trim()) {
+    return null;
+  }
+  const clean = url.trim();
+  if (clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('data:') || clean.startsWith('blob:')) {
+    return clean;
+  }
+
+  const base = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? '' : 'https://api.bnxmail.com');
+  const cleanBase = base ? (base.endsWith('/') ? base.slice(0, -1) : base) : '';
+
+  if (clean.startsWith('/')) {
+    return cleanBase ? `${cleanBase}${clean}` : clean;
+  }
+
+  // If clean is just a filename like "user_1_123.jpg"
+  const userKey = identifier || clean;
+  return cleanBase ? `${cleanBase}/api/users/profile-picture/${encodeURIComponent(userKey)}` : `/api/users/profile-picture/${encodeURIComponent(userKey)}`;
+};
+
+const ConnectionAvatar = React.memo(({ profilePicture, profilePictureUrl, displayName, username, email, className = "w-9 h-9" }) => {
+  const [hasError, setHasError] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Extract clean initial: strip leading @ or spaces, uppercase first letter
+  const cleanName = (displayName || username || (email ? email.split('@')[0] : "?"))
+    .replace(/^@+/, '')
+    .trim();
+  const initial = (cleanName.charAt(0) || "?").toUpperCase();
+
+  const userIdentifier = (username || (email ? email.split('@')[0] : null) || "").replace(/^@+/, '').trim();
+  const rawPic = profilePicture || profilePictureUrl;
+
+  const avatarUrl = useMemo(() => {
+    return resolveAvatarUrl(rawPic, userIdentifier);
+  }, [rawPic, userIdentifier]);
+
+  // Reset error/loaded state if the avatar URL changes
+  useEffect(() => {
+    setHasError(false);
+    setIsLoaded(false);
+  }, [avatarUrl]);
+
+  // Fallback: circular avatar containing first letter of display name/username
+  // Exact BNXmail design: circular avatar, blue/purple styling, same size (w-9 h-9), same spacing, same typography
+  if (!avatarUrl || hasError) {
+    return (
+      <div
+        className={`${className} rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shrink-0 mt-0.5 select-none`}
+        aria-label={cleanName}
+        title={cleanName}
+      >
+        {initial}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${className} rounded-full shrink-0 mt-0.5 relative overflow-hidden`}>
+      {/* Background placeholder initial while image is loading to prevent layout flash */}
+      {!isLoaded && (
+        <div
+          className="absolute inset-0 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm select-none"
+          aria-hidden="true"
+        >
+          {initial}
+        </div>
+      )}
+      <img
+        src={avatarUrl}
+        alt={cleanName}
+        loading="lazy"
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setHasError(true)}
+        className={`${className} rounded-full object-cover border border-gray-200 dark:border-gray-700 transition-opacity duration-150 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+    </div>
+  );
+});
 
 const Casbox = () => {
   const { t } = useTranslation();
@@ -1160,13 +1241,21 @@ const Casbox = () => {
         });
 
         if (!alreadyExists) {
+          const matchedConn = connections.find(c => {
+            const cEmail = c.contactEmail?.toLowerCase();
+            const cUser = c.contactUsername?.toLowerCase();
+            return cEmail === lower || cEmail === local || cUser === lower || cUser === local;
+          });
+
           list.push({
             id: contactEmail,
             contactEmail: contactEmail,
             contactUsername: getOriginalName(contactEmail, chat.latestMessage),
             contactDisplayName: getDisplayName(contactEmail, chat.latestMessage),
             status: 'CONNECTED',
-            contactUserId: chat.latestMessage?.contactUserId
+            contactUserId: chat.latestMessage?.contactUserId,
+            contactProfilePicture: matchedConn?.contactProfilePicture || chat.latestMessage?.contactProfilePicture || null,
+            contactProfilePictureUrl: matchedConn?.contactProfilePictureUrl || chat.latestMessage?.contactProfilePictureUrl || null
           });
         }
       });
@@ -1291,22 +1380,17 @@ const Casbox = () => {
                 ) : (
                   displayedConnections.map((conn) => {
                     const isConn = conn.status?.toUpperCase() === 'CONNECTED';
-                    const initial = (conn.contactDisplayName || conn.contactUsername || "?").charAt(0).toUpperCase();
 
                     return (
                       <div key={conn.id} className="p-3.5 flex items-start justify-between gap-3 hover:bg-gray-50/60 dark:hover:bg-white/[0.02] transition-colors">
                         <div className="flex items-start gap-2.5 min-w-0">
-                          {conn.contactProfilePicture ? (
-                            <img
-                              src={conn.contactProfilePicture}
-                              alt={conn.contactDisplayName}
-                              className="w-9 h-9 rounded-full object-cover shrink-0 mt-0.5 border border-gray-200 dark:border-gray-700"
-                            />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shrink-0 mt-0.5">
-                              {initial}
-                            </div>
-                          )}
+                          <ConnectionAvatar
+                            profilePicture={conn.contactProfilePicture}
+                            profilePictureUrl={conn.contactProfilePictureUrl}
+                            displayName={conn.contactDisplayName}
+                            username={conn.contactUsername}
+                            email={conn.contactEmail}
+                          />
 
                           <div className="min-w-0 flex flex-col">
                             <div className="flex items-center gap-1.5">
