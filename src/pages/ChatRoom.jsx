@@ -1389,16 +1389,13 @@ const ChatRoom = () => {
                 <p className="text-xs opacity-75 mt-1 leading-relaxed" style={{ color: theme.subText }}>
                   {chat?.description || "A collaboration channel for team messaging and email broadcasting."}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2 text-[9px] uppercase font-bold tracking-wider opacity-60">
-                  <span className="bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
-                    Channel ID: #{chatId}
-                  </span>
-                  {chat?.createdAt && (
+                {chat?.createdAt && (
+                  <div className="mt-3 flex flex-wrap gap-2 text-[9px] uppercase font-bold tracking-wider opacity-60">
                     <span className="bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-full">
                       Created: {new Date(chat.createdAt).toLocaleDateString()}
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Add Members Form */}
