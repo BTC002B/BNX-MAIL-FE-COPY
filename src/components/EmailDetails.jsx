@@ -26,7 +26,6 @@ import {
   MdOpenInFull,
   MdCloseFullscreen,
   MdPrint,
-  MdMoreVert,
   MdMarkEmailUnread,
   MdBlock,
   MdAdd,
@@ -307,7 +306,6 @@ const EmailDetails = ({
   const [inlineLabelName, setInlineLabelName] = useState("");
   const [showMove, setShowMove] = useState(false);
   const [showSnooze, setShowSnooze] = useState(false);
-  const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [customSnooze, setCustomSnooze] = useState(false);
   const [customDateTime, setCustomDateTime] = useState("");
   const [imagePreviews, setImagePreviews] = useState({});
@@ -1157,103 +1155,6 @@ const EmailDetails = ({
           >
             <MdPrint size={20} />
           </button>
-          
-          <div className="relative">
-            <button
-              onClick={() => { setShowMoreOptions(!showMoreOptions); setShowLabels(false); setShowSnooze(false); }}
-              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-              title={t("email_details.more_actions", "More")}
-            >
-              <MdMoreVert size={20} />
-            </button>
-            {showMoreOptions && (
-              <div 
-                className="absolute right-0 mt-2 w-56 rounded-xl shadow-xl z-30 border bg-white dark:bg-neutral-900 border-gray-200 dark:border-neutral-800 overflow-hidden py-1.5"
-              >
-                <button
-                  onClick={() => { onReply?.(email); setShowMoreOptions(false); }}
-                  className="w-full text-left px-4 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-3 cursor-pointer text-gray-700 dark:text-gray-200 transition-colors"
-                >
-                  <MdReply size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">{t("common.reply", "Reply")}</span>
-                </button>
-                <button
-                  onClick={() => { onForward?.(email); setShowMoreOptions(false); }}
-                  className="w-full text-left px-4 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-3 cursor-pointer text-gray-700 dark:text-gray-200 transition-colors"
-                >
-                  <MdForward size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">{t("common.forward", "Forward")}</span>
-                </button>
-                
-                <div className="border-t border-gray-100 dark:border-neutral-800 my-1"></div>
-                
-                <button
-                  onClick={() => { onDelete?.(email.uid); handleClose(); setShowMoreOptions(false); }}
-                  className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center gap-3 cursor-pointer text-red-600 dark:text-red-400 transition-colors"
-                >
-                  <MdDelete size={18} />
-                  <span className="text-sm font-medium">{t("email_details.delete", "Delete")}</span>
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      if (handleMarkUnread) {
-                        await handleMarkUnread(email.uid);
-                      }
-                      toast.success("Marked as unread");
-                      handleClose();
-                    } catch (err) {
-                      console.error(err);
-                      toast.error("Failed to mark unread");
-                    }
-                    setShowMoreOptions(false);
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-3 cursor-pointer text-gray-700 dark:text-gray-200 transition-colors"
-                >
-                  <MdMarkEmailUnread size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">{t("common.mark_unread", "Mark as unread")}</span>
-                </button>
-                
-                <div className="border-t border-gray-100 dark:border-neutral-800 my-1"></div>
-                
-                <button
-                  onClick={() => { handleUnsubscribeClick(); setShowMoreOptions(false); }}
-                  className="w-full text-left px-4 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-3 cursor-pointer text-gray-700 dark:text-gray-200 transition-colors"
-                >
-                  <MdBlock size={18} className="text-gray-500 shrink-0" />
-                  <span className="text-sm font-medium truncate">{t("bulk_actions.unsubscribe", "Unsubscribe")} {cleanSenderEmail || ""}</span>
-                </button>
-                <button
-                  onClick={() => { setShowBlockModal(true); setShowMoreOptions(false); }}
-                  className="w-full text-left px-4 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-3 cursor-pointer text-gray-700 dark:text-gray-200 transition-colors"
-                >
-                  <MdBlock size={18} className="text-gray-500 shrink-0" />
-                  <span className="text-sm font-medium">{isBlocked ? t("casbox.unblock", "Unblock") : t("casbox.block", "Block")}</span>
-                </button>
-                <button
-                  onClick={() => { setShowReportModal(true); setShowMoreOptions(false); }}
-                  className="w-full text-left px-4 py-2 hover:bg-orange-50 dark:hover:bg-orange-900/10 flex items-center gap-3 cursor-pointer text-orange-600 dark:text-orange-400 transition-colors"
-                >
-                  <MdReport size={18} className="shrink-0" />
-                  <span className="text-sm font-medium">{t("common.report_spam", "Report Spam / Abuse")}</span>
-                </button>
-                <button
-                  onClick={handlePrint}
-                  className="w-full text-left px-4 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-3 cursor-pointer text-gray-700 dark:text-gray-200 transition-colors"
-                >
-                  <MdPrint size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">{t("email_details.print", "Print")}</span>
-                </button>
-                <button
-                  onClick={handleDownloadMessage}
-                  className="w-full text-left px-4 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-3 cursor-pointer text-gray-700 dark:text-gray-200 transition-colors"
-                >
-                  <MdFileDownload size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">{t("common.download", "Download message")}</span>
-                </button>
-              </div>
-            )}
-          </div>
 
           <button
             onClick={() => onStar?.(email.uid)}
