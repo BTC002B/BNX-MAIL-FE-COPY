@@ -97,27 +97,6 @@ const BitToolSidebar = ({
         return <ContactPanel />;
       case "notes":
         return <NotesPanel />;
-      case "keyboard":
-        return (
-          <div className="flex flex-col h-full text-gray-700 dark:text-gray-200 text-xs">
-            <span className="font-bold text-gray-400 uppercase tracking-wider block mb-3 text-[10px]">Shortcuts Cheat Sheet</span>
-            <div className="space-y-3.5">
-              {[
-                { key: "C", desc: "Compose new email" },
-                { key: "/", desc: "Focus search bar" },
-                { key: "I", desc: "Navigate to Inbox" },
-                { key: "G", desc: "Open Colab/Group chats" },
-                { key: "R", desc: "Reply to currently open email" }
-              ].map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center">
-                  <span className="opacity-75">{item.desc}</span>
-                  <kbd className="px-2 py-1 bg-black/5 dark:bg-white/10 rounded font-mono font-bold text-[10px] shadow-sm border border-gray-200/20">{item.key}</kbd>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
       case "weather":
         return <WeatherPanel />;
       default:
@@ -245,7 +224,10 @@ const BitToolSidebar = ({
                   return (
                     <div key={tool.id} className="relative">
                       <button
-                        onClick={() => setSelectedTool(isSelected ? null : tool.id)}
+                        onClick={() => {
+                          if (tool.id === "keyboard") return;
+                          setSelectedTool(isSelected ? null : tool.id);
+                        }}
                         onMouseEnter={() => setHoveredTool(tool.id)}
                         onMouseLeave={() => setHoveredTool(null)}
                         className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer border-2 ${isSelected
@@ -297,7 +279,6 @@ const BitToolSidebar = ({
           <button
             className="w-10 h-10 rounded-xl border border-gray-200/60 dark:border-gray-850 hover:bg-gray-50 dark:hover:bg-gray-850 text-gray-500 dark:text-gray-400 flex items-center justify-center transition-all cursor-pointer bg-white/50 dark:bg-gray-900/50 shadow-sm"
             title="Shortcuts"
-            onClick={() => setSelectedTool("keyboard")}
           >
             <MdOutlineEdit size={18} />
           </button>
