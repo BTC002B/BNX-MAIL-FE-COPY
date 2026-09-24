@@ -2,13 +2,13 @@ import { useTranslation } from "../context/LanguageContext";
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 
-const StorageCard = ({ 
-  name, 
-  icon: Icon, 
+const StorageCard = ({
+  name,
+  icon: Icon,
   logo,
-  usedStorage, 
+  usedStorage,
   totalStorage = 1073741824, // 1 GB in bytes
-  usagePercentage, 
+  usagePercentage,
   remainingStorage,
   onManage
 }) => {
@@ -25,17 +25,17 @@ const StorageCard = ({
 
   // Determine displayed values dynamically if not explicitly provided
   const displayUsed = usedStorage !== undefined ? usedStorage : 0;
-  const pct = usagePercentage !== undefined 
-    ? usagePercentage 
+  const pct = usagePercentage !== undefined
+    ? usagePercentage
     : (usedStorage !== undefined ? Math.round((displayUsed / totalStorage) * 100) : 0);
-  const displayRemaining = remainingStorage !== undefined 
-    ? remainingStorage 
+  const displayRemaining = remainingStorage !== undefined
+    ? remainingStorage
     : (usedStorage !== undefined ? Math.max(0, totalStorage - displayUsed) : totalStorage);
 
   // Determine status color and text dynamically
   let statusColor = theme.accent || '#2563eb';
   let statusText = 'Normal';
-  
+
   if (pct >= 95) {
     statusColor = '#ef4444'; // Red (Storage full)
     statusText = 'Storage Full';
@@ -47,7 +47,7 @@ const StorageCard = ({
   }
 
   return (
-    <div 
+    <div
       className="p-6 rounded-2xl border flex flex-col gap-4 shadow-sm bg-white/40 dark:bg-gray-900/40 backdrop-blur-md"
       style={{ borderColor: theme.border, color: theme.text }}
     >
@@ -55,14 +55,14 @@ const StorageCard = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {logo ? (
-            <div 
+            <div
               className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
               style={{ backgroundColor: theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)' }}
             >
               <img src={logo} alt={name} className="w-full h-full object-contain p-1" />
             </div>
           ) : Icon ? (
-            <div 
+            <div
               className="p-2.5 rounded-xl flex items-center justify-center shrink-0"
               style={{ backgroundColor: theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)' }}
             >
@@ -74,7 +74,7 @@ const StorageCard = ({
 
         {/* Dynamic Status Badge */}
         {(usagePercentage !== undefined || usedStorage !== undefined) && (
-          <span 
+          <span
             className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-md"
             style={{ backgroundColor: `${statusColor}15`, color: statusColor }}
           >
@@ -95,15 +95,15 @@ const StorageCard = ({
         </div>
 
         {/* Horizontal Progress Bar */}
-        <div 
-          className="w-full h-1.5 rounded-full overflow-hidden" 
+        <div
+          className="w-full h-1.5 rounded-full overflow-hidden"
           style={{ backgroundColor: theme.mode === 'dark' ? '#374151' : '#e5e7eb' }}
         >
-          <div 
+          <div
             className="h-full rounded-full transition-all duration-500"
-            style={{ 
-              width: `${(usedStorage !== undefined || usagePercentage !== undefined) ? Math.min(pct, 100) : 0}%`, 
-              backgroundColor: statusColor 
+            style={{
+              width: `${(usedStorage !== undefined || usagePercentage !== undefined) ? Math.min(pct, 100) : 0}%`,
+              backgroundColor: statusColor
             }}
           />
         </div>
@@ -115,12 +115,12 @@ const StorageCard = ({
       </div>
 
       {/* Manage Button (UI Element only) */}
-      <button 
+      <button
         type="button"
         onClick={onManage}
         className="w-full mt-3 py-2.5 rounded-xl font-bold text-xs border text-center transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-        style={{ 
-          borderColor: theme.border, 
+        style={{
+          borderColor: theme.border,
           color: theme.text,
           backgroundColor: theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.01)'
         }}

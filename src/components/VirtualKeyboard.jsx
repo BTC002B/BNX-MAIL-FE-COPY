@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MdKeyboard, MdClose, MdArrowUpward } from "react-icons/md";
+import { MdKeyboard, MdClose, MdArrowUpward, MdPanTool } from "react-icons/md";
 import { useTheme } from "../context/ThemeContext";
 
 const VirtualKeyboard = ({ onClose }) => {
@@ -771,17 +771,31 @@ const VirtualKeyboard = ({ onClose }) => {
             Virtual Keyboard
           </span>
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-          title="Close Virtual Keyboard"
-        >
-          <MdClose size={16} />
-        </button>
+
+        <div className="flex items-center gap-1.5">
+          {/* White Hand Drag Button */}
+          <div
+            onPointerDown={handlePointerDown}
+            className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-600 active:bg-blue-700 text-white flex items-center justify-center cursor-grab active:cursor-grabbing shadow-xs transition-all touch-none select-none"
+            title="Drag to move keyboard"
+          >
+            <MdPanTool size={14} className="text-white fill-white" />
+          </div>
+
+          {/* Close Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            title="Close Virtual Keyboard"
+          >
+            <MdClose size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Keyboard Grid */}

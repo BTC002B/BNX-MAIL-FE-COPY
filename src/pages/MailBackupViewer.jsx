@@ -70,8 +70,8 @@ const MailBackupViewer = () => {
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full">
       {/* Top Action Bar */}
-      <div 
-        className="px-5 py-3 border-b flex items-center justify-between shrink-0" 
+      <div
+        className="px-5 py-3 border-b flex items-center justify-between shrink-0"
         style={{ borderColor: theme.border, background: theme.cardBg }}
       >
         <button
@@ -134,7 +134,7 @@ const MailBackupViewer = () => {
           </div>
         ) : (
           // Email Detail Card
-          <div 
+          <div
             className="border rounded-2xl p-6 flex flex-col gap-6 shadow-[0_4px_16px_rgba(0,0,0,0.015)] relative overflow-visible"
             style={{ borderColor: theme.border, background: theme.cardBg }}
           >
@@ -190,8 +190,8 @@ const MailBackupViewer = () => {
 
             {/* Email Body content */}
             <div className="text-sm overflow-x-auto select-text leading-relaxed">
-              <div 
-                dangerouslySetInnerHTML={{ __html: backup.htmlBody || backup.body }} 
+              <div
+                dangerouslySetInnerHTML={{ __html: backup.htmlBody || backup.body }}
                 style={{ color: theme.text }}
                 className="whitespace-pre-wrap font-sans"
               />
@@ -209,8 +209,8 @@ const MailBackupViewer = () => {
                   {backup.attachments.map((file) => {
                     const downloadUrl = mailBackupAPI.getAttachmentDownloadUrl(backup.id, file.id);
                     return (
-                      <div 
-                        key={file.id} 
+                      <div
+                        key={file.id}
                         className="flex items-center justify-between gap-4 border p-3 rounded-xl hover:bg-black/[0.01] dark:hover:bg-white/[0.01] transition-all bg-white/30 dark:bg-black/10"
                         style={{ borderColor: theme.border }}
                       >
