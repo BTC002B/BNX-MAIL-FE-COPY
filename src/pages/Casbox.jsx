@@ -126,7 +126,7 @@ const ConnectionAvatar = React.memo(({ profilePicture, profilePictureUrl, displa
   if (!avatarUrl || hasError) {
     return (
       <div
-        className={`${className} rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shrink-0 mt-0.5 select-none`}
+        className={`${className} rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shrink-0 select-none`}
         aria-label={cleanName}
         title={cleanName}
       >
@@ -136,7 +136,7 @@ const ConnectionAvatar = React.memo(({ profilePicture, profilePictureUrl, displa
   }
 
   return (
-    <div className={`${className} rounded-full shrink-0 mt-0.5 relative overflow-hidden`}>
+    <div className={`${className} rounded-full shrink-0 relative overflow-hidden`}>
       {/* Background placeholder initial while image is loading to prevent layout flash */}
       {!isLoaded && (
         <div
@@ -165,29 +165,33 @@ const ConnectionRow = React.memo(({
   onDisconnect,
 }) => {
   const isConn = conn.status?.toUpperCase() === 'CONNECTED';
+  const displayName = conn.contactDisplayName || conn.contactUsername;
+  const username = conn.contactUsername || conn.contactEmail?.split('@')[0];
 
   return (
-    <div className="p-3.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.02] transition-colors">
-      <div className="flex items-start gap-2.5 w-full">
-        {/* Profile Avatar on the left */}
+    <div className="p-3 sm:p-3.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.02] transition-colors">
+      <div className="flex items-center gap-2.5 sm:gap-3 w-full">
+        {/* Profile Avatar on the left: fixed size, flex-shrink: 0 */}
         <ConnectionAvatar
           profilePicture={conn.contactProfilePicture}
           profilePictureUrl={conn.contactProfilePictureUrl}
           displayName={conn.contactDisplayName}
           username={conn.contactUsername}
           email={conn.contactEmail}
+          className="w-9 h-9 shrink-0"
         />
 
-        {/* Content area: details on left, action buttons on right */}
-        <div className="min-w-0 flex-1 flex items-start justify-between gap-x-2.5 gap-y-1.5 flex-wrap">
-          {/* User Details: Display Name, Online Status & @handle */}
-          <div className="min-w-[110px] flex-1 flex flex-col justify-center">
-            <div className="flex items-center gap-1.5 min-w-0">
+        {/* User Information & Actions */}
+        <div className="min-w-0 flex-1 flex flex-col justify-center">
+          {/* Top Row: Display Name & Online Status + Action Buttons on the SAME HORIZONTAL ROW */}
+          <div className="flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap sm:flex-nowrap">
+            {/* Display Name + Online indicator */}
+            <div className="flex items-center gap-1.5 min-w-0 shrink">
               <span
                 className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate"
-                title={conn.contactDisplayName || conn.contactUsername}
+                title={displayName}
               >
-                {conn.contactDisplayName || conn.contactUsername}
+                {displayName}
               </span>
               <span
                 className={`w-2 h-2 rounded-full shrink-0 ${isConn ? 'bg-emerald-500' : 'bg-gray-400'}`}
@@ -195,53 +199,54 @@ const ConnectionRow = React.memo(({
               />
             </div>
 
-            <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
-              @{conn.contactUsername || conn.contactEmail?.split('@')[0]}
-            </span>
+            {/* Actions: Connected + Disconnected on the same row directly to the right */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 whitespace-nowrap ml-auto">
+              {/* Connected Button */}
+              {isConn ? (
+                <button
+                  type="button"
+                  disabled
+                  className="px-2 sm:px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 cursor-default shadow-xs shrink-0 whitespace-nowrap"
+                >
+                  <MdCheck size={14} /> Connected
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isUpdatingConnection}
+                  onClick={() => onReconnect(conn)}
+                  className="px-2 sm:px-2.5 py-1 rounded-md text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 border border-blue-500/30 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                >
+                  Connect
+                </button>
+              )}
+
+              {/* Disconnected Button */}
+              {isConn ? (
+                <button
+                  type="button"
+                  disabled={isUpdatingConnection}
+                  onClick={() => onDisconnect(conn)}
+                  className="px-2 sm:px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 border border-gray-200 dark:border-gray-700 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                >
+                  Disconnected
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="px-2 sm:px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 flex items-center gap-1 cursor-default shrink-0 whitespace-nowrap"
+                >
+                  <MdCheck size={14} /> Disconnected
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Action Buttons: Connected & Disconnected */}
-          <div className="flex items-center gap-x-1.5 gap-y-1 shrink-0 flex-wrap justify-end">
-            {/* Connected Button */}
-            {isConn ? (
-              <button
-                type="button"
-                disabled
-                className="px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 cursor-default shadow-xs shrink-0 whitespace-nowrap"
-              >
-                <MdCheck size={14} /> Connected
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={isUpdatingConnection}
-                onClick={() => onReconnect(conn)}
-                className="px-2.5 py-1 rounded-md text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 border border-blue-500/30 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
-              >
-                Connect
-              </button>
-            )}
-
-            {/* Disconnected Button */}
-            {isConn ? (
-              <button
-                type="button"
-                disabled={isUpdatingConnection}
-                onClick={() => onDisconnect(conn)}
-                className="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 border border-gray-200 dark:border-gray-700 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
-              >
-                Disconnected
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 flex items-center gap-1 cursor-default shrink-0 whitespace-nowrap"
-              >
-                <MdCheck size={14} /> Disconnected
-              </button>
-            )}
-          </div>
+          {/* Username / handle strictly BELOW the display name */}
+          <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5 block">
+            @{username}
+          </span>
         </div>
       </div>
     </div>
@@ -1435,7 +1440,7 @@ const Casbox = () => {
 
           {/* Connections Popover */}
           {showConnectionsModal && (
-            <div className="absolute right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 mt-2 w-80 sm:w-96 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="absolute right-0 mt-2 w-max min-w-[340px] sm:min-w-[440px] max-w-[calc(100vw-2rem)] sm:max-w-[580px] bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
               <div className="p-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-black/20">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
