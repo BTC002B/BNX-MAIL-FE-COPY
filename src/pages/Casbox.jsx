@@ -158,6 +158,96 @@ const ConnectionAvatar = React.memo(({ profilePicture, profilePictureUrl, displa
   );
 });
 
+const ConnectionRow = React.memo(({
+  conn,
+  isUpdatingConnection,
+  onReconnect,
+  onDisconnect,
+}) => {
+  const isConn = conn.status?.toUpperCase() === 'CONNECTED';
+
+  return (
+    <div className="p-3.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.02] transition-colors">
+      <div className="flex items-start gap-2.5 w-full">
+        {/* Profile Avatar on the left */}
+        <ConnectionAvatar
+          profilePicture={conn.contactProfilePicture}
+          profilePictureUrl={conn.contactProfilePictureUrl}
+          displayName={conn.contactDisplayName}
+          username={conn.contactUsername}
+          email={conn.contactEmail}
+        />
+
+        {/* Content area: details on left, action buttons on right */}
+        <div className="min-w-0 flex-1 flex items-start justify-between gap-x-2.5 gap-y-1.5 flex-wrap">
+          {/* User Details: Display Name, Online Status & @handle */}
+          <div className="min-w-[110px] flex-1 flex flex-col justify-center">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span
+                className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate"
+                title={conn.contactDisplayName || conn.contactUsername}
+              >
+                {conn.contactDisplayName || conn.contactUsername}
+              </span>
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${isConn ? 'bg-emerald-500' : 'bg-gray-400'}`}
+                title={isConn ? 'Connected' : 'Disconnected'}
+              />
+            </div>
+
+            <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
+              @{conn.contactUsername || conn.contactEmail?.split('@')[0]}
+            </span>
+          </div>
+
+          {/* Action Buttons: Connected & Disconnected */}
+          <div className="flex items-center gap-x-1.5 gap-y-1 shrink-0 flex-wrap justify-end">
+            {/* Connected Button */}
+            {isConn ? (
+              <button
+                type="button"
+                disabled
+                className="px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 cursor-default shadow-xs shrink-0 whitespace-nowrap"
+              >
+                <MdCheck size={14} /> Connected
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={isUpdatingConnection}
+                onClick={() => onReconnect(conn)}
+                className="px-2.5 py-1 rounded-md text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 border border-blue-500/30 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+              >
+                Connect
+              </button>
+            )}
+
+            {/* Disconnected Button */}
+            {isConn ? (
+              <button
+                type="button"
+                disabled={isUpdatingConnection}
+                onClick={() => onDisconnect(conn)}
+                className="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 border border-gray-200 dark:border-gray-700 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+              >
+                Disconnected
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 flex items-center gap-1 cursor-default shrink-0 whitespace-nowrap"
+              >
+                <MdCheck size={14} /> Disconnected
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const Casbox = () => {
   const { t } = useTranslation();
   const { theme, readingPaneMode } = useTheme();
@@ -1378,85 +1468,15 @@ const Casbox = () => {
                     No accepted connections found.
                   </div>
                 ) : (
-                  displayedConnections.map((conn) => {
-                    const isConn = conn.status?.toUpperCase() === 'CONNECTED';
-
-                    return (
-                      <div key={conn.id} className="p-3.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.02] transition-colors">
-                        <div className="flex items-start gap-2.5 min-w-0 w-full">
-                          <ConnectionAvatar
-                            profilePicture={conn.contactProfilePicture}
-                            profilePictureUrl={conn.contactProfilePictureUrl}
-                            displayName={conn.contactDisplayName}
-                            username={conn.contactUsername}
-                            email={conn.contactEmail}
-                          />
-
-                          <div className="min-w-0 flex-1 flex flex-col">
-                            {/* Display Name, Online Indicator & Action Buttons on same horizontal row */}
-                            <div className="flex items-center justify-between gap-2 flex-wrap">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <span className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate">
-                                  {conn.contactDisplayName || conn.contactUsername}
-                                </span>
-                                <span
-                                  className={`w-2 h-2 rounded-full shrink-0 ${isConn ? 'bg-emerald-500' : 'bg-gray-400'}`}
-                                  title={isConn ? 'Connected' : 'Disconnected'}
-                                />
-                              </div>
-
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {/* Connected Button */}
-                                {isConn ? (
-                                  <button
-                                    type="button"
-                                    disabled
-                                    className="px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 cursor-default shadow-xs"
-                                  >
-                                    <MdCheck size={14} /> Connected
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    disabled={isUpdatingConnection}
-                                    onClick={() => handleReconnect(conn)}
-                                    className="px-2.5 py-1 rounded-md text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 border border-blue-500/30 transition-colors cursor-pointer"
-                                  >
-                                    Connect
-                                  </button>
-                                )}
-
-                                {/* Disconnected Button */}
-                                {isConn ? (
-                                  <button
-                                    type="button"
-                                    disabled={isUpdatingConnection}
-                                    onClick={() => setConnectionToDisconnect(conn)}
-                                    className="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 border border-gray-200 dark:border-gray-700 transition-colors cursor-pointer"
-                                  >
-                                    Disconnected
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    disabled
-                                    className="px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 flex items-center gap-1 cursor-default"
-                                  >
-                                    <MdCheck size={14} /> Disconnected
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Username/@handle below the display name */}
-                            <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
-                              @{conn.contactUsername || conn.contactEmail?.split('@')[0]}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
+                  displayedConnections.map((conn) => (
+                    <ConnectionRow
+                      key={conn.id || conn.contactEmail || conn.contactUsername}
+                      conn={conn}
+                      isUpdatingConnection={isUpdatingConnection}
+                      onReconnect={handleReconnect}
+                      onDisconnect={setConnectionToDisconnect}
+                    />
+                  ))
                 )}
               </div>
             </div>
