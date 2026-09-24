@@ -12,6 +12,7 @@ import ContactPanel from "./ContactPanel";
 import NotesPanel from "./NotesPanel";
 import CalcPopover from "./CalcPopover";
 import WeatherPanel from "./WeatherPanel";
+import VirtualKeyboard from "./VirtualKeyboard";
 import betalogo from '../assets/beta2.png';
 
 // Tools Definition
@@ -34,7 +35,7 @@ const BitToolSidebar = ({
   onDeleteNote
 }) => {
   const { theme, backgroundImage } = useTheme();
-  const [pinnedTools, setPinnedTools] = useState(["calendar", "calculator", "contacts", "notes"]);
+  const [pinnedTools, setPinnedTools] = useState(["calendar", "calculator", "contacts", "notes", "keyboard", "weather"]);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTool, setSelectedTool] = useState(null);
   const [showAppLauncher, setShowAppLauncher] = useState(false);
@@ -108,26 +109,31 @@ const BitToolSidebar = ({
     <div
       className={`h-full flex shrink-0 select-none transition-all duration-300 ease-in-out ${backgroundImage ? "bg-transparent" : "bg-white dark:bg-gray-900"} animate-fade-in rounded-tl-2xl`}
       style={{
-        width: !isOpen ? "0px" : (selectedTool ? "420px" : "60px"),
+        width: !isOpen ? "0px" : (selectedTool && selectedTool !== 'keyboard' ? "420px" : "60px"),
         borderLeftWidth: isOpen ? "1px" : "0px",
         borderLeftColor: backgroundImage ? "transparent" : theme.bg,
         overflow: "visible"
       }}
     >
+      {/* Floating Virtual Keyboard */}
+      {selectedTool === 'keyboard' && (
+        <VirtualKeyboard onClose={() => setSelectedTool(null)} />
+      )}
+
       {/* Mini-App Slide Panel (Shown to the left of the sidebar) */}
       <div
         className={`flex flex-col select-text transition-all duration-300 ease-in-out ${backgroundImage ? "bg-transparent" : "bg-white dark:bg-gray-900"} rounded-tl-2xl`}
         style={{
-          width: selectedTool ? "360px" : "0px",
-          height: selectedTool ? "100%" : "0px",
-          maxHeight: selectedTool ? "100%" : "0px",
+          width: selectedTool && selectedTool !== 'keyboard' ? "360px" : "0px",
+          height: selectedTool && selectedTool !== 'keyboard' ? "100%" : "0px",
+          maxHeight: selectedTool && selectedTool !== 'keyboard' ? "100%" : "0px",
           alignSelf: "flex-end",
-          borderRightWidth: selectedTool ? "1px" : "0px",
+          borderRightWidth: selectedTool && selectedTool !== 'keyboard' ? "1px" : "0px",
           borderRightColor: theme.border,
           overflow: "visible"
         }}
       >
-        {selectedTool && (
+        {selectedTool && selectedTool !== 'keyboard' && (
           selectedTool === 'apps' ? (
             <AppLauncher onClose={() => setSelectedTool(null)} onToggleBitToolSidebar={() => { }} onEdit={() => setIsEditing(true)} />
           ) : (
@@ -224,10 +230,7 @@ const BitToolSidebar = ({
                   return (
                     <div key={tool.id} className="relative">
                       <button
-                        onClick={() => {
-                          if (tool.id === "keyboard") return;
-                          setSelectedTool(isSelected ? null : tool.id);
-                        }}
+                        onClick={() => setSelectedTool(isSelected ? null : tool.id)}
                         onMouseEnter={() => setHoveredTool(tool.id)}
                         onMouseLeave={() => setHoveredTool(null)}
                         className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer border-2 ${isSelected
@@ -278,7 +281,8 @@ const BitToolSidebar = ({
 
           <button
             className="w-10 h-10 rounded-xl border border-gray-200/60 dark:border-gray-850 hover:bg-gray-50 dark:hover:bg-gray-850 text-gray-500 dark:text-gray-400 flex items-center justify-center transition-all cursor-pointer bg-white/50 dark:bg-gray-900/50 shadow-sm"
-            title="Shortcuts"
+            title="Virtual Keyboard"
+            onClick={() => setSelectedTool(selectedTool === 'keyboard' ? null : 'keyboard')}
           >
             <MdOutlineEdit size={18} />
           </button>
