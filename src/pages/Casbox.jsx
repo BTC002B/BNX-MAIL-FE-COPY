@@ -5,8 +5,8 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { useMail } from "../context/MailContext";
-import { casboxAPI, api, userAPI, mailAPI, contactAliasAPI } from "../services/api";
-import { MdCheck, MdDoneAll, MdStarBorder, MdStar, MdDeleteOutline, MdRefresh, MdSend, MdClose, MdRemoveRedEye, MdFileDownload, MdReply, MdBlock, MdArrowBack, MdArchive, MdUnarchive, MdAccessTime, MdLabel, MdDelete, MdMoreVert, MdInsertEmoticon, MdChevronRight, MdChevronLeft, MdEdit } from "react-icons/md";
+import { casboxAPI, api, userAPI, mailAPI, contactAliasAPI, connectionAPI } from "../services/api";
+import { MdCheck, MdDoneAll, MdStarBorder, MdStar, MdDeleteOutline, MdRefresh, MdSend, MdClose, MdRemoveRedEye, MdFileDownload, MdReply, MdBlock, MdArrowBack, MdArchive, MdUnarchive, MdAccessTime, MdLabel, MdDelete, MdMoreVert, MdInsertEmoticon, MdChevronRight, MdChevronLeft, MdEdit, MdPersonAdd } from "react-icons/md";
 import toast from "react-hot-toast";
 import ReadingPaneLayout from "../components/ReadingPaneLayout";
 import logo from "../assets/bnx-remove.png";
@@ -190,6 +190,122 @@ const Casbox = () => {
   useEffect(() => {
     fetchAliases();
   }, []);
+
+  const [connections, setConnections] = useState([]);
+  const [loadingConnections, setLoadingConnections] = useState(false);
+  const [showConnectionsModal, setShowConnectionsModal] = useState(false);
+  const [connectionToDisconnect, setConnectionToDisconnect] = useState(null);
+  const [isUpdatingConnection, setIsUpdatingConnection] = useState(false);
+  const connectionsRef = React.useRef(null);
+
+  const fetchConnections = async () => {
+    try {
+      setLoadingConnections(true);
+      const res = await connectionAPI.getAccepted();
+      if (res.data && Array.isArray(res.data)) {
+        setConnections(res.data);
+      }
+    } catch (e) {
+      console.error("Failed to load connections", e);
+    } finally {
+      setLoadingConnections(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConnections();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (connectionsRef.current && !connectionsRef.current.contains(event.target)) {
+        setShowConnectionsModal(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setShowConnectionsModal(false);
+      }
+    };
+    if (showConnectionsModal) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showConnectionsModal]);
+
+  const isDisconnectedContact = (emailOrUsername) => {
+    if (!emailOrUsername) return false;
+    const lower = emailOrUsername.toLowerCase();
+    const local = (lower.includes('@') ? lower.split('@')[0] : lower);
+    return connections.some(c => {
+      if (c.status?.toUpperCase() !== 'DISCONNECTED') return false;
+      const cEmail = c.contactEmail?.toLowerCase();
+      const cUser = c.contactUsername?.toLowerCase();
+      const cId = c.contactUserId ? String(c.contactUserId) : null;
+      return (cEmail && (cEmail === lower || cEmail === local)) ||
+             (cUser && (cUser === lower || cUser === local)) ||
+             (cId && cId === lower);
+    });
+  };
+
+  const handleConfirmDisconnect = async () => {
+    if (!connectionToDisconnect) return;
+    try {
+      setIsUpdatingConnection(true);
+      const connId = connectionToDisconnect.id;
+      const targetName = connectionToDisconnect.contactDisplayName || connectionToDisconnect.contactUsername || "contact";
+      await connectionAPI.updateStatus(connId, "DISCONNECTED");
+
+      // Update local state
+      setConnections(prev => prev.map(c => c.id === connId ? { ...c, status: "DISCONNECTED" } : c));
+
+      // Close current chat if disconnected
+      if (selectedMessage) {
+        const other = selectedMessage.senderEmail === user?.email ? selectedMessage.receiverEmail : selectedMessage.senderEmail;
+        if (other) {
+          const lower = other.toLowerCase();
+          const local = (lower.includes('@') ? lower.split('@')[0] : lower);
+          const cEmail = connectionToDisconnect.contactEmail?.toLowerCase();
+          const cUser = connectionToDisconnect.contactUsername?.toLowerCase();
+          if ((cEmail && (cEmail === lower || cEmail === local)) || (cUser && (cUser === lower || cUser === local))) {
+            setSelectedMessage(null);
+          }
+        }
+      }
+
+      fetchMessages(true);
+      toast.success(`Disconnected from ${targetName}`);
+    } catch (e) {
+      console.error("Failed to disconnect", e);
+      toast.error(e.response?.data?.message || "Failed to disconnect");
+    } finally {
+      setIsUpdatingConnection(false);
+      setConnectionToDisconnect(null);
+    }
+  };
+
+  const handleReconnect = async (conn) => {
+    if (!conn) return;
+    try {
+      setIsUpdatingConnection(true);
+      const connId = conn.id;
+      const targetName = conn.contactDisplayName || conn.contactUsername || "contact";
+      await connectionAPI.updateStatus(connId, "CONNECTED");
+
+      setConnections(prev => prev.map(c => c.id === connId ? { ...c, status: "CONNECTED" } : c));
+      fetchMessages(true);
+      toast.success(`Connected with ${targetName}`);
+    } catch (e) {
+      console.error("Failed to reconnect", e);
+      toast.error(e.response?.data?.message || "Failed to reconnect");
+    } finally {
+      setIsUpdatingConnection(false);
+    }
+  };
 
   const getDisplayName = (emailOrUsername, msg) => {
     if (!emailOrUsername) return "";
@@ -933,6 +1049,8 @@ const Casbox = () => {
   );
 
   const mainMessages = activeUnarchived.filter(msg => {
+    const contact = msg.senderEmail === user?.email ? msg.receiverEmail : msg.senderEmail;
+    if (isDisconnectedContact(contact)) return false;
     if (msg.senderEmail === user?.email) return true;
     return knownContacts.has(msg.senderEmail) || acceptedContacts.includes(msg.senderEmail);
   });
@@ -975,12 +1093,17 @@ const Casbox = () => {
     if (e) e.preventDefault();
     if (!newChatText.trim()) return;
 
+    const otherEmail = selectedMessage.senderEmail === user?.email
+      ? selectedMessage.receiverEmail
+      : selectedMessage.senderEmail;
+
+    if (isDisconnectedContact(otherEmail)) {
+      toast.error("Cannot send message. This connection is disconnected.");
+      return;
+    }
+
     try {
       setSendingChat(true);
-      const otherEmail = selectedMessage.senderEmail === user?.email
-        ? selectedMessage.receiverEmail
-        : selectedMessage.senderEmail;
-
       const payload = {
         receiverEmail: otherEmail,
         subject: selectedMessage.subject || "Casbox Message",
@@ -1005,11 +1128,21 @@ const Casbox = () => {
 
     } catch (err) {
       console.error("Failed to send Casbox message", err);
-      toast.error("Failed to send message");
+      const errMsg = err.response?.data?.message || err.response?.data?.error || "Cannot send message. This connection is disconnected.";
+      toast.error(errMsg);
     } finally {
       setSendingChat(false);
     }
   };
+
+  const displayedConnections = connections.filter(conn => {
+    const email = conn.contactEmail?.toLowerCase();
+    const uname = conn.contactUsername?.toLowerCase();
+    if (blockedContacts.some(b => b.toLowerCase() === email || b.toLowerCase() === uname)) {
+      return false;
+    }
+    return true;
+  });
 
   const headerComponent = (
     <div className="flex flex-col shrink-0">
@@ -1063,6 +1196,146 @@ const Casbox = () => {
         </div>
 
         <div className="flex-1"></div>
+
+        {/* Connection Icon BEFORE Compose */}
+        <div className="relative mr-1.5" ref={connectionsRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setShowConnectionsModal(prev => !prev);
+              if (!showConnectionsModal) fetchConnections();
+            }}
+            className={`p-2 rounded-full transition-all flex items-center justify-center cursor-pointer ${
+              showConnectionsModal
+                ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10'
+            }`}
+            title="Connections"
+            aria-label="Connections"
+          >
+            <MdPersonAdd size={20} />
+          </button>
+
+          {/* Connections Popover */}
+          {showConnectionsModal && (
+            <div className="absolute right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 mt-2 w-80 sm:w-96 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="p-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-black/20">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    <MdPersonAdd size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-gray-900 dark:text-white leading-none">Connections</h3>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                      {displayedConnections.length} accepted contact{displayedConnections.length === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowConnectionsModal(false)}
+                  className="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                >
+                  <MdClose size={18} />
+                </button>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                {loadingConnections && connections.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-gray-400 dark:text-gray-500">
+                    <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    Loading connections...
+                  </div>
+                ) : displayedConnections.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400 dark:text-gray-500 text-xs">
+                    No accepted connections found.
+                  </div>
+                ) : (
+                  displayedConnections.map((conn) => {
+                    const isConn = conn.status?.toUpperCase() === 'CONNECTED';
+                    const initial = (conn.contactDisplayName || conn.contactUsername || "?").charAt(0).toUpperCase();
+
+                    return (
+                      <div key={conn.id} className="p-3.5 flex items-start justify-between gap-3 hover:bg-gray-50/60 dark:hover:bg-white/[0.02] transition-colors">
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          {conn.contactProfilePicture ? (
+                            <img
+                              src={conn.contactProfilePicture}
+                              alt={conn.contactDisplayName}
+                              className="w-9 h-9 rounded-full object-cover shrink-0 mt-0.5 border border-gray-200 dark:border-gray-700"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shrink-0 mt-0.5">
+                              {initial}
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate">
+                                {conn.contactDisplayName || conn.contactUsername}
+                              </span>
+                              <span
+                                className={`w-2 h-2 rounded-full shrink-0 ${isConn ? 'bg-emerald-500' : 'bg-gray-400'}`}
+                                title={isConn ? 'Connected' : 'Disconnected'}
+                              />
+                            </div>
+
+                            <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate">
+                              @{conn.contactUsername || conn.contactEmail?.split('@')[0]}
+                            </span>
+
+                            <div className="flex items-center gap-1.5 mt-2">
+                              {/* Connected Button */}
+                              {isConn ? (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 cursor-default shadow-xs"
+                                >
+                                  <MdCheck size={14} /> Connected
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={isUpdatingConnection}
+                                  onClick={() => handleReconnect(conn)}
+                                  className="px-2.5 py-1 rounded-md text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 border border-blue-500/30 transition-colors cursor-pointer"
+                                >
+                                  Connect
+                                </button>
+                              )}
+
+                              {/* Disconnected Button */}
+                              {isConn ? (
+                                <button
+                                  type="button"
+                                  disabled={isUpdatingConnection}
+                                  onClick={() => setConnectionToDisconnect(conn)}
+                                  className="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 border border-gray-200 dark:border-gray-700 transition-colors cursor-pointer"
+                                >
+                                  Disconnected
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 flex items-center gap-1 cursor-default"
+                                >
+                                  <MdCheck size={14} /> Disconnected
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <button
           onClick={() => openCompose({ mode: 'casbox' })}
@@ -1538,7 +1811,27 @@ const Casbox = () => {
           className="p-4 border-t bg-white dark:bg-[#121212] shrink-0"
           style={{ borderColor: theme?.border || '#e2e8f0' }}
         >
-          {isContactRequest && selectedMessage.receiverEmail === user?.email ? (
+          {isDisconnectedContact(otherUserEmail) ? (
+            <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/40 text-amber-900 dark:text-amber-200 text-xs">
+              <span className="font-semibold">Cannot send message. This connection is disconnected.</span>
+              <button
+                type="button"
+                disabled={isUpdatingConnection}
+                onClick={() => {
+                  const conn = connections.find(c => {
+                    const cEmail = c.contactEmail?.toLowerCase();
+                    const cUser = c.contactUsername?.toLowerCase();
+                    const other = otherUserEmail.toLowerCase();
+                    return cEmail === other || cUser === other || (other.includes('@') && cUser === other.split('@')[0]);
+                  });
+                  if (conn) handleReconnect(conn);
+                }}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors shrink-0 cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                Reconnect
+              </button>
+            </div>
+          ) : isContactRequest && selectedMessage.receiverEmail === user?.email ? (
             <div className="flex items-center gap-3 w-full">
               <button
                 onClick={() => handleAcceptRequest(otherUserEmail)}
@@ -1885,6 +2178,51 @@ const Casbox = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {connectionToDisconnect && (
+          <div
+            className="fixed inset-0 bg-black/60 z-[2000] flex items-center justify-center animate-fade-in p-4 backdrop-blur-sm"
+            onClick={() => {
+              if (!isUpdatingConnection) {
+                setConnectionToDisconnect(null);
+              }
+            }}
+          >
+            <div
+              className="bg-white dark:bg-[#1e1e1e] rounded-2xl w-full max-w-sm shadow-2xl flex flex-col overflow-hidden p-6 border border-gray-100 dark:border-gray-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-bold text-lg text-center text-gray-900 dark:text-white mb-2">
+                Disconnect from {connectionToDisconnect.contactDisplayName || connectionToDisconnect.contactUsername}?
+              </h3>
+              <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+                Disconnecting will remove this chat from your Cashbox. Your existing account and connection request information will be preserved.
+              </p>
+
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  disabled={isUpdatingConnection}
+                  onClick={() => setConnectionToDisconnect(null)}
+                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isUpdatingConnection}
+                  onClick={handleConfirmDisconnect}
+                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  {isUpdatingConnection && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  )}
+                  Disconnect
+                </button>
+              </div>
             </div>
           </div>
         )}

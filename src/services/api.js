@@ -375,6 +375,16 @@ export const casboxAPI = {
     getAlias: (contactUserId) => api.get(`/api/contact-aliases/${encodeURIComponent(contactUserId)}`),
     setAlias: (contactUserId, customName) => api.put(`/api/contact-aliases/${encodeURIComponent(contactUserId)}`, { customName }),
     deleteAlias: (contactUserId) => api.delete(`/api/contact-aliases/${encodeURIComponent(contactUserId)}`),
+    // Connection endpoints
+    getAcceptedConnections: () => api.get('/api/connections/accepted'),
+    updateConnectionStatus: (connectionId, status) => api.patch(`/api/connections/${encodeURIComponent(connectionId)}/status`, { status }),
+};
+
+// Connection APIs
+export const connectionAPI = {
+    getAccepted: () => api.get('/api/connections/accepted'),
+    getAll: () => api.get('/api/connections'),
+    updateStatus: (connectionId, status) => api.patch(`/api/connections/${encodeURIComponent(connectionId)}/status`, { status }),
 };
 
 // Contact Alias APIs
