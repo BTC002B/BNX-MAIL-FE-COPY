@@ -1844,32 +1844,36 @@ const Casbox = () => {
 
         {/* Header */}
         <div
-          className="px-6 py-4 border-b flex items-center justify-between bg-white dark:bg-[#121212] shrink-0 relative z-10"
+          className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between bg-white dark:bg-[#121212] shrink-0 relative z-10 min-w-0"
           style={{ borderColor: theme?.border || '#e2e8f0' }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
             <button
               onClick={() => setSelectedMessage(null)}
-              className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
+              className="p-1.5 sm:p-2 -ml-1 sm:-ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors shrink-0"
               title="Close"
             >
               <MdClose size={22} className="hidden md:block" />
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
 
-            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-base">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm sm:text-base shrink-0">
               {getContactInitial(otherUserEmail, selectedMessage)}
             </div>
 
-            <div className="flex flex-col">
-              <span className="font-bold text-sm text-gray-900 dark:text-gray-100">{getDisplayName(otherUserEmail, selectedMessage)}</span>
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">{otherUserEmail}</span>
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="font-bold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate" title={getDisplayName(otherUserEmail, selectedMessage)}>
+                {getDisplayName(otherUserEmail, selectedMessage)}
+              </span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium truncate" title={otherUserEmail}>
+                {otherUserEmail}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Message Thread Panel */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col hidden-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 flex flex-col hidden-scrollbar">
           {loadingThread && threadMessages.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
               Loading chat history...
@@ -1887,11 +1891,11 @@ const Casbox = () => {
               const senderInitial = isMe ? (user?.username || senderEmail).charAt(0).toUpperCase() : getContactInitial(senderEmail, msg);
 
               return (
-                <div key={msg.id || index} className="flex items-start gap-4 sm:gap-6 w-full py-1">
+                <div key={msg.id || index} className="flex items-start gap-2.5 sm:gap-4 md:gap-5 w-full py-1 min-w-0">
                   {/* Left Column: Contact Card */}
-                  <div className="w-20 sm:w-36 md:w-40 shrink-0 pt-0 select-none text-left">
+                  <div className="w-16 sm:w-28 md:w-36 shrink-0 pt-0 select-none text-left">
                     <div 
-                      className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl border relative shadow-sm w-full bg-gray-50/50 dark:bg-[#1e1e1e]/40"
+                      className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl border relative shadow-sm w-full bg-gray-50/50 dark:bg-[#1e1e1e]/40 overflow-hidden"
                       style={{
                         borderColor: theme?.border || '#e2e8f0',
                         borderLeftWidth: '4px',
@@ -1912,8 +1916,8 @@ const Casbox = () => {
                       </div>
 
                       {/* Details */}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-[10px] sm:text-xs text-gray-800 dark:text-gray-200 truncate">
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-bold text-[10px] sm:text-xs text-gray-800 dark:text-gray-200 truncate" title={senderLabel}>
                           {senderLabel}
                         </span>
                       </div>
@@ -1923,9 +1927,9 @@ const Casbox = () => {
                   {/* Right Column: Chat Message */}
                   <div className="flex-1 flex flex-col items-start min-w-0">
                     {/* Bubble */}
-                    <div className="max-w-[85%] flex flex-col items-start">
+                    <div className="max-w-[92%] sm:max-w-[85%] flex flex-col items-start min-w-0">
                       <div
-                        className={`px-4 py-2.5 rounded-2xl text-sm flex flex-col gap-1 ${isMe ? 'rounded-tr-none text-white shadow-sm font-medium' : 'rounded-tl-none border shadow-sm font-medium'}`}
+                        className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm flex flex-col gap-1 max-w-full overflow-hidden ${isMe ? 'rounded-tr-none text-white shadow-sm font-medium' : 'rounded-tl-none border shadow-sm font-medium'}`}
                         style={{
                           backgroundColor: isMe ? (theme?.accent || '#135bec') : (theme?.mode === 'dark' ? '#1e1e1e' : '#f3f4f6'),
                           color: isMe ? '#ffffff' : (theme?.mode === 'dark' ? '#f3f4f6' : '#1f2937'),

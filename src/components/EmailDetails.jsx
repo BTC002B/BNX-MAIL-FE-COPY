@@ -1219,14 +1219,14 @@ const EmailDetails = ({
                       style={{ borderColor: theme.border }}
                     >
                       {/* SENDER INFO */}
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div
                           className="h-9 w-9 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm shrink-0"
                           style={{ backgroundColor: theme.accent || "#135bec" }}
                         >
                           {m.from?.split("@")[0]?.[0]?.toUpperCase() || "U"}
                         </div>
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="font-semibold text-sm flex flex-wrap items-center gap-x-2" style={{ color: theme.text }}>
                             {m.from?.includes("<") ? (
                               <>

@@ -93,7 +93,7 @@ const ReadingPaneLayout = ({
     >
       {/* Master View (List) */}
       <div
-        className="flex flex-col overflow-hidden bg-transparent shrink-0 relative"
+        className="flex flex-col overflow-hidden bg-transparent shrink-0 relative min-w-0"
         style={{
           flexBasis: `${listFlex}%`,
           borderRight: isRight ? '1px solid rgba(150, 150, 150, 0.2)' : 'none',
@@ -117,7 +117,7 @@ const ReadingPaneLayout = ({
       />
 
       {/* Detail View (Email content) */}
-      <div className="flex-1 overflow-hidden bg-transparent">
+      <div className="flex-1 overflow-hidden bg-transparent min-w-0">
         {detailsComponent}
       </div>
     </div>

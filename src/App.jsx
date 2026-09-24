@@ -125,7 +125,12 @@ const AppContent = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isBitToolSidebarOpen, setIsBitToolSidebarOpen] = useState(false);
+  const [isBitToolSidebarOpen, setIsBitToolSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
   const { theme, backgroundImage, isLandscapeImage } = useTheme();
 
   // Sticky Notes State Management

@@ -53,7 +53,23 @@ const BitToolSidebar = ({
   // Weather State
   const [weatherCity, setWeatherCity] = useState("New York");
 
-  // Width-based toggle handled dynamically via inline styles
+  // Width-based toggle handled dynamically via window size & inline styles
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1280);
+
+  React.useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isSmallScreen = windowWidth < 1024;
+  const isToolOpen = Boolean(selectedTool && selectedTool !== 'keyboard');
+  const isSidebarVisible = isOpen || isToolOpen;
+
+  // On desktop (>= 1024px), the tool panel takes 360px inline space, so total width is 360 + 60 = 420px.
+  // On small screens, the tool panel renders as a modal so it doesn't crush the main mail/chat view.
+  const desktopPanelWidth = isToolOpen && !isSmallScreen ? 360 : 0;
+  const desktopTotalWidth = !isSidebarVisible ? 0 : (desktopPanelWidth + 60);
 
   // Toggle Pinned status
   const handleTogglePin = (toolId) => {
@@ -106,61 +122,104 @@ const BitToolSidebar = ({
   };
 
   return (
-    <div
-      className={`h-full flex shrink-0 select-none transition-all duration-300 ease-in-out ${backgroundImage ? "bg-transparent" : "bg-white dark:bg-gray-900"} animate-fade-in rounded-tl-2xl`}
-      style={{
-        width: !isOpen ? "0px" : (selectedTool && selectedTool !== 'keyboard' ? "420px" : "60px"),
-        borderLeftWidth: isOpen ? "1px" : "0px",
-        borderLeftColor: backgroundImage ? "transparent" : theme.bg,
-        overflow: "visible"
-      }}
-    >
+    <>
       {/* Floating Virtual Keyboard */}
       {selectedTool === 'keyboard' && (
         <VirtualKeyboard onClose={() => setSelectedTool(null)} />
       )}
 
-      {/* Mini-App Slide Panel (Shown to the left of the sidebar) */}
+      {/* Small Screen Responsive Modal/Panel */}
+      {isSmallScreen && isToolOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end animate-fade-in">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity"
+            onClick={() => setSelectedTool(null)}
+          />
+
+          {/* Panel */}
+          <div
+            className="relative w-full sm:w-[420px] max-w-[95vw] h-full flex flex-col bg-white dark:bg-gray-900 shadow-2xl border-l border-gray-200 dark:border-gray-800 z-10 animate-slide-in select-text"
+          >
+            {/* Header with Tool Name and Close Button */}
+            <div className="px-4 h-14 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-black/20 shrink-0">
+              <h4 className="font-bold text-sm" style={{ color: theme.text }}>
+                {selectedTool === 'apps' ? 'Beta Ecosystem' : ALL_TOOLS.find(t => t.id === selectedTool)?.name}
+              </h4>
+              <button
+                onClick={() => setSelectedTool(null)}
+                className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer flex items-center justify-center transition-colors"
+                title="Close"
+                aria-label="Close tool"
+              >
+                <MdClose size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className={`flex-1 overflow-y-auto custom-scrollbar flex flex-col ${selectedTool === 'calculator' ? 'p-0' : 'p-4'}`}>
+              {selectedTool === 'apps' ? (
+                <AppLauncher onClose={() => setSelectedTool(null)} onToggleBitToolSidebar={() => { }} onEdit={() => setIsEditing(true)} />
+              ) : (
+                renderMiniApp()
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Right Sidebar Container (Flex Item in App Layout) */}
       <div
-        className={`flex flex-col select-text transition-all duration-300 ease-in-out ${backgroundImage ? "bg-transparent" : "bg-white dark:bg-gray-900"} rounded-tl-2xl`}
+        className={`h-full flex shrink-0 select-none transition-all duration-300 ease-in-out ${backgroundImage ? "bg-transparent" : "bg-white dark:bg-gray-900"} animate-fade-in rounded-tl-2xl`}
         style={{
-          width: selectedTool && selectedTool !== 'keyboard' ? "360px" : "0px",
-          height: selectedTool && selectedTool !== 'keyboard' ? "100%" : "0px",
-          maxHeight: selectedTool && selectedTool !== 'keyboard' ? "100%" : "0px",
-          alignSelf: "flex-end",
-          borderRightWidth: selectedTool && selectedTool !== 'keyboard' ? "1px" : "0px",
-          borderRightColor: theme.border,
-          overflow: "visible"
+          width: `${desktopTotalWidth}px`,
+          borderLeftWidth: isSidebarVisible ? "1px" : "0px",
+          borderLeftColor: backgroundImage ? "transparent" : theme.bg,
+          overflow: !isSidebarVisible ? "hidden" : "visible"
         }}
       >
-        {selectedTool && selectedTool !== 'keyboard' && (
-          selectedTool === 'apps' ? (
-            <AppLauncher onClose={() => setSelectedTool(null)} onToggleBitToolSidebar={() => { }} onEdit={() => setIsEditing(true)} />
-          ) : (
-            <>
-              <div className="px-4 h-14 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-black/[0.01] dark:bg-white/[0.01] shrink-0">
-                <h4 className="font-bold text-sm" style={{ color: theme.text }}>
-                  {ALL_TOOLS.find(t => t.id === selectedTool)?.name}
-                </h4>
-                <button
-                  onClick={() => setSelectedTool(null)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer flex items-center justify-center"
-                >
-                  <MdClose size={18} />
-                </button>
-              </div>
-              <div className={`flex-1 overflow-y-auto custom-scrollbar flex flex-col ${selectedTool === 'calculator' ? 'p-0' : 'p-4'}`}>
-                {renderMiniApp()}
-              </div>
-            </>
-          )
+        {/* Desktop Mini-App Slide Panel (Shown to the left of the 60px strip on desktop) */}
+        {!isSmallScreen && (
+          <div
+            className={`flex flex-col select-text transition-all duration-300 ease-in-out ${backgroundImage ? "bg-transparent" : "bg-white dark:bg-gray-900"} rounded-tl-2xl h-full`}
+            style={{
+              width: `${desktopPanelWidth}px`,
+              borderRightWidth: desktopPanelWidth > 0 ? "1px" : "0px",
+              borderRightColor: theme.border,
+              overflow: "hidden"
+            }}
+          >
+            {isToolOpen && (
+              selectedTool === 'apps' ? (
+                <AppLauncher onClose={() => setSelectedTool(null)} onToggleBitToolSidebar={() => { }} onEdit={() => setIsEditing(true)} />
+              ) : (
+                <>
+                  <div className="px-4 h-14 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-black/[0.01] dark:bg-white/[0.01] shrink-0">
+                    <h4 className="font-bold text-sm" style={{ color: theme.text }}>
+                      {ALL_TOOLS.find(t => t.id === selectedTool)?.name}
+                    </h4>
+                    <button
+                      onClick={() => setSelectedTool(null)}
+                      className="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer flex items-center justify-center transition-colors"
+                      title="Close"
+                      aria-label="Close"
+                    >
+                      <MdClose size={18} />
+                    </button>
+                  </div>
+                  <div className={`flex-1 overflow-y-auto custom-scrollbar flex flex-col ${selectedTool === 'calculator' ? 'p-0' : 'p-4'}`}>
+                    {renderMiniApp()}
+                  </div>
+                </>
+              )
+            )}
+          </div>
         )}
-      </div>
 
-      {/* Right Sidebar Strip */}
-      <div
-        className="w-[60px] flex flex-col items-center pb-4 h-full justify-between select-none shrink-0"
-      >
+        {/* Right Sidebar Strip */}
+        <div
+          className="w-[60px] flex flex-col items-center pb-4 h-full justify-between select-none shrink-0"
+        >
         <div className="flex flex-col items-center w-full">
           {/* HEADER / EDIT MODE LABEL */}
           <div
@@ -297,6 +356,7 @@ const BitToolSidebar = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
 
