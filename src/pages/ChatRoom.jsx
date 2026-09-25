@@ -18,6 +18,8 @@ import {
   MdImage,
   MdEdit,
   MdPictureAsPdf,
+  MdDescription,
+  MdInsertDriveFile,
   MdVisibility,
   MdFileDownload,
   MdArchive,
@@ -45,6 +47,80 @@ const POPULAR_EMOJIS = [
   "❤️", "🩷", "🧡", "💛", "💚", "💙", "🩵", "💜", "🖤", "🩶", "🤍", "🤎", "💔", "❤️‍🔥", "❤️‍🩹", "❣️", "💕", "💞", "💓", "💗",
   "🎉", "✨", "🔥", "💡", "🌟", "🎈", "🎁", "💬", "✉️", "📅", "💻", "📱", "⌚", "📷", "🎨", "🎵", "✈️", "🚗", "🏠", "💼"
 ];
+
+const getFileMeta = (fileName = "", fileType = "") => {
+  const ext = (fileName || "").split('.').pop().toLowerCase();
+  const isImage = (fileType && fileType.startsWith('image/')) || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext);
+  
+  if (isImage) {
+    return {
+      isImage: true,
+      extLabel: ext.toUpperCase() || 'IMG',
+      color: 'text-blue-500',
+      bg: 'bg-blue-100 dark:bg-blue-900/30'
+    };
+  }
+  if (ext === 'pdf' || fileType === 'application/pdf') {
+    return {
+      isImage: false,
+      icon: MdPictureAsPdf,
+      extLabel: 'PDF',
+      color: 'text-red-500 dark:text-red-400',
+      bg: 'bg-red-100 dark:bg-red-900/30'
+    };
+  }
+  if (['doc', 'docx'].includes(ext) || (fileType && (fileType.includes('word') || fileType.includes('officedocument.wordprocessingml')))) {
+    return {
+      isImage: false,
+      icon: MdDescription,
+      extLabel: ext.toUpperCase() || 'DOC',
+      color: 'text-blue-600 dark:text-blue-400',
+      bg: 'bg-blue-100 dark:bg-blue-900/30'
+    };
+  }
+  if (['xls', 'xlsx', 'csv'].includes(ext) || (fileType && (fileType.includes('excel') || fileType.includes('spreadsheetml') || fileType.includes('csv')))) {
+    return {
+      isImage: false,
+      icon: MdDescription,
+      extLabel: ext.toUpperCase() || 'XLS',
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bg: 'bg-emerald-100 dark:bg-emerald-900/30'
+    };
+  }
+  if (['ppt', 'pptx'].includes(ext) || (fileType && (fileType.includes('presentation') || fileType.includes('powerpoint')))) {
+    return {
+      isImage: false,
+      icon: MdDescription,
+      extLabel: ext.toUpperCase() || 'PPT',
+      color: 'text-amber-600 dark:text-amber-400',
+      bg: 'bg-amber-100 dark:bg-amber-900/30'
+    };
+  }
+  if (['txt', 'rtf', 'md'].includes(ext) || (fileType && fileType.startsWith('text/'))) {
+    return {
+      isImage: false,
+      icon: MdDescription,
+      extLabel: ext.toUpperCase() || 'TXT',
+      color: 'text-slate-600 dark:text-slate-400',
+      bg: 'bg-slate-100 dark:bg-slate-800'
+    };
+  }
+  return {
+    isImage: false,
+    icon: MdInsertDriveFile,
+    extLabel: ext ? ext.toUpperCase() : 'FILE',
+    color: 'text-indigo-600 dark:text-indigo-400',
+    bg: 'bg-indigo-100 dark:bg-indigo-900/30'
+  };
+};
+
+const formatFileSize = (bytes) => {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+};
 
 const ChatRoom = () => {
   const { chatId } = useParams();
@@ -254,24 +330,60 @@ const ChatRoom = () => {
 
   const handleDownloadAttachment = (att) => {
     try {
-      const base64Data = att.content.split(',')[1] || att.content;
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      if (!att || !att.content) return;
+      if (att.content.startsWith('data:')) {
+        const base64Data = att.content.split(',')[1] || att.content;
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: att.type || 'application/octet-stream' });
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = att.name || "download";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      } else {
+        const link = document.createElement("a");
+        link.href = att.content;
+        link.download = att.name || "download";
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: att.type });
-      
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = att.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
     } catch (e) {
       console.error("Error downloading attachment:", e);
       toast.error("Failed to download attachment");
+    }
+  };
+
+  const handleViewAttachment = (att) => {
+    try {
+      if (!att || !att.content) return;
+      if (att.content.startsWith('data:')) {
+        const base64Data = att.content.split(',')[1] || att.content;
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: att.type || 'application/octet-stream' });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, "_blank");
+      } else {
+        window.open(att.content, "_blank");
+      }
+    } catch (e) {
+      console.error("Error viewing attachment:", e);
+      window.open(att.content, "_blank");
     }
   };
 
@@ -370,26 +482,68 @@ const ChatRoom = () => {
   };
 
   const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB limit per file
+    const BLOCKED_EXTENSIONS = ['exe', 'bat', 'cmd', 'sh', 'msi', 'vbs', 'scr', 'dll', 'com', 'app', 'bin', 'jar', 'apk', 'dmg', 'iso'];
+    const SUPPORTED_EXTENSIONS = [
+      'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico',
+      'pdf',
+      'doc', 'docx', 'txt', 'rtf', 'odt',
+      'xls', 'xlsx', 'csv', 'ods',
+      'ppt', 'pptx', 'odp'
+    ];
+
     files.forEach(file => {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`File ${file.name} is too large (max 5MB)`);
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      if (BLOCKED_EXTENSIONS.includes(ext)) {
+        toast.error(`"${file.name}" is not a supported file format.`);
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setSelectedAttachments(prev => [...prev, {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          content: event.target.result
-        }]);
-      };
-      reader.readAsDataURL(file);
+
+      const isAllowed = (file.type && file.type.startsWith('image/')) || SUPPORTED_EXTENSIONS.includes(ext);
+      if (!isAllowed) {
+        toast.error(`"${file.name}" is not a supported file format. Please attach images, PDFs, or documents.`);
+        return;
+      }
+
+      if (file.size > MAX_SIZE) {
+        toast.error(`"${file.name}" is too large. Maximum allowed size is 10MB.`);
+        return;
+      }
+
+      // Check if file is already attached
+      setSelectedAttachments(prev => {
+        if (prev.some(a => a.name === file.name && a.size === file.size)) {
+          toast.error(`"${file.name}" is already attached.`);
+          return prev;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setSelectedAttachments(current => {
+            if (current.some(a => a.name === file.name && a.size === file.size)) {
+              return current;
+            }
+            return [...current, {
+              name: file.name,
+              type: file.type || 'application/octet-stream',
+              size: file.size,
+              content: event.target.result
+            }];
+          });
+        };
+        reader.onerror = () => {
+          toast.error(`Failed to read "${file.name}".`);
+        };
+        reader.readAsDataURL(file);
+
+        return prev;
+      });
     });
-    // Reset input
+
+    // Reset input so the user can re-select files if needed
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -1044,33 +1198,70 @@ const ChatRoom = () => {
                                 {(() => {
                                   try {
                                     const atts = JSON.parse(msg.attachmentsJson);
-                                    return atts.map((att, i) => (
-                                      <div key={i} className="max-w-xs rounded-lg overflow-hidden border border-black/10 dark:border-white/10 shadow-sm bg-black/5 dark:bg-white/5 relative group print:border-gray-300 print:bg-white print:shadow-none">
-                                        {att.type.startsWith('image/') ? (
-                                          <a href={att.content} target="_blank" rel="noreferrer" download={att.name}>
-                                            <img src={att.content} alt={att.name} className="max-h-48 w-auto object-contain cursor-pointer hover:opacity-90 transition-opacity" />
-                                          </a>
-                                        ) : (
-                                          <div className="flex items-center gap-3 p-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors print:p-2">
-                                            <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg shrink-0 print:bg-red-50">
-                                              <MdPictureAsPdf size={24} />
-                                            </div>
-                                            <div className="flex flex-col min-w-0 flex-1">
-                                              <span className="text-xs font-semibold truncate max-w-[120px] print:max-w-none print:text-black">{att.name}</span>
-                                              <span className="text-[10px] opacity-70 print:text-gray-600">{(att.size / 1024).toFixed(1)} KB</span>
-                                            </div>
-                                            <div className="flex items-center gap-1 shrink-0 printable-conversation-no-print">
-                                              <a href={att.content} target="_blank" rel="noreferrer" title="View PDF" className="p-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300 transition-colors">
-                                                <MdVisibility size={16} />
-                                              </a>
-                                              <a href={att.content} download={att.name} title="Download PDF" className="p-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300 transition-colors">
-                                                <MdFileDownload size={16} />
-                                              </a>
+                                    return atts.map((att, i) => {
+                                      const meta = getFileMeta(att.name, att.type);
+                                      if (meta.isImage) {
+                                        return (
+                                          <div key={i} className="max-w-xs rounded-xl overflow-hidden border border-black/10 dark:border-white/10 shadow-sm bg-black/5 dark:bg-white/5 relative group print:border-gray-300 print:bg-white print:shadow-none">
+                                            <a 
+                                              href={att.content} 
+                                              target="_blank" 
+                                              rel="noreferrer" 
+                                              download={att.name}
+                                              className="block cursor-pointer hover:opacity-95 transition-opacity"
+                                              title={`Download ${att.name}`}
+                                            >
+                                              <img 
+                                                src={att.content} 
+                                                alt={att.name} 
+                                                className="max-h-48 w-auto object-contain" 
+                                              />
+                                            </a>
+                                            <div className="px-2.5 py-1 text-[11px] font-medium truncate bg-black/10 dark:bg-black/30 text-gray-700 dark:text-gray-200 flex items-center justify-between">
+                                              <span className="truncate">{att.name}</span>
+                                              <span className="text-[9px] opacity-70 ml-2 shrink-0">{formatFileSize(att.size)}</span>
                                             </div>
                                           </div>
-                                        )}
-                                      </div>
-                                    ));
+                                        );
+                                      }
+
+                                      const IconComp = meta.icon;
+                                      return (
+                                        <div key={i} className="max-w-xs rounded-xl overflow-hidden border border-black/10 dark:border-white/10 shadow-sm bg-black/5 dark:bg-white/5 relative group print:border-gray-300 print:bg-white print:shadow-none">
+                                          <div className="flex items-center gap-3 p-2.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors print:p-2">
+                                            <div className={`p-2 rounded-lg shrink-0 ${meta.bg} ${meta.color} print:bg-gray-100`}>
+                                              <IconComp size={22} />
+                                            </div>
+                                            <div className="flex flex-col min-w-0 flex-1">
+                                              <span className="text-xs font-semibold truncate max-w-[130px] print:max-w-none print:text-black" title={att.name}>
+                                                {att.name}
+                                              </span>
+                                              <span className="text-[10px] opacity-70 print:text-gray-600">
+                                                {formatFileSize(att.size)}
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-1 shrink-0 printable-conversation-no-print">
+                                              <button 
+                                                type="button"
+                                                onClick={() => handleViewAttachment(att)} 
+                                                title={`View ${att.name}`} 
+                                                className="p-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300 transition-colors"
+                                              >
+                                                <MdVisibility size={16} />
+                                              </button>
+                                              <button 
+                                                type="button"
+                                                onClick={() => handleDownloadAttachment(att)} 
+                                                title={`Download ${att.name}`} 
+                                                className="p-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300 transition-colors"
+                                              >
+                                                <MdFileDownload size={16} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    });
                                   } catch (e) {
                                     return null;
                                   }
@@ -1111,27 +1302,71 @@ const ChatRoom = () => {
           <div className="p-4 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md border-t border-gray-200/50 dark:border-gray-800/50 shrink-0 printable-conversation-no-print">
             {/* Attachments Preview Area */}
             {selectedAttachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3 max-w-5xl mx-auto px-12">
-                {selectedAttachments.map((att, idx) => (
-                  <div key={idx} className="relative group rounded-xl border shadow-sm overflow-hidden bg-white dark:bg-gray-800 w-20 h-20 flex items-center justify-center shrink-0">
-                    <button 
-                      onClick={() => removeAttachment(idx)}
-                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/80"
+              <div className="flex flex-wrap gap-2.5 mb-3 max-w-5xl mx-auto px-2 sm:px-4">
+                {selectedAttachments.map((att, idx) => {
+                  const meta = getFileMeta(att.name, att.type);
+                  if (meta.isImage) {
+                    return (
+                      <div 
+                        key={idx} 
+                        className="relative flex flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden w-28 sm:w-32 shrink-0 group transition-all"
+                      >
+                        <div className="w-full h-20 bg-gray-100 dark:bg-gray-900 flex items-center justify-center overflow-hidden">
+                          <img 
+                            src={att.content} 
+                            alt={att.name} 
+                            className="w-full h-full object-cover" 
+                          />
+                        </div>
+                        <div className="flex items-center justify-between px-2 py-1.5 gap-1 bg-white/95 dark:bg-gray-800/95 border-t border-gray-100 dark:border-gray-700">
+                          <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate" title={att.name}>
+                            {att.name}
+                          </span>
+                          <button 
+                            type="button"
+                            onClick={() => removeAttachment(idx)}
+                            className="p-1 rounded-full text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0"
+                            title="Remove attachment"
+                            aria-label="Remove attachment"
+                          >
+                            <MdClose size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const IconComp = meta.icon;
+                  return (
+                    <div 
+                      key={idx} 
+                      className="relative flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm max-w-[240px] sm:max-w-[280px] shrink-0 transition-all"
                     >
-                      <MdClose size={12} />
-                    </button>
-                    {att.type.startsWith('image/') ? (
-                      <img src={att.content} alt={att.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="flex flex-col items-center p-2 text-center text-red-500 dark:text-red-400">
-                        <MdPictureAsPdf size={24} />
-                        <span className="text-[8px] font-medium truncate w-full mt-1 px-1 text-gray-700 dark:text-gray-300" title={att.name}>
+                      <div className={`p-2 rounded-lg shrink-0 ${meta.bg} ${meta.color}`}>
+                        <IconComp size={22} />
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate" title={att.name}>
                           {att.name}
                         </span>
+                        <div className="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-gray-500">
+                          <span className="font-semibold uppercase tracking-wider">{meta.extLabel}</span>
+                          <span>•</span>
+                          <span>{formatFileSize(att.size)}</span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <button 
+                        type="button"
+                        onClick={() => removeAttachment(idx)}
+                        className="p-1 rounded-full text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0"
+                        title="Remove attachment"
+                        aria-label="Remove attachment"
+                      >
+                        <MdClose size={16} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
             
@@ -1139,7 +1374,7 @@ const ChatRoom = () => {
               <input 
                 type="file"
                 multiple
-                accept="image/*,application/pdf"
+                accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx,.csv"
                 className="hidden"
                 ref={fileInputRef}
                 onChange={handleFileSelect}
@@ -1148,6 +1383,7 @@ const ChatRoom = () => {
                 type="button" 
                 onClick={() => fileInputRef.current?.click()}
                 className="p-2.5 rounded-xl text-gray-500 hover:bg-black/5 dark:hover:bg-white/5 transition-all focus:outline-none"
+                title="Attach file"
               >
                 <MdAttachFile size={22} className="rotate-45" />
               </button>
