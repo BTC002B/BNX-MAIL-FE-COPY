@@ -3,6 +3,7 @@ import { mailAPI, api } from '../services/api';
 import { API_ENDPOINTS } from '../Data/constants';
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
+import { filterDuplicateSpamEmails } from '../utils/spamFilter';
 import toast from 'react-hot-toast';
 
 const MailContext = createContext();
@@ -126,6 +127,10 @@ export const MailProvider = ({ children }) => {
                     });
                 }
 
+                if (folderKey === 'spam') {
+                    normalizedEmails = filterDuplicateSpamEmails(normalizedEmails);
+                }
+
                 if (user?.email) {
                     const loginEmail = user.email.trim().toLowerCase();
                     const isEmailMatch = (emailField, currentEmail) => {
@@ -156,10 +161,13 @@ export const MailProvider = ({ children }) => {
 
                 // Only update active screen if it matches the current folder
                 if (currentFolderRef.current.toLowerCase() === folderKey) {
-                    setTotalEmails(data.totalCount || 0);
+                    setTotalEmails(folderKey === 'spam' ? normalizedEmails.length : (data.totalCount || 0));
                     setEmails(normalizedEmails);
                     const countKey = folderKey.replace('-', '').replace(' ', '');
-                    setUnreadCounts(prev => ({ ...prev, [countKey]: data.unreadCount || 0 }));
+                    const unread = folderKey === 'spam'
+                        ? normalizedEmails.filter(e => !e.isRead).length
+                        : (data.unreadCount || 0);
+                    setUnreadCounts(prev => ({ ...prev, [countKey]: unread }));
                 }
             }
         } catch (e) {
@@ -342,6 +350,10 @@ export const MailProvider = ({ children }) => {
                     });
                 }
 
+                if (folderKey === 'spam') {
+                    normalizedEmails = filterDuplicateSpamEmails(normalizedEmails);
+                }
+
                 // Filter logic for Inbox and Sent folders based on currently logged-in user's email ID
                 const lowerFolder = folder.toLowerCase();
                 if (user?.email) {
@@ -376,7 +388,7 @@ export const MailProvider = ({ children }) => {
                 
                 // Only update active screen if it matches the current folder
                 if (currentFolderRef.current.toLowerCase() === folderKey) {
-                    const totalCount = data.totalCount || 0;
+                    const totalCount = folderKey === 'spam' ? normalizedEmails.length : (data.totalCount || 0);
                     setTotalEmails(totalCount);
 
                     const totalPages = Math.max(1, Math.ceil(totalCount / limit));
@@ -391,7 +403,10 @@ export const MailProvider = ({ children }) => {
 
                     setEmails(normalizedEmails);
                     const countKey = folderKey.replace('-', '').replace(' ', '');
-                    setUnreadCounts(prev => ({ ...prev, [countKey]: data.unreadCount || 0 }));
+                    const unread = folderKey === 'spam'
+                        ? normalizedEmails.filter(e => !e.isRead).length
+                        : (data.unreadCount || 0);
+                    setUnreadCounts(prev => ({ ...prev, [countKey]: unread }));
                 }
             }
         } catch (error) {
@@ -458,6 +473,12 @@ export const MailProvider = ({ children }) => {
                                             const isTrash = m.folderName?.toLowerCase() === 'trash' || m.folderName?.toLowerCase() === 'deleted' || m.isTrash === true || m.isDeleted === true || m.deleted === true;
                                             return !isTrash;
                                         });
+                                    }
+
+                                    if (folderKey === 'spam') {
+                                        normalized = filterDuplicateSpamEmails(normalized);
+                                        const spamUnread = normalized.filter(e => !e.isRead).length;
+                                        setUnreadCounts(prev => ({ ...prev, spam: spamUnread }));
                                     }
 
                                     // Apply user filters to Inbox & Sent
@@ -569,7 +590,8 @@ export const MailProvider = ({ children }) => {
                     // Update unread counts locally
                     setUnreadCounts(counts => ({
                         ...counts,
-                        inbox: Math.max(0, counts.inbox - 1)
+                        inbox: currentFolderRef.current?.toLowerCase() === 'inbox' ? Math.max(0, (counts.inbox || 0) - 1) : counts.inbox,
+                        spam: currentFolderRef.current?.toLowerCase() === 'spam' ? Math.max(0, (counts.spam || 0) - 1) : counts.spam
                     }));
                     return { ...m, isRead: true };
                 }
@@ -586,7 +608,8 @@ export const MailProvider = ({ children }) => {
             setEmails(prev => prev.map(m => String(m.uid) === String(uid) ? { ...m, isRead: false } : m));
             setUnreadCounts(counts => ({
                 ...counts,
-                inbox: (counts.inbox || 0) + 1
+                inbox: currentFolderRef.current?.toLowerCase() === 'inbox' ? (counts.inbox || 0) + 1 : counts.inbox,
+                spam: currentFolderRef.current?.toLowerCase() === 'spam' ? (counts.spam || 0) + 1 : counts.spam
             }));
             invalidateCache('unread');
             if (currentFolderRef.current) {
@@ -604,7 +627,16 @@ export const MailProvider = ({ children }) => {
         try {
             const targetFolder = folder || currentFolderRef.current || 'inbox';
             await mailAPI.trash(uid, targetFolder);
-            setEmails(prev => prev.filter(m => String(m.uid) !== String(uid)));
+            setEmails(prev => {
+                const targetEmail = prev.find(m => String(m.uid) === String(uid));
+                if (targetEmail && !targetEmail.isRead && (currentFolderRef.current?.toLowerCase() === 'spam' || targetFolder.toLowerCase() === 'spam')) {
+                    setUnreadCounts(counts => ({
+                        ...counts,
+                        spam: Math.max(0, (counts.spam || 0) - 1)
+                    }));
+                }
+                return prev.filter(m => String(m.uid) !== String(uid));
+            });
             setTotalEmails(prev => Math.max(0, prev - 1));
             invalidateCache('trash');
             if (folder) invalidateCache(folder);
@@ -755,7 +787,19 @@ export const MailProvider = ({ children }) => {
     const handleRestoreSpam = async (uid, silent = false) => {
         try {
             await mailAPI.restoreSpam(uid);
-            setEmails(prev => prev.filter(m => String(m.uid) !== String(uid)));
+            setEmails(prev => {
+                const targetEmail = prev.find(m => String(m.uid) === String(uid));
+                if (targetEmail && !targetEmail.isRead) {
+                    setUnreadCounts(counts => ({
+                        ...counts,
+                        spam: Math.max(0, (counts.spam || 0) - 1)
+                    }));
+                }
+                return prev.filter(m => String(m.uid) !== String(uid));
+            });
+            setTotalEmails(prev => Math.max(0, prev - 1));
+            invalidateCache('spam');
+            invalidateCache('inbox');
             if (!silent) toast.success('Restored from spam');
         } catch (error) {
             if (!silent) toast.error('Failed to restore from spam');
