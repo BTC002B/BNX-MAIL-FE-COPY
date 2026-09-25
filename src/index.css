@@ -441,9 +441,11 @@ aside.sidebar-collapsed hr {
 
 .tool-tooltip {
   position: absolute;
-  right: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
+  top: calc(100% + 8px);
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  transform: translateX(calc(-50% - max(0px, 50% - 26px)));
   width: max-content;
   white-space: nowrap;
   pointer-events: none;
@@ -452,10 +454,54 @@ aside.sidebar-collapsed hr {
   text-align: center;
 }
 
+/* Tooltip arrow pointing up towards the icon */
+.tool-tooltip > span:last-child {
+  position: absolute !important;
+  top: auto !important;
+  bottom: 100% !important;
+  left: 50% !important;
+  left: calc(50% + max(0px, 50% - 26px)) !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  margin: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-left: 4px solid transparent !important;
+  border-right: 4px solid transparent !important;
+  border-top: none !important;
+  border-bottom: 4px solid rgba(17, 24, 39, 0.95) !important;
+}
+
+.dark .tool-tooltip > span:last-child {
+  border-bottom-color: rgb(31, 41, 55) !important;
+}
+
+/* If the icon is near the bottom of the sidebar, reposition above the icon */
+.right-tools-sidebar .mt-auto .tool-item:last-child .tool-tooltip {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+.right-tools-sidebar .mt-auto .tool-item:last-child .tool-tooltip > span:last-child {
+  top: 100% !important;
+  bottom: auto !important;
+  border-top: 4px solid rgba(17, 24, 39, 0.95) !important;
+  border-bottom: none !important;
+}
+
+.dark .right-tools-sidebar .mt-auto .tool-item:last-child .tool-tooltip > span:last-child {
+  border-top-color: rgb(31, 41, 55) !important;
+}
+
 @media (max-width: 640px) {
   .tool-tooltip {
-    right: calc(100% + 6px);
+    top: calc(100% + 6px);
     font-size: 10px;
+  }
+
+  .right-tools-sidebar .mt-auto .tool-item:last-child .tool-tooltip {
+    top: auto;
+    bottom: calc(100% + 6px);
   }
 }
 
