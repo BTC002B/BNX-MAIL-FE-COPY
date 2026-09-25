@@ -874,7 +874,7 @@ const ChatRoom = () => {
                   title="Open Comments"
                   style={{ color: theme.accent, borderColor: theme.accent + "33", backgroundColor: theme.accent + "0d" }}
                 >
-                  <MdKeyboardArrowRight size={18} /> Open Comments
+                  <MdKeyboardArrowLeft size={18} /> Open Comments
                 </button>
               )}
             </div>
@@ -991,7 +991,7 @@ const ChatRoom = () => {
                 className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer flex items-center justify-center"
                 title="Hide Comments"
               >
-                <MdKeyboardArrowLeft size={22} />
+                <MdKeyboardArrowRight size={22} />
               </button>
             </div>
           )}
