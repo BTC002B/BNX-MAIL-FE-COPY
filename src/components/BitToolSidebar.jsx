@@ -62,6 +62,14 @@ const BitToolSidebar = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  React.useEffect(() => {
+    if (!isOpen) {
+      setSelectedTool(null);
+      setIsEditing(false);
+      setShowAppLauncher(false);
+    }
+  }, [isOpen]);
+
   const isSmallScreen = windowWidth < 1024;
   const isToolOpen = Boolean(selectedTool && selectedTool !== 'keyboard');
   const isSidebarVisible = isOpen || isToolOpen;
