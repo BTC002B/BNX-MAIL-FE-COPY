@@ -143,12 +143,16 @@ export const MailProvider = ({ children }) => {
 
                     if (['inbox', 'all-inbox', 'allinbox'].includes(folderKey)) {
                         normalizedEmails = normalizedEmails.filter(m => {
+                            const isDraft = m.folderName?.toLowerCase() === 'draft' || m.folderName?.toLowerCase() === 'drafts' || m.isDraft === true || m.draft === true;
+                            if (isDraft) return false;
                             const isSenderMe = isEmailMatch(m.senderEmail, loginEmail) || isEmailMatch(m.from, loginEmail);
                             const isRecipientMe = isEmailMatch(m.recipientEmail, loginEmail) || isEmailMatch(m.to, loginEmail) || isEmailMatch(m.cc, loginEmail) || isEmailMatch(m.bcc, loginEmail);
                             return !isSenderMe || isRecipientMe;
                         });
                     } else if (folderKey === 'sent') {
                         normalizedEmails = normalizedEmails.filter(m => {
+                            const isDraft = m.folderName?.toLowerCase() === 'draft' || m.folderName?.toLowerCase() === 'drafts' || m.isDraft === true || m.draft === true;
+                            if (isDraft) return false;
                             const isSenderMe = isEmailMatch(m.senderEmail, loginEmail) || isEmailMatch(m.from, loginEmail);
                             return isSenderMe;
                         });
@@ -368,6 +372,8 @@ export const MailProvider = ({ children }) => {
 
                     if (['inbox', 'all-inbox', 'allinbox'].includes(lowerFolder)) {
                         normalizedEmails = normalizedEmails.filter(m => {
+                            const isDraft = m.folderName?.toLowerCase() === 'draft' || m.folderName?.toLowerCase() === 'drafts' || m.isDraft === true || m.draft === true;
+                            if (isDraft) return false;
                             const isSenderMe = isEmailMatch(m.senderEmail, loginEmail) || isEmailMatch(m.from, loginEmail);
                             const isRecipientMe = isEmailMatch(m.recipientEmail, loginEmail) || isEmailMatch(m.to, loginEmail) || isEmailMatch(m.cc, loginEmail) || isEmailMatch(m.bcc, loginEmail);
                             
@@ -376,6 +382,8 @@ export const MailProvider = ({ children }) => {
                         });
                     } else if (lowerFolder === 'sent') {
                         normalizedEmails = normalizedEmails.filter(m => {
+                            const isDraft = m.folderName?.toLowerCase() === 'draft' || m.folderName?.toLowerCase() === 'drafts' || m.isDraft === true || m.draft === true;
+                            if (isDraft) return false;
                             const isSenderMe = isEmailMatch(m.senderEmail, loginEmail) || isEmailMatch(m.from, loginEmail);
                             return isSenderMe;
                         });
@@ -494,12 +502,16 @@ export const MailProvider = ({ children }) => {
 
                                         if (folder === 'inbox') {
                                             normalized = normalized.filter(m => {
+                                                const isDraft = m.folderName?.toLowerCase() === 'draft' || m.folderName?.toLowerCase() === 'drafts' || m.isDraft === true || m.draft === true;
+                                                if (isDraft) return false;
                                                 const isSenderMe = isEmailMatch(m.senderEmail, loginEmail) || isEmailMatch(m.from, loginEmail);
                                                 const isRecipientMe = isEmailMatch(m.recipientEmail, loginEmail) || isEmailMatch(m.to, loginEmail) || isEmailMatch(m.cc, loginEmail) || isEmailMatch(m.bcc, loginEmail);
                                                 return !isSenderMe || isRecipientMe;
                                             });
                                         } else if (folder === 'sent') {
                                             normalized = normalized.filter(m => {
+                                                const isDraft = m.folderName?.toLowerCase() === 'draft' || m.folderName?.toLowerCase() === 'drafts' || m.isDraft === true || m.draft === true;
+                                                if (isDraft) return false;
                                                 const isSenderMe = isEmailMatch(m.senderEmail, loginEmail) || isEmailMatch(m.from, loginEmail);
                                                 return isSenderMe;
                                             });
@@ -839,6 +851,69 @@ export const MailProvider = ({ children }) => {
         setComposeData(null);
     }, []);
 
+    const handleEmailSent = useCallback(async ({ draftId, draftUid, imapDraftUid, sentEmail } = {}) => {
+        const targetDraftUids = [draftId, draftUid, imapDraftUid].filter(Boolean).map(String);
+
+        // 1. Immediately remove draft from current active emails state if present
+        if (targetDraftUids.length > 0) {
+            setEmails(prev => prev.filter(m => {
+                const mUid = String(m.uid || m.id || '');
+                return !targetDraftUids.includes(mUid);
+            }));
+        }
+
+        // 2. Invalidate caches for all affected folders
+        invalidateCache('draft');
+        invalidateCache('drafts');
+        invalidateCache('sent');
+        invalidateCache('inbox');
+        invalidateCache('all-inbox');
+        invalidateCache('allinbox');
+        invalidateCache('all-mail');
+        invalidateCache('allmail');
+
+        // Also purge any matching draft from all cached pages
+        if (targetDraftUids.length > 0) {
+            Object.keys(pagesCache.current).forEach(folderKey => {
+                const folderCache = pagesCache.current[folderKey];
+                if (folderCache) {
+                    Object.keys(folderCache).forEach(pageKey => {
+                        if (Array.isArray(folderCache[pageKey])) {
+                            folderCache[pageKey] = folderCache[pageKey].filter(m => {
+                                const mUid = String(m.uid || m.id || '');
+                                return !targetDraftUids.includes(mUid);
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        // 3. Clean up backend draft if IMAP or DB draft
+        if (imapDraftUid) {
+            mailAPI.trash(imapDraftUid, "Drafts").catch(console.error);
+        }
+        if (draftUid && draftUid !== imapDraftUid) {
+            mailAPI.trash(draftUid, "Drafts").catch(() => {});
+        }
+        if (draftId) {
+            api.delete(`/api/mail/drafts/${draftId}`).catch(() => {});
+        }
+
+        // 4. Refresh the CURRENT active folder (stay in current folder, e.g. inbox, sent, etc.)
+        const curFolder = currentFolderRef.current;
+        if (curFolder.startsWith('label-')) {
+            const labelId = curFolder.replace('label-', '');
+            fetchLabelEmails(labelId, true, currentPageRef.current);
+        } else {
+            fetchEmails(curFolder, true, currentPageRef.current);
+        }
+
+        // 5. Silently update drafts and sent caches in the background
+        fetchEmailsSilently('drafts');
+        fetchEmailsSilently('sent');
+    }, [fetchEmails, fetchEmailsSilently, fetchLabelEmails, invalidateCache]);
+
     return (
         <MailContext.Provider value={{
             emails,
@@ -848,6 +923,8 @@ export const MailProvider = ({ children }) => {
             unreadCounts,
             labels,
             fetchEmails,
+            fetchEmailsSilently,
+            invalidateCache,
             fetchLabels,
             fetchLabelEmails,
             handleToggleStar,
@@ -869,6 +946,7 @@ export const MailProvider = ({ children }) => {
             handleRestoreSpam,
             handleUnsubscribe,
             handleDeleteLabel,
+            handleEmailSent,
             isComposeOpen,
             setIsComposeOpen,
             isComposeMinimized,

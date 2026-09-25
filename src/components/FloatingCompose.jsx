@@ -157,6 +157,10 @@ const FloatingCompose = () => {
     setIsComposeMaximized, 
     composeData,
     fetchEmails,
+    fetchEmailsSilently,
+    invalidateCache,
+    handleEmailSent,
+    currentFolder,
     openCompose
   } = useMail();
 
@@ -402,12 +406,13 @@ const FloatingCompose = () => {
           } else if (composeData.draft) {
             const d = composeData.draft;
             imapDraftUidRef.current = d.uid;
+            if (d.id) setDraftId(d.id);
             setFormData({
-              to: d.to || "",
+              to: d.to || d.recipientEmail || "",
               cc: d.cc || "",
               bcc: d.bcc || "",
               subject: d.subject || "",
-              body: d.body || "",
+              body: d.body || d.textPlain || d.htmlBody || "",
             });
             if (d.cc) setShowCc(true);
             if (d.bcc) setShowBcc(true);
@@ -644,11 +649,21 @@ const FloatingCompose = () => {
             toast.success("Message sent.", { id: tid, duration: 4000 });
             closeCompose();
           }
-          if (imapDraftUidRef.current) {
-            mailAPI.trash(imapDraftUidRef.current, "Drafts").catch(console.error);
-            imapDraftUidRef.current = null;
+
+          const currentImapDraftUid = imapDraftUidRef.current;
+          const currentDraftId = draftId;
+          const currentDraftUid = composeData?.draft?.uid || composeData?.draft?.id;
+          imapDraftUidRef.current = null;
+          setDraftId(null);
+
+          if (handleEmailSent) {
+            handleEmailSent({
+              draftId: currentDraftId,
+              draftUid: currentDraftUid,
+              imapDraftUid: currentImapDraftUid,
+              sentEmail: response.data?.data
+            });
           }
-          fetchEmails('Drafts', true);
         }
       } catch (err) {
         setError(err.response?.data?.message || "Failed to send email");
@@ -825,7 +840,15 @@ const FloatingCompose = () => {
             mailAPI.trash(imapDraftUidRef.current, "Drafts").catch(console.error);
             imapDraftUidRef.current = null;
           }
-          fetchEmails('Drafts');
+          if (invalidateCache) {
+            invalidateCache('draft');
+            invalidateCache('drafts');
+          }
+          if (currentFolder?.toLowerCase() === 'draft' || currentFolder?.toLowerCase() === 'drafts') {
+            fetchEmails('draft', true);
+          } else if (fetchEmailsSilently) {
+            fetchEmailsSilently('drafts');
+          }
         })
         .catch((err) => {
           console.error("Failed to auto-save draft in the background:", err);
@@ -836,20 +859,32 @@ const FloatingCompose = () => {
 
   const handleDiscard = async () => {
     if (window.confirm("Discard this email?")) {
-      if (draftId) {
+      const discDraftId = draftId;
+      const discImapUid = imapDraftUidRef.current;
+      setDraftId(null);
+      imapDraftUidRef.current = null;
+      if (discDraftId) {
         try {
-          await api.delete(`/api/mail/drafts/${draftId}`);
+          await api.delete(`/api/mail/drafts/${discDraftId}`);
         } catch (e) {
           console.error("Failed to discard DB draft:", e);
         }
       }
-      if (imapDraftUidRef.current) {
+      if (discImapUid) {
         try {
-          await mailAPI.trash(imapDraftUidRef.current, "Drafts");
-          imapDraftUidRef.current = null;
+          await mailAPI.trash(discImapUid, "Drafts");
         } catch (e) {
           console.error("Failed to discard IMAP draft:", e);
         }
+      }
+      if (invalidateCache) {
+        invalidateCache('draft');
+        invalidateCache('drafts');
+      }
+      if (currentFolder?.toLowerCase() === 'draft' || currentFolder?.toLowerCase() === 'drafts') {
+        fetchEmails('draft', true);
+      } else if (fetchEmailsSilently) {
+        fetchEmailsSilently('drafts');
       }
       closeCompose();
     }

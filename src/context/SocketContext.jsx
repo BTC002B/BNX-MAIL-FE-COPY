@@ -12,7 +12,7 @@ const WS_URL = import.meta.env.VITE_WS_URL;
 
 export const SocketProvider = ({ children }) => {
     const { isAuthenticated, user } = useAuth();
-    const { fetchEmails } = useMail();
+    const { fetchEmails, fetchEmailsSilently } = useMail();
     const [stompClient, setStompClient] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
 
@@ -94,7 +94,11 @@ export const SocketProvider = ({ children }) => {
             case 'send_progress':
                 if (data.status === 'completed') {
                     toast.success('Email sent successfully');
-                    fetchEmails('sent', true);
+                    fetchEmails(undefined, true);
+                    if (fetchEmailsSilently) {
+                        fetchEmailsSilently('sent');
+                        fetchEmailsSilently('drafts');
+                    }
                 } else if (data.status === 'failed') {
                     toast.error('Failed to send email');
                 }

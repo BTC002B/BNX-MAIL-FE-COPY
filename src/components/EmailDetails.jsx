@@ -126,7 +126,7 @@ const EmailDetails = ({
   const { theme, readingPaneMode } = useTheme();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const { labels, handleRemoveLabel, handleCreateLabel, fetchEmails, currentFolder, handleMarkUnread } = useMail();
+  const { labels, handleRemoveLabel, handleCreateLabel, fetchEmails, currentFolder, handleMarkUnread, handleEmailSent } = useMail();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const normalizeEmail = (addr) => {
@@ -536,10 +536,16 @@ const EmailDetails = ({
         setShowReply(false);
         setReplyBody("");
         setForwardTo("");
+        const sentDraftId = draftId;
         setDraftId(null);
         setAttachments([]);
-        if (fetchEmails) {
-          fetchEmails(currentFolder || "inbox");
+        if (handleEmailSent) {
+          handleEmailSent({
+            draftId: sentDraftId,
+            sentEmail: res.data?.data
+          });
+        } else if (fetchEmails) {
+          fetchEmails(currentFolder || "inbox", true);
         }
       } else {
         throw new Error(res.data?.message || "Failed to send email");

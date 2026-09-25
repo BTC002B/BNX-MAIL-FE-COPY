@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { MdSend, MdAttachFile, MdDeleteOutline, MdClose, MdAssignment } from "react-icons/md";
 import { mailAPI } from "../services/api";
 import { useTheme } from "../context/ThemeContext";
+import { useMail } from "../context/MailContext";
 import { DEFAULT_TEMPLATES } from "./Templates";
 
 
@@ -50,6 +51,7 @@ const ComposePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme } = useTheme();
+  const { handleEmailSent, invalidateCache, fetchEmailsSilently } = useMail();
 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -180,6 +182,14 @@ const ComposePage = () => {
 
       if (response.data?.success) {
         setSuccess("Email sent successfully");
+        if (handleEmailSent) {
+          handleEmailSent({
+            draftId: location.state?.draftId,
+            draftUid: location.state?.draftUid || location.state?.draft?.uid,
+            imapDraftUid: location.state?.imapDraftUid || location.state?.draft?.uid,
+            sentEmail: response.data?.data
+          });
+        }
         setTimeout(() => navigate("/inbox"), 1200);
       }
     } catch (err) {
@@ -275,9 +285,19 @@ const ComposePage = () => {
       if (formData.bcc) payload.bcc = formData.bcc;
 
       // Save draft in the background
-      mailAPI.saveDraft(payload).catch((err) => {
-        console.error("Failed to auto-save draft in the background:", err);
-      });
+      mailAPI.saveDraft(payload)
+        .then(() => {
+          if (invalidateCache) {
+            invalidateCache('draft');
+            invalidateCache('drafts');
+          }
+          if (fetchEmailsSilently) {
+            fetchEmailsSilently('drafts');
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to auto-save draft in the background:", err);
+        });
     }
     navigate("/inbox");
   };
