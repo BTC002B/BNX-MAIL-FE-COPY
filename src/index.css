@@ -378,6 +378,18 @@ aside.sidebar-collapsed hr {
 
 /* Print Styling for Conversations */
 @media print {
+  @page {
+    margin: 12mm 15mm;
+    size: auto;
+  }
+
+  html, body, #root, .main-content {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
   body * {
     visibility: hidden !important;
   }
@@ -393,18 +405,60 @@ aside.sidebar-collapsed hr {
     top: 0 !important;
     width: 100% !important;
     height: auto !important;
+    min-height: 100% !important;
     overflow: visible !important;
     display: block !important;
     background: white !important;
-    color: black !important;
+    color: #111827 !important;
+    padding: 16px !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
+  /* Force both Broadcasts and Comments sections to be full-width blocks in print */
+  .printable-section {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    position: static !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border: none !important;
+    margin: 0 0 24px 0 !important;
+    padding: 0 !important;
+  }
+
+  /* All scrollable containers inside printable conversation must expand completely */
   .printable-conversation .flex-1.overflow-y-auto,
+  .printable-conversation .overflow-y-auto,
+  .printable-conversation .flex-1,
   .printable-conversation div[ref] {
     overflow: visible !important;
     height: auto !important;
     max-height: none !important;
     display: block !important;
+  }
+
+  /* Prevent page breaks inside cards and message bubbles */
+  .printable-item {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Ensure text colors in print are dark and high-contrast */
+  .printable-conversation {
+    color: #111827 !important;
+  }
+
+  .printable-conversation .text-white {
+    color: #111827 !important;
   }
 
   .printable-conversation-no-print,

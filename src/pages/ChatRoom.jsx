@@ -856,21 +856,30 @@ const ChatRoom = () => {
       </div>
 
       {/* Main Split Container */}
-      <div className={`flex-1 flex flex-col md:flex-row overflow-hidden relative p-4 transition-all duration-300 ${isChatPaneOpen ? 'gap-4' : 'gap-0'}`}>
+      <div className={`flex-1 flex flex-col md:flex-row overflow-hidden relative p-4 transition-all duration-300 printable-conversation ${isChatPaneOpen ? 'gap-4' : 'gap-0'}`}>
         
+        {/* Print-Only Top Header */}
+        <div className="hidden print:block w-full border-b border-gray-300 pb-3 mb-6 text-center shrink-0">
+          <h1 className="text-2xl font-bold tracking-wider text-black">BNXmail</h1>
+          {chatName && <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest mt-1">{chatName}</p>}
+          {chatPartner && chat?.type === 'DIRECT' && <p className="text-xs text-gray-500 mt-0.5">{chatPartner}</p>}
+        </div>
+
         {/* Left Side: Professional Broadcast list (60% width) */}
         {chat?.type === 'GROUP' && (
-          <div className={`flex flex-col h-full rounded-2xl border border-gray-200/50 dark:border-gray-800/50 bg-white/60 dark:bg-gray-900/60 shadow-sm overflow-hidden shrink-0 transition-all duration-300 ease-in-out ${isChatPaneOpen ? 'w-full h-1/2 md:h-full md:w-[60%]' : 'w-full h-full'}`}>
+          <div className={`flex flex-col h-full rounded-2xl border border-gray-200/50 dark:border-gray-800/50 bg-white/60 dark:bg-gray-900/60 shadow-sm overflow-hidden shrink-0 transition-all duration-300 ease-in-out printable-section ${isChatPaneOpen ? 'w-full h-1/2 md:h-full md:w-[60%]' : 'w-full h-full'}`}>
             
             {/* Header: Professional Broadcast Title */}
-            <div className="p-4 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between bg-black/[0.02] dark:bg-white/[0.02] shrink-0">
-              <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: theme.text }}>
-                <MdEmail size={18} className="text-primary" style={{ color: theme.accent }} /> Professional Broadcasts ({broadcasts.length})
+            <div className="p-4 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between bg-black/[0.02] dark:bg-white/[0.02] shrink-0 print:border-none print:bg-transparent print:p-0 print:mb-3">
+              <h3 className="text-sm font-bold flex items-center gap-1.5 print:text-sm print:font-bold print:uppercase print:tracking-wider print:text-black" style={{ color: theme.text }}>
+                <MdEmail size={18} className="text-primary print:hidden" style={{ color: theme.accent }} /> 
+                <span className="print:hidden">Professional Broadcasts ({broadcasts.length})</span>
+                <span className="hidden print:inline font-bold">PROFESSIONAL BROADCASTS</span>
               </h3>
               {!isChatPaneOpen && (
                 <button 
                   onClick={() => setIsChatPaneOpen(true)}
-                  className="p-1 px-2.5 rounded-xl border border-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
+                  className="p-1 px-2.5 rounded-xl border border-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1 text-xs font-bold printable-conversation-no-print"
                   title="Open Comments"
                   style={{ color: theme.accent, borderColor: theme.accent + "33", backgroundColor: theme.accent + "0d" }}
                 >
@@ -880,16 +889,16 @@ const ChatRoom = () => {
             </div>
 
             {/* Broadcasts List View */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 hidden-scrollbar bg-black/[0.01] dark:bg-white/[0.01]">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 hidden-scrollbar bg-black/[0.01] dark:bg-white/[0.01] print:overflow-visible print:h-auto print:p-0 print:space-y-3 print:bg-transparent">
               {loadingBroadcasts && broadcasts.length === 0 ? (
-                <div className="flex justify-center p-10">
+                <div className="flex justify-center p-10 printable-conversation-no-print">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : broadcasts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full opacity-40 text-center p-6 mt-10">
-                  <MdEmail size={48} className="mb-3 text-gray-400" />
-                  <p className="text-sm font-semibold">No Broadcasts Sent</p>
-                  <p className="text-xs max-w-xs mt-1">
+                <div className="flex flex-col items-center justify-center h-full opacity-40 text-center p-6 mt-10 print:opacity-70 print:p-4 print:mt-2">
+                  <MdEmail size={48} className="mb-3 text-gray-400 print:hidden" />
+                  <p className="text-sm font-semibold print:text-gray-600">No Broadcasts Sent</p>
+                  <p className="text-xs max-w-xs mt-1 print:hidden">
                     Send professional email updates to all group members. Click the button below to compose.
                   </p>
                 </div>
@@ -899,21 +908,21 @@ const ChatRoom = () => {
                   return (
                     <div 
                       key={b.id || idx}
-                      className="p-4 rounded-2xl border border-gray-200/40 dark:border-gray-800/40 bg-white/50 dark:bg-gray-900/50 hover:bg-white/80 dark:hover:bg-gray-900/80 transition-all shadow-sm flex flex-col gap-1.5"
+                      className="p-4 rounded-2xl border border-gray-200/40 dark:border-gray-800/40 bg-white/50 dark:bg-gray-900/50 hover:bg-white/80 dark:hover:bg-gray-900/80 transition-all shadow-sm flex flex-col gap-1.5 printable-item print:border print:border-gray-300 print:bg-white print:text-black print:shadow-none"
                     >
                       <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-1.5 text-[10px] opacity-75 text-gray-500 font-semibold tracking-wider">
-                        <span>From: {b.from?.split("<")[0]?.trim() || b.from}</span>
-                      </div>
+                        <div className="flex items-center gap-1.5 text-[10px] opacity-75 text-gray-500 font-semibold tracking-wider print:text-xs print:opacity-100 print:text-gray-700">
+                          <span>From: {b.from?.split("<")[0]?.trim() || b.from}</span>
+                        </div>
 
-                        <span className="text-[10px] opacity-60 shrink-0 font-medium ml-2">
+                        <span className="text-[10px] opacity-60 shrink-0 font-medium ml-2 print:text-xs print:opacity-100 print:text-gray-500">
                           {b.sentDate ? new Date(b.sentDate).toLocaleString() : ""}
                         </span>
                       </div>
-                        <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200 leading-tight">
-                          {cleanSub}
-                        </h4>
-                      <div className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300 break-words whitespace-pre-line border-t border-gray-100 dark:border-gray-800/60 pt-2">
+                      <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200 leading-tight print:text-black print:text-sm">
+                        {cleanSub}
+                      </h4>
+                      <div className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300 break-words whitespace-pre-line border-t border-gray-100 dark:border-gray-800/60 pt-2 print:border-gray-200 print:text-gray-900">
                         {b.body || b.textPlain || "(Empty Content)"}
                       </div>
                       
@@ -934,7 +943,7 @@ const ChatRoom = () => {
                               <button
                                 key={index}
                                 onClick={() => handleDownloadAttachment(att)}
-                                className="flex items-center justify-center w-7 h-7 bg-black/[0.03] dark:bg-white/[0.03] hover:bg-black/[0.06] dark:hover:bg-white/[0.06] border border-gray-200/50 dark:border-gray-800/50 rounded-lg text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-all cursor-pointer shrink-0"
+                                className="flex items-center justify-center w-7 h-7 bg-black/[0.03] dark:bg-white/[0.03] hover:bg-black/[0.06] dark:hover:bg-white/[0.06] border border-gray-200/50 dark:border-gray-800/50 rounded-lg text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-all cursor-pointer shrink-0 print:border-gray-300"
                                 title={`${att.name} (${(att.size / 1024).toFixed(1)} KB)`}
                               >
                                 <MdAttachFile size={14} className="text-gray-400 dark:text-gray-500" />
@@ -950,7 +959,7 @@ const ChatRoom = () => {
             </div>
 
             {/* Bottom Button Bar */}
-            <div className="p-4 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md border-t border-gray-200/50 dark:border-gray-800/50 shrink-0">
+            <div className="p-4 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md border-t border-gray-200/50 dark:border-gray-800/50 shrink-0 printable-conversation-no-print">
               <button
                 onClick={() => setShowComposeModal(true)}
                 className="w-full py-3 rounded-2xl font-bold text-sm text-white shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -964,7 +973,7 @@ const ChatRoom = () => {
 
         {/* Right Side: Chat Room / Comments (40% width for GROUP, full width for DIRECT) */}
         <div 
-          className={`flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out bg-white/60 dark:bg-gray-900/60 rounded-2xl shadow-sm border border-gray-200/50 dark:border-gray-800/50 printable-conversation shrink-0 ${
+          className={`flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out bg-white/60 dark:bg-gray-900/60 rounded-2xl shadow-sm border border-gray-200/50 dark:border-gray-800/50 printable-section shrink-0 ${
             chat?.type === 'GROUP' 
               ? (isChatPaneOpen ? 'w-full h-1/2 md:h-full md:w-[40%]' : 'w-0 h-0 md:w-0 md:h-full overflow-hidden') 
               : 'w-full h-full'
@@ -975,61 +984,59 @@ const ChatRoom = () => {
             borderWidth: chat?.type === 'GROUP' && !isChatPaneOpen ? '0px' : '1px'
           }}
         >
-          {/* Print-Only Header */}
-          <div className="hidden print:block border-b pb-2 mb-4 px-6 pt-6 shrink-0">
-            <h1 className="text-xl font-bold">{chatName}</h1>
-            {chatPartner && <p className="text-xs text-gray-500">{chatPartner}</p>}
-          </div>
           {/* Header: Instant Chat Messages Title (Only when split) */}
           {chat?.type === 'GROUP' && (
-            <div className="p-4 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between bg-black/[0.02] dark:bg-white/[0.02] shrink-0 printable-conversation-no-print">
-              <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: theme.text }}>
-                <MdChat size={18} className="text-primary" style={{ color: theme.accent }} /> Comments
+            <div className="p-4 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between bg-black/[0.02] dark:bg-white/[0.02] shrink-0 print:border-none print:bg-transparent print:p-0 print:mb-3">
+              <h3 className="text-sm font-bold flex items-center gap-1.5 print:text-sm print:font-bold print:uppercase print:tracking-wider print:text-black" style={{ color: theme.text }}>
+                <MdChat size={18} className="text-primary print:hidden" style={{ color: theme.accent }} /> 
+                <span className="print:hidden">Comments</span>
+                <span className="hidden print:inline font-bold">COMMENTS</span>
               </h3>
               <button 
                 onClick={() => setIsChatPaneOpen(false)}
-                className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer flex items-center justify-center"
+                className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer flex items-center justify-center printable-conversation-no-print"
                 title="Hide Comments"
               >
                 <MdKeyboardArrowRight size={22} />
               </button>
             </div>
           )}
+
           {/* MESSAGES AREA */}
-          <div className="relative flex-1 min-h-0">
+          <div className="relative flex-1 min-h-0 print:overflow-visible print:h-auto">
             <div 
               ref={messagesContainerRef} 
               onScroll={handleMessagesScroll}
-              className="h-full overflow-y-auto p-6 space-y-4 hidden-scrollbar bg-white/10 dark:bg-black/10"
+              className="h-full overflow-y-auto p-6 space-y-4 hidden-scrollbar bg-white/10 dark:bg-black/10 print:overflow-visible print:h-auto print:p-0 print:space-y-3 print:bg-transparent"
             >
               {loading && messages.length === 0 ? (
-                <div className="flex justify-center p-10">
+                <div className="flex justify-center p-10 printable-conversation-no-print">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full opacity-30 text-center">
-                  <MdChat size={64} className="mb-4" />
-                  <p className="text-lg font-medium">No messages yet</p>
-                  <p className="text-sm">Be the first to say hello!</p>
+                <div className="flex flex-col items-center justify-center h-full opacity-30 text-center print:opacity-70 print:p-4">
+                  <MdChat size={64} className="mb-4 print:hidden" />
+                  <p className="text-lg font-medium print:text-base print:text-gray-600">No messages yet</p>
+                  <p className="text-sm print:hidden">Be the first to say hello!</p>
                 </div>
               ) : (
                 messages.map((msg, idx) => {
                   const isMe = msg.sender === user.email;
                   return (
-                    <div key={msg.id || idx} className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <div className="max-w-[85%] sm:max-w-[75%] flex flex-col items-start">
-                        <span className="text-[10px] font-bold mb-1 ml-2 uppercase opacity-60" style={{ color: theme.subText }}>
+                    <div key={msg.id || idx} className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300 printable-item print:mb-3">
+                      <div className="max-w-[85%] sm:max-w-[75%] print:max-w-full flex flex-col items-start">
+                        <span className="text-[10px] font-bold mb-1 ml-2 uppercase opacity-60 print:opacity-100 print:text-gray-700 print:text-[11px]" style={{ color: theme.subText }}>
                           {chatName}
                         </span>
-                        <div className="flex flex-col w-fit">
+                        <div className="flex flex-col w-fit print:w-full">
                           <div 
-                            className={`px-4 py-2.5 rounded-full shadow-sm relative ${
+                            className={`px-4 py-2.5 rounded-full shadow-sm relative print:rounded-xl print:border print:border-gray-300 print:bg-white print:text-black print:shadow-none ${
                               isMe 
                                 ? 'bg-primary text-white' 
                                 : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700'
                             }`}
                           >
-                            <p className="text-[14px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                            <p className="text-[14px] leading-relaxed whitespace-pre-wrap print:text-black">{msg.content}</p>
                             
                             {/* Attachments Rendering */}
                             {msg.attachmentsJson && (
@@ -1038,21 +1045,21 @@ const ChatRoom = () => {
                                   try {
                                     const atts = JSON.parse(msg.attachmentsJson);
                                     return atts.map((att, i) => (
-                                      <div key={i} className="max-w-xs rounded-lg overflow-hidden border border-black/10 dark:border-white/10 shadow-sm bg-black/5 dark:bg-white/5 relative group">
+                                      <div key={i} className="max-w-xs rounded-lg overflow-hidden border border-black/10 dark:border-white/10 shadow-sm bg-black/5 dark:bg-white/5 relative group print:border-gray-300 print:bg-white print:shadow-none">
                                         {att.type.startsWith('image/') ? (
                                           <a href={att.content} target="_blank" rel="noreferrer" download={att.name}>
                                             <img src={att.content} alt={att.name} className="max-h-48 w-auto object-contain cursor-pointer hover:opacity-90 transition-opacity" />
                                           </a>
                                         ) : (
-                                          <div className="flex items-center gap-3 p-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                                            <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg shrink-0">
+                                          <div className="flex items-center gap-3 p-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors print:p-2">
+                                            <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg shrink-0 print:bg-red-50">
                                               <MdPictureAsPdf size={24} />
                                             </div>
                                             <div className="flex flex-col min-w-0 flex-1">
-                                              <span className="text-xs font-semibold truncate max-w-[120px]">{att.name}</span>
-                                              <span className="text-[10px] opacity-70">{(att.size / 1024).toFixed(1)} KB</span>
+                                              <span className="text-xs font-semibold truncate max-w-[120px] print:max-w-none print:text-black">{att.name}</span>
+                                              <span className="text-[10px] opacity-70 print:text-gray-600">{(att.size / 1024).toFixed(1)} KB</span>
                                             </div>
-                                            <div className="flex items-center gap-1 shrink-0">
+                                            <div className="flex items-center gap-1 shrink-0 printable-conversation-no-print">
                                               <a href={att.content} target="_blank" rel="noreferrer" title="View PDF" className="p-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300 transition-colors">
                                                 <MdVisibility size={16} />
                                               </a>
@@ -1075,7 +1082,7 @@ const ChatRoom = () => {
 
                           {/* Timestamp outside and below the bubble */}
                           <div 
-                            className="text-[9px] mt-1 opacity-60 font-medium select-none text-gray-500 dark:text-gray-400 self-end mr-2 text-right"
+                            className="text-[9px] mt-1 opacity-60 font-medium select-none text-gray-500 dark:text-gray-400 self-end mr-2 text-right print:opacity-100 print:text-gray-500"
                           >
                             {formatMessageTime(msg.timestamp)}
                             {msg.isOptimistic && " • sending..."}
@@ -1092,7 +1099,7 @@ const ChatRoom = () => {
             {hasNewMessagesBelow && (
               <button
                 onClick={() => scrollToBottom(true)}
-                className="absolute bottom-4 right-6 z-30 px-3.5 py-1.5 rounded-full text-white text-xs font-bold shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer border border-white/20"
+                className="absolute bottom-4 right-6 z-30 px-3.5 py-1.5 rounded-full text-white text-xs font-bold shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer border border-white/20 printable-conversation-no-print"
                 style={{ backgroundColor: theme?.accent || "#135bec" }}
               >
                 <MdKeyboardArrowRight className="rotate-90" size={16} /> New Messages
