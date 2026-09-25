@@ -856,13 +856,120 @@ const ChatRoom = () => {
       </div>
 
       {/* Main Split Container */}
-      <div className={`flex-1 flex flex-row overflow-hidden relative p-4 transition-all duration-300 ${isChatPaneOpen ? 'gap-4' : 'gap-0'}`}>
+      <div className={`flex-1 flex flex-col md:flex-row overflow-hidden relative p-4 transition-all duration-300 ${isChatPaneOpen ? 'gap-4' : 'gap-0'}`}>
         
-        {/* Left Side: Chat Room (40% width for GROUP, full width for DIRECT) */}
+        {/* Left Side: Professional Broadcast list (60% width) */}
+        {chat?.type === 'GROUP' && (
+          <div className={`flex flex-col h-full rounded-2xl border border-gray-200/50 dark:border-gray-800/50 bg-white/60 dark:bg-gray-900/60 shadow-sm overflow-hidden shrink-0 transition-all duration-300 ease-in-out ${isChatPaneOpen ? 'w-full h-1/2 md:h-full md:w-[60%]' : 'w-full h-full'}`}>
+            
+            {/* Header: Professional Broadcast Title */}
+            <div className="p-4 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between bg-black/[0.02] dark:bg-white/[0.02] shrink-0">
+              <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: theme.text }}>
+                <MdEmail size={18} className="text-primary" style={{ color: theme.accent }} /> Professional Broadcasts ({broadcasts.length})
+              </h3>
+              {!isChatPaneOpen && (
+                <button 
+                  onClick={() => setIsChatPaneOpen(true)}
+                  className="p-1 px-2.5 rounded-xl border border-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
+                  title="Open Comments"
+                  style={{ color: theme.accent, borderColor: theme.accent + "33", backgroundColor: theme.accent + "0d" }}
+                >
+                  <MdKeyboardArrowRight size={18} /> Open Comments
+                </button>
+              )}
+            </div>
+
+            {/* Broadcasts List View */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 hidden-scrollbar bg-black/[0.01] dark:bg-white/[0.01]">
+              {loadingBroadcasts && broadcasts.length === 0 ? (
+                <div className="flex justify-center p-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : broadcasts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full opacity-40 text-center p-6 mt-10">
+                  <MdEmail size={48} className="mb-3 text-gray-400" />
+                  <p className="text-sm font-semibold">No Broadcasts Sent</p>
+                  <p className="text-xs max-w-xs mt-1">
+                    Send professional email updates to all group members. Click the button below to compose.
+                  </p>
+                </div>
+              ) : (
+                broadcasts.map((b, idx) => {
+                  const cleanSub = b.subject ? b.subject.replace(/^\[Colab#\d+\]\s*/i, "") : "(No Subject)";
+                  return (
+                    <div 
+                      key={b.id || idx}
+                      className="p-4 rounded-2xl border border-gray-200/40 dark:border-gray-800/40 bg-white/50 dark:bg-gray-900/50 hover:bg-white/80 dark:hover:bg-gray-900/80 transition-all shadow-sm flex flex-col gap-1.5"
+                    >
+                      <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-1.5 text-[10px] opacity-75 text-gray-500 font-semibold tracking-wider">
+                        <span>From: {b.from?.split("<")[0]?.trim() || b.from}</span>
+                      </div>
+
+                        <span className="text-[10px] opacity-60 shrink-0 font-medium ml-2">
+                          {b.sentDate ? new Date(b.sentDate).toLocaleString() : ""}
+                        </span>
+                      </div>
+                        <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200 leading-tight">
+                          {cleanSub}
+                        </h4>
+                      <div className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300 break-words whitespace-pre-line border-t border-gray-100 dark:border-gray-800/60 pt-2">
+                        {b.body || b.textPlain || "(Empty Content)"}
+                      </div>
+                      
+                      {/* Attachments Section */}
+                      {(() => {
+                        let atts = [];
+                        try {
+                          if (b.attachmentsJson) {
+                            atts = JSON.parse(b.attachmentsJson);
+                          }
+                        } catch (e) {
+                          console.error(e);
+                        }
+                        if (!atts || atts.length === 0) return null;
+                        return (
+                          <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800/60 flex flex-wrap gap-2">
+                            {atts.map((att, index) => (
+                              <button
+                                key={index}
+                                onClick={() => handleDownloadAttachment(att)}
+                                className="flex items-center justify-center w-7 h-7 bg-black/[0.03] dark:bg-white/[0.03] hover:bg-black/[0.06] dark:hover:bg-white/[0.06] border border-gray-200/50 dark:border-gray-800/50 rounded-lg text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-all cursor-pointer shrink-0"
+                                title={`${att.name} (${(att.size / 1024).toFixed(1)} KB)`}
+                              >
+                                <MdAttachFile size={14} className="text-gray-400 dark:text-gray-500" />
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Bottom Button Bar */}
+            <div className="p-4 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md border-t border-gray-200/50 dark:border-gray-800/50 shrink-0">
+              <button
+                onClick={() => setShowComposeModal(true)}
+                className="w-full py-3 rounded-2xl font-bold text-sm text-white shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                style={{ background: theme.accent || "#135bec" }}
+              >
+                <MdEmail size={18} /> Compose New Broadcast
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Right Side: Chat Room / Comments (40% width for GROUP, full width for DIRECT) */}
         <div 
-          className="flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out bg-white/60 dark:bg-gray-900/60 rounded-2xl shadow-sm border border-gray-200/50 dark:border-gray-800/50 printable-conversation"
+          className={`flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out bg-white/60 dark:bg-gray-900/60 rounded-2xl shadow-sm border border-gray-200/50 dark:border-gray-800/50 printable-conversation shrink-0 ${
+            chat?.type === 'GROUP' 
+              ? (isChatPaneOpen ? 'w-full h-1/2 md:h-full md:w-[40%]' : 'w-0 h-0 md:w-0 md:h-full overflow-hidden') 
+              : 'w-full h-full'
+          }`}
           style={{ 
-            width: chat?.type === 'GROUP' ? (isChatPaneOpen ? '40%' : '0%') : '100%',
             opacity: chat?.type === 'GROUP' ? (isChatPaneOpen ? 1 : 0) : 1,
             pointerEvents: chat?.type === 'GROUP' ? (isChatPaneOpen ? 'auto' : 'none') : 'auto',
             borderWidth: chat?.type === 'GROUP' && !isChatPaneOpen ? '0px' : '1px'
@@ -1089,110 +1196,6 @@ const ChatRoom = () => {
             </form>
           </div>
         </div>
-
-        {/* Right Side: Professional Broadcast list (60% width) */}
-        {chat?.type === 'GROUP' && (
-          <div className={`flex flex-col h-full rounded-2xl border border-gray-200/50 dark:border-gray-800/50 bg-white/60 dark:bg-gray-900/60 shadow-sm overflow-hidden shrink-0 transition-all duration-300 ease-in-out ${isChatPaneOpen ? 'w-full md:w-[60%]' : 'w-full'}`}>
-            
-            {/* Header: Professional Broadcast Title */}
-            <div className="p-4 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between bg-black/[0.02] dark:bg-white/[0.02] shrink-0">
-              <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: theme.text }}>
-                <MdEmail size={18} className="text-primary" style={{ color: theme.accent }} /> Professional Broadcasts ({broadcasts.length})
-              </h3>
-              {!isChatPaneOpen && (
-                <button 
-                  onClick={() => setIsChatPaneOpen(true)}
-                  className="p-1 px-2.5 rounded-xl border border-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
-                  title="Open Comments"
-                  style={{ color: theme.accent, borderColor: theme.accent + "33", backgroundColor: theme.accent + "0d" }}
-                >
-                  <MdKeyboardArrowRight size={18} /> Open Comments
-                </button>
-              )}
-            </div>
-
-            {/* Broadcasts List View */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 hidden-scrollbar bg-black/[0.01] dark:bg-white/[0.01]">
-              {loadingBroadcasts && broadcasts.length === 0 ? (
-                <div className="flex justify-center p-10">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
-              ) : broadcasts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full opacity-40 text-center p-6 mt-10">
-                  <MdEmail size={48} className="mb-3 text-gray-400" />
-                  <p className="text-sm font-semibold">No Broadcasts Sent</p>
-                  <p className="text-xs max-w-xs mt-1">
-                    Send professional email updates to all group members. Click the button below to compose.
-                  </p>
-                </div>
-              ) : (
-                broadcasts.map((b, idx) => {
-                  const cleanSub = b.subject ? b.subject.replace(/^\[Colab#\d+\]\s*/i, "") : "(No Subject)";
-                  return (
-                    <div 
-                      key={b.id || idx}
-                      className="p-4 rounded-2xl border border-gray-200/40 dark:border-gray-800/40 bg-white/50 dark:bg-gray-900/50 hover:bg-white/80 dark:hover:bg-gray-900/80 transition-all shadow-sm flex flex-col gap-1.5"
-                    >
-                      <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-1.5 text-[10px] opacity-75 text-gray-500 font-semibold tracking-wider">
-                        <span>From: {b.from?.split("<")[0]?.trim() || b.from}</span>
-                      </div>
-
-                        <span className="text-[10px] opacity-60 shrink-0 font-medium ml-2">
-                          {b.sentDate ? new Date(b.sentDate).toLocaleString() : ""}
-                        </span>
-                      </div>
-                        <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200 leading-tight">
-                          {cleanSub}
-                        </h4>
-                      <div className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300 break-words whitespace-pre-line border-t border-gray-100 dark:border-gray-800/60 pt-2">
-                        {b.body || b.textPlain || "(Empty Content)"}
-                      </div>
-                      
-                      {/* Attachments Section */}
-                      {(() => {
-                        let atts = [];
-                        try {
-                          if (b.attachmentsJson) {
-                            atts = JSON.parse(b.attachmentsJson);
-                          }
-                        } catch (e) {
-                          console.error(e);
-                        }
-                        if (!atts || atts.length === 0) return null;
-                        return (
-                          <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800/60 flex flex-wrap gap-2">
-                            {atts.map((att, index) => (
-                              <button
-                                key={index}
-                                onClick={() => handleDownloadAttachment(att)}
-                                className="flex items-center justify-center w-7 h-7 bg-black/[0.03] dark:bg-white/[0.03] hover:bg-black/[0.06] dark:hover:bg-white/[0.06] border border-gray-200/50 dark:border-gray-800/50 rounded-lg text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-all cursor-pointer shrink-0"
-                                title={`${att.name} (${(att.size / 1024).toFixed(1)} KB)`}
-                              >
-                                <MdAttachFile size={14} className="text-gray-400 dark:text-gray-500" />
-                              </button>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Bottom Button Bar */}
-            <div className="p-4 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md border-t border-gray-200/50 dark:border-gray-800/50 shrink-0">
-              <button
-                onClick={() => setShowComposeModal(true)}
-                className="w-full py-3 rounded-2xl font-bold text-sm text-white shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                style={{ background: theme.accent || "#135bec" }}
-              >
-                <MdEmail size={18} /> Compose New Broadcast
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Compose Broadcast Modal Overlay */}
