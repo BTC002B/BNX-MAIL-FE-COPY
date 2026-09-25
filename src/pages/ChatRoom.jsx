@@ -122,6 +122,215 @@ const formatFileSize = (bytes) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
+const getNormalizedAttachments = (msg) => {
+  if (!msg) return [];
+  
+  let rawList = [];
+  
+  if (Array.isArray(msg.attachments)) {
+    rawList = msg.attachments;
+  } else if (Array.isArray(msg.attachmentsJson)) {
+    rawList = msg.attachmentsJson;
+  } else if (Array.isArray(msg.files)) {
+    rawList = msg.files;
+  } else if (msg.attachmentsJson && typeof msg.attachmentsJson === 'string') {
+    try {
+      const parsed = JSON.parse(msg.attachmentsJson);
+      if (Array.isArray(parsed)) {
+        rawList = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        rawList = [parsed];
+      }
+    } catch (e) {
+      // not JSON string
+    }
+  } else if (msg.attachments && typeof msg.attachments === 'string') {
+    try {
+      const parsed = JSON.parse(msg.attachments);
+      if (Array.isArray(parsed)) {
+        rawList = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        rawList = [parsed];
+      }
+    } catch (e) {
+      // not JSON string
+    }
+  } else if (msg.attachment) {
+    if (Array.isArray(msg.attachment)) rawList = msg.attachment;
+    else if (typeof msg.attachment === 'string') {
+      try {
+        const parsed = JSON.parse(msg.attachment);
+        rawList = Array.isArray(parsed) ? parsed : [parsed];
+      } catch (e) {
+        rawList = [{ url: msg.attachment, fileUrl: msg.attachment }];
+      }
+    } else if (typeof msg.attachment === 'object') {
+      rawList = [msg.attachment];
+    }
+  } else if (msg.fileUrl || msg.file_url) {
+    rawList = [{
+      fileUrl: msg.fileUrl || msg.file_url,
+      fileName: msg.fileName || msg.file_name || 'attachment',
+      fileType: msg.fileType || msg.file_type || '',
+      fileSize: msg.fileSize || msg.file_size || 0
+    }];
+  }
+
+  return rawList.map(att => {
+    if (!att) return null;
+    if (typeof att === 'string') {
+      const fileName = att.split('/').pop()?.split('?')[0] || 'attachment';
+      return {
+        fileName,
+        name: fileName,
+        fileUrl: att,
+        url: att,
+        content: att,
+        fileType: '',
+        type: '',
+        fileSize: 0,
+        size: 0
+      };
+    }
+    
+    const fileName = att.fileName || att.name || att.filename || att.originalName || att.title || 'Attachment';
+    const fileUrl = att.fileUrl || att.url || att.content || att.downloadUrl || att.path || '';
+    const fileType = att.fileType || att.type || att.contentType || att.mimeType || '';
+    const fileSize = att.fileSize || att.size || 0;
+
+    return {
+      fileName,
+      name: fileName,
+      fileUrl,
+      url: fileUrl,
+      content: fileUrl,
+      fileType,
+      type: fileType,
+      fileSize,
+      size: fileSize
+    };
+  }).filter(Boolean);
+};
+
+const CommentAttachmentItem = ({ att, isMe, onOpenImage, handleDownload, handleView }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  const fileName = att.fileName || att.name || 'Attachment';
+  const fileUrl = att.fileUrl || att.url || att.content || '';
+  const fileType = att.fileType || att.type || '';
+  const fileSize = att.fileSize || att.size || 0;
+  
+  const meta = getFileMeta(fileName, fileType);
+
+  // If URL is missing, or image failed to load, show safe fallback
+  if (!fileUrl || (meta.isImage && imageError)) {
+    return (
+      <div className={`flex items-center gap-2.5 p-2.5 rounded-xl border border-black/10 dark:border-white/10 shadow-sm max-w-xs transition-all ${
+        isMe ? 'bg-white/15 text-white' : 'bg-black/5 dark:bg-white/5 text-gray-800 dark:text-gray-200'
+      }`}>
+        <div className="p-2 rounded-lg bg-black/10 dark:bg-white/10 text-inherit shrink-0">
+          <MdAttachFile size={20} className="rotate-45" />
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-semibold truncate" title={fileName}>
+            {fileName}
+          </span>
+          <span className="text-[10px] opacity-70">
+            Attachment unavailable
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (meta.isImage) {
+    return (
+      <div className="flex flex-col rounded-xl overflow-hidden border border-black/10 dark:border-white/10 shadow-sm bg-black/5 dark:bg-white/5 max-w-xs sm:max-w-sm">
+        <div 
+          className="cursor-pointer overflow-hidden bg-black/5 dark:bg-black/20 max-h-60 flex items-center justify-center group"
+          onClick={() => onOpenImage && onOpenImage({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })}
+        >
+          <img 
+            src={fileUrl} 
+            alt={fileName} 
+            onError={() => setImageError(true)}
+            className="max-h-60 w-auto max-w-full object-contain group-hover:scale-[1.02] transition-transform duration-200" 
+          />
+        </div>
+        <div className="px-3 py-1.5 flex items-center justify-between gap-2 bg-black/10 dark:bg-black/30 text-inherit text-xs">
+          <span className="truncate font-medium text-[11px]" title={fileName}>{fileName}</span>
+          <div className="flex items-center gap-1 shrink-0 printable-conversation-no-print">
+            <button 
+              type="button" 
+              onClick={() => handleView && handleView({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })}
+              title="View full image" 
+              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+            >
+              <MdVisibility size={14} />
+            </button>
+            <button 
+              type="button" 
+              onClick={() => handleDownload && handleDownload({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })}
+              title="Download image" 
+              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+            >
+              <MdFileDownload size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const IconComp = meta.icon;
+  return (
+    <div 
+      className={`flex items-center gap-3 p-2.5 rounded-xl border border-black/10 dark:border-white/10 shadow-sm transition-all max-w-xs sm:max-w-sm ${
+        isMe ? 'bg-white/15 hover:bg-white/20 text-white' : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-gray-800 dark:text-gray-200'
+      }`}
+    >
+      <div className={`p-2 rounded-lg shrink-0 ${meta.bg} ${meta.color} print:bg-gray-100`}>
+        <IconComp size={22} />
+      </div>
+      <div 
+        className="flex flex-col min-w-0 flex-1 cursor-pointer" 
+        onClick={() => handleView && handleView({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })}
+      >
+        <span className="text-xs font-semibold truncate hover:underline" title={fileName}>
+          {fileName}
+        </span>
+        <div className="flex items-center gap-1.5 text-[10px] opacity-70 mt-0.5">
+          <span className="font-bold uppercase tracking-wider">{meta.extLabel}</span>
+          {fileSize > 0 && (
+            <>
+              <span>•</span>
+              <span>{formatFileSize(fileSize)}</span>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-1 shrink-0 printable-conversation-no-print">
+        <button 
+          type="button"
+          onClick={() => handleView && handleView({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })} 
+          title={`View ${fileName}`} 
+          className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+        >
+          <MdVisibility size={16} />
+        </button>
+        <button 
+          type="button"
+          onClick={() => handleDownload && handleDownload({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })} 
+          title={`Download ${fileName}`} 
+          className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+        >
+          <MdFileDownload size={16} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const ChatRoom = () => {
   const { chatId } = useParams();
   const navigate = useNavigate();
@@ -140,6 +349,7 @@ const ChatRoom = () => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef(null);
   const [hasNewMessagesBelow, setHasNewMessagesBelow] = useState(false);
+  const [previewMedia, setPreviewMedia] = useState(null);
 
   useEffect(() => {
     if (chat) {
@@ -330,28 +540,35 @@ const ChatRoom = () => {
 
   const handleDownloadAttachment = (att) => {
     try {
-      if (!att || !att.content) return;
-      if (att.content.startsWith('data:')) {
-        const base64Data = att.content.split(',')[1] || att.content;
+      if (!att) return;
+      const content = att.fileUrl || att.url || att.content;
+      const name = att.fileName || att.name || "download";
+      const type = att.fileType || att.type || 'application/octet-stream';
+      if (!content) {
+        toast.error("Attachment URL not available");
+        return;
+      }
+      if (content.startsWith('data:')) {
+        const base64Data = content.split(',')[1] || content;
         const byteCharacters = atob(base64Data);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
           byteNumbers[i] = byteCharacters.charCodeAt(i);
         }
         const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: att.type || 'application/octet-stream' });
+        const blob = new Blob([byteArray], { type });
         const blobUrl = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = blobUrl;
-        link.download = att.name || "download";
+        link.download = name;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
       } else {
         const link = document.createElement("a");
-        link.href = att.content;
-        link.download = att.name || "download";
+        link.href = content;
+        link.download = name;
         link.target = "_blank";
         link.rel = "noreferrer";
         document.body.appendChild(link);
@@ -366,24 +583,32 @@ const ChatRoom = () => {
 
   const handleViewAttachment = (att) => {
     try {
-      if (!att || !att.content) return;
-      if (att.content.startsWith('data:')) {
-        const base64Data = att.content.split(',')[1] || att.content;
+      if (!att) return;
+      const content = att.fileUrl || att.url || att.content;
+      const type = att.fileType || att.type || 'application/octet-stream';
+      if (!content) {
+        toast.error("Attachment URL not available");
+        return;
+      }
+      if (content.startsWith('data:')) {
+        const base64Data = content.split(',')[1] || content;
         const byteCharacters = atob(base64Data);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
           byteNumbers[i] = byteCharacters.charCodeAt(i);
         }
         const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: att.type || 'application/octet-stream' });
+        const blob = new Blob([byteArray], { type });
         const blobUrl = URL.createObjectURL(blob);
         window.open(blobUrl, "_blank");
       } else {
-        window.open(att.content, "_blank");
+        window.open(content, "_blank");
       }
     } catch (e) {
       console.error("Error viewing attachment:", e);
-      window.open(att.content, "_blank");
+      if (att.fileUrl || att.url || att.content) {
+        window.open(att.fileUrl || att.url || att.content, "_blank");
+      }
     }
   };
 
@@ -528,9 +753,14 @@ const ChatRoom = () => {
             }
             return [...current, {
               name: file.name,
+              fileName: file.name,
               type: file.type || 'application/octet-stream',
+              fileType: file.type || 'application/octet-stream',
               size: file.size,
-              content: event.target.result
+              fileSize: file.size,
+              content: event.target.result,
+              fileUrl: event.target.result,
+              url: event.target.result
             }];
           });
         };
@@ -671,11 +901,14 @@ const ChatRoom = () => {
         const nearBottom = isUserNearBottom();
 
         setMessages(prev => {
+          const rawAttachments = msg.attachments || (msg.attachmentsJson ? (() => { try { return typeof msg.attachmentsJson === 'string' ? JSON.parse(msg.attachmentsJson) : msg.attachmentsJson; } catch(e){ return null; } })() : null);
           const normalizedMsg = {
             ...msg,
             sender: msgSender || msg.sender,
             content: msgContent || msg.content,
             message: msgContent || msg.message,
+            attachmentsJson: msg.attachmentsJson || (Array.isArray(msg.attachments) ? JSON.stringify(msg.attachments) : null),
+            attachments: rawAttachments,
             isOptimistic: false
           };
 
@@ -689,6 +922,11 @@ const ChatRoom = () => {
 
           if (optimisticIdx !== -1) {
             const newMsgs = [...prev];
+            const optAtts = prev[optimisticIdx].attachments || prev[optimisticIdx].attachmentsJson;
+            if (!normalizedMsg.attachments && !normalizedMsg.attachmentsJson && optAtts) {
+              normalizedMsg.attachments = prev[optimisticIdx].attachments;
+              normalizedMsg.attachmentsJson = prev[optimisticIdx].attachmentsJson;
+            }
             newMsgs[optimisticIdx] = normalizedMsg;
             return newMsgs;
           }
@@ -735,6 +973,7 @@ const ChatRoom = () => {
       content: contentText,
       message: contentText,
       attachmentsJson: attachmentsJson,
+      attachments: [...selectedAttachments],
       timestamp: new Date().toISOString(),
       isOptimistic: true
     };
@@ -766,6 +1005,8 @@ const ChatRoom = () => {
             sender: msgSender,
             content: msgContent,
             message: msgContent,
+            attachmentsJson: resData.attachmentsJson || attachmentsJson,
+            attachments: resData.attachments || selectedAttachments,
             isOptimistic: false
           };
           setMessages(prev => prev.map(m => m.id === tempMsg.id ? updatedMsg : m));
@@ -1184,90 +1425,38 @@ const ChatRoom = () => {
                         </span>
                         <div className="flex flex-col w-fit print:w-full">
                           <div 
-                            className={`px-4 py-2.5 rounded-full shadow-sm relative print:rounded-xl print:border print:border-gray-300 print:bg-white print:text-black print:shadow-none ${
+                            className={`px-4 py-2.5 rounded-2xl shadow-sm relative print:rounded-xl print:border print:border-gray-300 print:bg-white print:text-black print:shadow-none ${
                               isMe 
-                                ? 'bg-primary text-white' 
-                                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700'
+                                ? 'bg-primary text-white rounded-tr-sm' 
+                                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-tl-sm'
                             }`}
                           >
-                            <p className="text-[14px] leading-relaxed whitespace-pre-wrap print:text-black">{msg.content}</p>
+                            {msg.content && msg.content.trim() ? (
+                              <p className={`text-[14px] leading-relaxed whitespace-pre-wrap print:text-black ${getNormalizedAttachments(msg).length > 0 ? 'mb-2.5' : ''}`}>
+                                {msg.content}
+                              </p>
+                            ) : null}
                             
                             {/* Attachments Rendering */}
-                            {msg.attachmentsJson && (
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {(() => {
-                                  try {
-                                    const atts = JSON.parse(msg.attachmentsJson);
-                                    return atts.map((att, i) => {
-                                      const meta = getFileMeta(att.name, att.type);
-                                      if (meta.isImage) {
-                                        return (
-                                          <div key={i} className="max-w-xs rounded-xl overflow-hidden border border-black/10 dark:border-white/10 shadow-sm bg-black/5 dark:bg-white/5 relative group print:border-gray-300 print:bg-white print:shadow-none">
-                                            <a 
-                                              href={att.content} 
-                                              target="_blank" 
-                                              rel="noreferrer" 
-                                              download={att.name}
-                                              className="block cursor-pointer hover:opacity-95 transition-opacity"
-                                              title={`Download ${att.name}`}
-                                            >
-                                              <img 
-                                                src={att.content} 
-                                                alt={att.name} 
-                                                className="max-h-48 w-auto object-contain" 
-                                              />
-                                            </a>
-                                            <div className="px-2.5 py-1 text-[11px] font-medium truncate bg-black/10 dark:bg-black/30 text-gray-700 dark:text-gray-200 flex items-center justify-between">
-                                              <span className="truncate">{att.name}</span>
-                                              <span className="text-[9px] opacity-70 ml-2 shrink-0">{formatFileSize(att.size)}</span>
-                                            </div>
-                                          </div>
-                                        );
-                                      }
+                            {(() => {
+                              const atts = getNormalizedAttachments(msg);
+                              if (!atts || atts.length === 0) return null;
 
-                                      const IconComp = meta.icon;
-                                      return (
-                                        <div key={i} className="max-w-xs rounded-xl overflow-hidden border border-black/10 dark:border-white/10 shadow-sm bg-black/5 dark:bg-white/5 relative group print:border-gray-300 print:bg-white print:shadow-none">
-                                          <div className="flex items-center gap-3 p-2.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors print:p-2">
-                                            <div className={`p-2 rounded-lg shrink-0 ${meta.bg} ${meta.color} print:bg-gray-100`}>
-                                              <IconComp size={22} />
-                                            </div>
-                                            <div className="flex flex-col min-w-0 flex-1">
-                                              <span className="text-xs font-semibold truncate max-w-[130px] print:max-w-none print:text-black" title={att.name}>
-                                                {att.name}
-                                              </span>
-                                              <span className="text-[10px] opacity-70 print:text-gray-600">
-                                                {formatFileSize(att.size)}
-                                              </span>
-                                            </div>
-                                            <div className="flex items-center gap-1 shrink-0 printable-conversation-no-print">
-                                              <button 
-                                                type="button"
-                                                onClick={() => handleViewAttachment(att)} 
-                                                title={`View ${att.name}`} 
-                                                className="p-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300 transition-colors"
-                                              >
-                                                <MdVisibility size={16} />
-                                              </button>
-                                              <button 
-                                                type="button"
-                                                onClick={() => handleDownloadAttachment(att)} 
-                                                title={`Download ${att.name}`} 
-                                                className="p-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300 transition-colors"
-                                              >
-                                                <MdFileDownload size={16} />
-                                              </button>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    });
-                                  } catch (e) {
-                                    return null;
-                                  }
-                                })()}
-                              </div>
-                            )}
+                              return (
+                                <div className="mt-1 flex flex-col gap-2">
+                                  {atts.map((att, i) => (
+                                    <CommentAttachmentItem
+                                      key={i}
+                                      att={att}
+                                      isMe={isMe}
+                                      onOpenImage={setPreviewMedia}
+                                      handleDownload={handleDownloadAttachment}
+                                      handleView={handleViewAttachment}
+                                    />
+                                  ))}
+                                </div>
+                              );
+                            })()}
 
                           </div>
 
@@ -1728,6 +1917,50 @@ const ChatRoom = () => {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Image Preview Modal */}
+      {previewMedia && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPreviewMedia(null)}
+        >
+          <div 
+            className="relative max-w-4xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+              <span className="text-sm font-semibold truncate text-gray-800 dark:text-gray-200">
+                {previewMedia.fileName || previewMedia.name}
+              </span>
+              <div className="flex items-center gap-2">
+                <button 
+                  type="button"
+                  onClick={() => handleDownloadAttachment(previewMedia)} 
+                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+                  title="Download"
+                >
+                  <MdFileDownload size={18} />
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setPreviewMedia(null)} 
+                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+                  title="Close"
+                >
+                  <MdClose size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 flex items-center justify-center p-2 bg-black/5 dark:bg-black/40 overflow-hidden">
+              <img 
+                src={previewMedia.fileUrl || previewMedia.url || previewMedia.content} 
+                alt={previewMedia.fileName || previewMedia.name} 
+                className="max-h-[75vh] max-w-full object-contain rounded-lg" 
+              />
             </div>
           </div>
         </div>
