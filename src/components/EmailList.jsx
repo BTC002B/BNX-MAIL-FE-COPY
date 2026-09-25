@@ -250,7 +250,7 @@ const EmailList = ({
 
               return (
                 <div
-                  key={`${email.uid}__${email.folderName || ''}`}
+                  key={email.messageId ? `msg_${email.messageId}` : `${email.uid}__${email.folderName || ''}`}
                   onClick={() => onSelectEmail(email)}
                   className={`group flex items-center gap-1.5 sm:gap-3 py-2 sm:py-2.5 px-2 sm:px-4 cursor-pointer relative transition-colors duration-150 select-none ${snoozeOpenUid === email.uid ? 'z-50' : 'z-10'}
                     ${isSelected
