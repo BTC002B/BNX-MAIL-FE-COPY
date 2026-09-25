@@ -8,6 +8,7 @@ import EmailList from "../components/EmailList";
 import EmailDetails from "../components/EmailDetails";
 import { useTheme } from "../context/ThemeContext";
 import { filterDuplicateSpamEmails } from "../utils/spamFilter";
+import { mailAPI } from "../services/api";
 
 import BulkActionsToolbar from "../components/BulkActionsToolbar";
 import ReadingPaneLayout from "../components/ReadingPaneLayout";
@@ -43,9 +44,27 @@ const Spam = ({ searchQuery }) => {
     try {
       setIsDeletingAll(true);
       toast.loading("Deleting all spam messages...", { id: "delete-all-spam" });
-      await Promise.all(
-        uniqueEmails.map((e) => handleMoveToTrash(e.uid, e.folderName || 'spam', true))
-      );
+
+      let clearedViaApi = false;
+      try {
+        if (mailAPI && mailAPI.clearSpam) {
+          await mailAPI.clearSpam();
+          clearedViaApi = true;
+        }
+      } catch (clearErr) {
+        console.warn("Direct clearSpam failed, falling back to sequential delete:", clearErr);
+      }
+
+      if (!clearedViaApi) {
+        for (const e of uniqueEmails) {
+          try {
+            await handleMoveToTrash(e.uid, e.folderName || 'spam', true);
+          } catch (itemErr) {
+            console.warn(`Failed to move spam message ${e.uid} to trash:`, itemErr);
+          }
+        }
+      }
+
       setSelectedIds(new Set());
       setSelectedEmailUid(null);
       toast.success("All spam messages moved to trash", { id: "delete-all-spam" });

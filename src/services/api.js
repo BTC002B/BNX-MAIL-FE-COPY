@@ -261,6 +261,7 @@ export const mailAPI = {
     unarchive: (uid) => api.post(`${API_ENDPOINTS.MAIL.UNARCHIVE}/${uid}`),
     markSpam: (uid, folder = 'INBOX') => api.post(`${API_ENDPOINTS.MAIL.SPAM}/${uid}?folder=${folder}`),
     restoreSpam: (uid) => api.post(`/api/mail/restore-spam/${uid}`),
+    clearSpam: () => api.post('/api/mail/spam/clear'),
 
     unsubscribe: (senderEmail) => api.post(`${API_ENDPOINTS.MAIL.UNSUBSCRIBE}?senderEmail=${encodeURIComponent(senderEmail)}`),
     subscribe: (senderEmail) => api.post(`${API_ENDPOINTS.MAIL.SUBSCRIBE}?senderEmail=${encodeURIComponent(senderEmail)}`),
