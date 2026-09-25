@@ -710,7 +710,7 @@ const ChatRoom = () => {
   const chatName = chat?.type === 'DIRECT' ? chatPartner?.split('@')[0] : (chat?.name || `Chat #${chatId}`);
 
   return (
-    <div className="flex flex-col h-full bg-transparent overflow-hidden">
+    <div className="flex flex-col h-full bg-transparent overflow-hidden chat-room-root">
       {/* Action Toolbar */}
       <div
         className="flex items-center justify-between px-4 sm:px-6 py-2 border-b shrink-0 relative z-20 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md printable-conversation-no-print"
@@ -856,7 +856,7 @@ const ChatRoom = () => {
       </div>
 
       {/* Main Split Container */}
-      <div className={`flex-1 flex flex-col md:flex-row overflow-hidden relative p-4 transition-all duration-300 printable-conversation ${isChatPaneOpen ? 'gap-4' : 'gap-0'}`}>
+      <div className={`flex-1 flex flex-col md:flex-row overflow-hidden relative p-4 transition-all duration-300 colab-print-container printable-conversation ${isChatPaneOpen ? 'gap-4' : 'gap-0'}`}>
         
         {/* Print-Only Top Header */}
         <div className="hidden print:block w-full border-b border-gray-300 pb-3 mb-6 text-center shrink-0">
@@ -908,7 +908,7 @@ const ChatRoom = () => {
                   return (
                     <div 
                       key={b.id || idx}
-                      className="p-4 rounded-2xl border border-gray-200/40 dark:border-gray-800/40 bg-white/50 dark:bg-gray-900/50 hover:bg-white/80 dark:hover:bg-gray-900/80 transition-all shadow-sm flex flex-col gap-1.5 printable-item print:border print:border-gray-300 print:bg-white print:text-black print:shadow-none"
+                      className="p-4 rounded-2xl border border-gray-200/40 dark:border-gray-800/40 bg-white/50 dark:bg-gray-900/50 hover:bg-white/80 dark:hover:bg-gray-900/80 transition-all shadow-sm flex flex-col gap-1.5 broadcast-card printable-item print:border print:border-gray-300 print:bg-white print:text-black print:shadow-none"
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-1.5 text-[10px] opacity-75 text-gray-500 font-semibold tracking-wider print:text-xs print:opacity-100 print:text-gray-700">
@@ -1023,7 +1023,7 @@ const ChatRoom = () => {
                 messages.map((msg, idx) => {
                   const isMe = msg.sender === user.email;
                   return (
-                    <div key={msg.id || idx} className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300 printable-item print:mb-3">
+                    <div key={msg.id || idx} className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300 comment-card printable-item print:mb-3">
                       <div className="max-w-[85%] sm:max-w-[75%] print:max-w-full flex flex-col items-start">
                         <span className="text-[10px] font-bold mb-1 ml-2 uppercase opacity-60 print:opacity-100 print:text-gray-700 print:text-[11px]" style={{ color: theme.subText }}>
                           {chatName}

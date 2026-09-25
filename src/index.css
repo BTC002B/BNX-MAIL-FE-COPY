@@ -376,48 +376,90 @@ aside.sidebar-collapsed hr {
   color: #6b7280; /* gray-500 */
 }
 
-/* Print Styling for Conversations */
+/* ==========================================================================
+   Colab Chat Multi-Page Print Styling
+   ========================================================================== */
 @media print {
   @page {
     margin: 12mm 15mm;
     size: auto;
   }
 
-  html, body, #root, .main-content {
+  /* 1. Ensure root documents expand naturally without any fixed height or overflow clipping */
+  html,
+  body {
     height: auto !important;
     min-height: 100% !important;
     overflow: visible !important;
-    background: white !important;
-  }
-
-  body * {
-    visibility: hidden !important;
-  }
-  
-  .printable-conversation,
-  .printable-conversation * {
-    visibility: visible !important;
-  }
-
-  .printable-conversation {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 100% !important;
-    overflow: visible !important;
-    display: block !important;
     background: white !important;
     color: #111827 !important;
-    padding: 16px !important;
+  }
+
+  /* 2. Reset all ancestor layout containers to in-flow blocks with natural height */
+  #root,
+  #root > div,
+  #root > div > div,
+  #root > div > div > div,
+  .main-content,
+  .main-content > div,
+  .chat-room-root {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: block !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    transform: none !important;
+    float: none !important;
+  }
+
+  /* 3. Completely hide non-printable UI so it takes 0 layout space */
+  nav,
+  aside,
+  header,
+  .sidebar-wrapper,
+  .right-tools-sidebar,
+  .main-content ~ *,
+  .printable-conversation-no-print,
+  #root > div > .pointer-events-none,
+  .fixed.inset-0 {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 4. Colab Print Container: in-flow static block with natural multi-page height */
+  .colab-print-container,
+  .printable-conversation {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: white !important;
+    color: #111827 !important;
+    padding: 0 !important;
     margin: 0 !important;
     border: none !important;
     box-shadow: none !important;
+    float: none !important;
   }
 
-  /* Force both Broadcasts and Comments sections to be full-width blocks in print */
-  .printable-section {
+  /* 5. Broadcasts & Comments sections: allow natural pagination across pages (break-inside: auto) */
+  .colab-print-container .printable-section,
+  .printable-conversation .printable-section {
     display: block !important;
     width: 100% !important;
     height: auto !important;
@@ -431,44 +473,45 @@ aside.sidebar-collapsed hr {
     box-shadow: none !important;
     background: transparent !important;
     border: none !important;
-    margin: 0 0 24px 0 !important;
+    margin: 0 0 28px 0 !important;
     padding: 0 !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
   }
 
-  /* All scrollable containers inside printable conversation must expand completely */
+  /* 6. Expand all scrollable wrappers so all items are rendered into document flow */
+  .colab-print-container .flex-1.overflow-y-auto,
+  .colab-print-container .overflow-y-auto,
+  .colab-print-container .flex-1,
   .printable-conversation .flex-1.overflow-y-auto,
   .printable-conversation .overflow-y-auto,
   .printable-conversation .flex-1,
   .printable-conversation div[ref] {
     overflow: visible !important;
     height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     display: block !important;
   }
 
-  /* Prevent page breaks inside cards and message bubbles */
+  /* 7. Avoid breaking inside individual cards/messages, but allow breaks between them */
+  .broadcast-card,
+  .comment-card,
   .printable-item {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+    margin-bottom: 12px !important;
   }
 
-  /* Ensure text colors in print are dark and high-contrast */
+  /* 8. Ensure text colors in print are dark and high-contrast */
+  .colab-print-container,
   .printable-conversation {
     color: #111827 !important;
   }
 
+  .colab-print-container .text-white,
   .printable-conversation .text-white {
     color: #111827 !important;
-  }
-
-  .printable-conversation-no-print,
-  .printable-conversation-no-print * {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
   }
 }
 

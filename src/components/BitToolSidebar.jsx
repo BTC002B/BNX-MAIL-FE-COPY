@@ -178,7 +178,7 @@ const BitToolSidebar = ({
 
       {/* Main Right Sidebar Container (Flex Item in App Layout) */}
       <div
-        className={`h-full flex shrink-0 select-none transition-all duration-300 ease-in-out ${backgroundImage ? "bg-transparent" : "bg-white dark:bg-gray-900"} animate-fade-in rounded-tl-2xl`}
+        className={`h-full flex shrink-0 select-none transition-all duration-300 ease-in-out ${backgroundImage ? "bg-transparent" : "bg-white dark:bg-gray-900"} animate-fade-in rounded-tl-2xl printable-conversation-no-print`}
         style={{
           width: `${desktopTotalWidth}px`,
           borderLeftWidth: isSidebarVisible ? "1px" : "0px",
