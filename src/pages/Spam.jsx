@@ -1,5 +1,5 @@
 import { useTranslation } from "../context/LanguageContext";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMail } from "../context/MailContext";
 import { MdReport, MdDelete } from "react-icons/md";
@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import EmailList from "../components/EmailList";
 import EmailDetails from "../components/EmailDetails";
 import { useTheme } from "../context/ThemeContext";
+import { filterDuplicateSpamEmails } from "../utils/spamFilter";
 
 import BulkActionsToolbar from "../components/BulkActionsToolbar";
 import ReadingPaneLayout from "../components/ReadingPaneLayout";
@@ -17,8 +18,14 @@ const Spam = ({ searchQuery }) => {
   const { theme, readingPaneMode } = useTheme();
   const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleArchive, openCompose } = useMail();
   const [selectedEmailUid, setSelectedEmailUid] = useState(null);
-  const selectedEmail = emails.find((e) => String(e.uid) === String(selectedEmailUid));
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+
+  // Frontend-only duplicate filtering: display only one copy based on existing unique ID
+  const uniqueEmails = useMemo(() => filterDuplicateSpamEmails(emails), [emails]);
+  const selectedEmail = useMemo(
+    () => uniqueEmails.find((e) => String(e.uid) === String(selectedEmailUid)),
+    [uniqueEmails, selectedEmailUid]
+  );
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const handleToggleSelect = (uid) => {
@@ -32,12 +39,12 @@ const Spam = ({ searchQuery }) => {
   };
 
   const handleDeleteAllSpam = async () => {
-    if (emails.length === 0) return;
+    if (uniqueEmails.length === 0) return;
     try {
       setIsDeletingAll(true);
       toast.loading("Deleting all spam messages...", { id: "delete-all-spam" });
       await Promise.all(
-        emails.map((e) => handleMoveToTrash(e.uid, e.folderName || 'spam', true))
+        uniqueEmails.map((e) => handleMoveToTrash(e.uid, e.folderName || 'spam', true))
       );
       setSelectedIds(new Set());
       setSelectedEmailUid(null);
@@ -58,17 +65,20 @@ const Spam = ({ searchQuery }) => {
     fetchEmails('spam');
   }, [fetchEmails]);
 
-  const visibleEmails = emails.filter(
-    (e) =>
-      !searchQuery ||
-      e.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.from?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.senderEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.to?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.recipientEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.body?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.textPlain?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const visibleEmails = useMemo(() => {
+    if (!searchQuery) return uniqueEmails;
+    const q = searchQuery.toLowerCase();
+    return uniqueEmails.filter(
+      (e) =>
+        e.subject?.toLowerCase().includes(q) ||
+        e.from?.toLowerCase().includes(q) ||
+        e.senderEmail?.toLowerCase().includes(q) ||
+        e.to?.toLowerCase().includes(q) ||
+        e.recipientEmail?.toLowerCase().includes(q) ||
+        e.body?.toLowerCase().includes(q) ||
+        e.textPlain?.toLowerCase().includes(q)
+    );
+  }, [uniqueEmails, searchQuery]);
 
   const handleSelectEmail = (email) => {
     setSelectedEmailUid(email.uid);
@@ -137,10 +147,10 @@ const handleReply = (email) => {
                   className="ml-2 text-xs font-normal"
                   style={{ color: theme.subText }}
                 >
-                  ({emails.length})
+                  ({uniqueEmails.length})
                 </span>
               </h2>
-              {emails.length > 0 && (
+              {uniqueEmails.length > 0 && (
                 <button
                   onClick={handleDeleteAllSpam}
                   disabled={isDeletingAll}
@@ -157,7 +167,7 @@ const handleReply = (email) => {
 
   const listComponent = (
     <div className="flex-1 flex flex-col overflow-hidden">
-{emails.length === 0 ? (
+{uniqueEmails.length === 0 ? (
               <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
                 <MdReport size={52} className="text-gray-300 dark:text-gray-600 mb-4 opacity-50" />
                 <p
