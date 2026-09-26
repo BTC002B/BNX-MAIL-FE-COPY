@@ -1,6 +1,6 @@
 import { useTranslation } from "../context/LanguageContext";
 import React, { useState } from "react";
-import { MdArchive, MdUnarchive, MdDelete, MdStar, MdStarBorder, MdAccessTime, MdWbSunny, MdNightsStay, MdToday, MdEvent, MdUpdate, MdDateRange, MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
+import { MdArchive, MdUnarchive, MdDelete, MdStar, MdStarBorder, MdAccessTime, MdWbSunny, MdNightsStay, MdToday, MdEvent, MdUpdate, MdDateRange, MdKeyboardArrowLeft, MdKeyboardArrowRight, MdAttachFile } from "react-icons/md";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useMail } from "../context/MailContext";
@@ -361,6 +361,13 @@ const EmailList = ({
                         </span>
                       ))}
                     </div>
+                  )}
+
+                  {/* Attachment indicator */}
+                  {(email.hasAttachments || (email.attachments && email.attachments.length > 0)) && (
+                    <span className="text-gray-400 dark:text-gray-500 shrink-0 mr-1.5 flex items-center select-none" title="Has attachments">
+                      <MdAttachFile size={16} className="rotate-45" />
+                    </span>
                   )}
 
                   {/* Date / Hover Actions */}

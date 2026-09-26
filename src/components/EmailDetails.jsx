@@ -472,16 +472,34 @@ const EmailDetails = ({
         toast.success(replyMode === 'forward' ? "Forwarded successfully" : "Reply sent successfully", { id: toastId });
         
         // Append sent reply to thread locally
+        const newUid = `sent-${Date.now()}`;
         const newReplyMail = {
-          uid: `sent-${Date.now()}`,
+          uid: newUid,
           from: user.email,
           to: recipient,
           subject: payload.subject,
           body: payload.body,
           date: new Date().toISOString(),
           sentDate: new Date().toISOString(),
+          folderName: "Sent",
           attachments: attachments.map(a => a.fileName)
         };
+        attachments.forEach(att => {
+          const fn = att.fileName || att.name;
+          if (fn) {
+            const ext = (fn.split('.').pop() || '').toLowerCase();
+            if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) {
+              const previewSource = att.url || att.fileUrl || att.content;
+              if (previewSource) {
+                setImagePreviews(prev => ({
+                  ...prev,
+                  [`${newUid}_${fn}`]: previewSource,
+                  [fn]: previewSource
+                }));
+              }
+            }
+          }
+        });
         localSentRepliesRef.current.push(newReplyMail);
         setThreadEmails(prev => [...prev, newReplyMail]);
 
@@ -703,46 +721,69 @@ const EmailDetails = ({
     ];
   };
 
-  const getFolder = () => {
+  const getFolder = (msg = email) => {
     if (isArchiveFolder) return "Archive";
-    if (!email.category) return "INBOX";
-    const cat = email.category.toUpperCase();
-    if (cat === "SENT") return "Sent";
-    if (cat === "TRASH") return "Trash";
-    if (cat === "SPAM") return "Spam";
-    if (cat === "DRAFTS") return "Drafts";
+    const folder = msg?.folderName || currentFolder || "";
+    if (folder) {
+      const fUpper = folder.toUpperCase();
+      if (fUpper.includes("SENT")) return "Sent";
+      if (fUpper.includes("TRASH") || fUpper.includes("DELETED")) return "Trash";
+      if (fUpper.includes("SPAM") || fUpper.includes("JUNK")) return "Spam";
+      if (fUpper.includes("DRAFT")) return "Drafts";
+      if (fUpper.includes("ARCHIVE")) return "Archive";
+      if (fUpper.includes("INBOX")) return "INBOX";
+    }
+    if (msg?.category) {
+      const cat = msg.category.toUpperCase();
+      if (cat.includes("SENT")) return "Sent";
+      if (cat.includes("TRASH")) return "Trash";
+      if (cat.includes("SPAM")) return "Spam";
+      if (cat.includes("DRAFT")) return "Drafts";
+      if (cat.includes("ARCHIVE")) return "Archive";
+    }
     return "INBOX";
   };
 
   React.useEffect(() => {
-    if (!email || !email.attachments) {
+    if (!email) {
       setImagePreviews({});
       return;
     }
 
+    const allMsgs = [email, ...(threadEmails || [])];
     const createdBlobUrls = [];
-    email.attachments.forEach(async (fileName) => {
-      const ext = fileName.split('.').pop().toLowerCase();
-      const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext);
-      if (!isImage) return;
 
-      try {
-        const res = await mailAPI.downloadAttachment(email.uid, fileName, getFolder());
-        const blobUrl = URL.createObjectURL(new Blob([res.data]));
-        createdBlobUrls.push(blobUrl);
-        setImagePreviews((prev) => ({
-          ...prev,
-          [fileName]: blobUrl
-        }));
-      } catch (err) {
-        console.error("Failed to load image preview for", fileName, err);
-      }
+    allMsgs.forEach((msg) => {
+      const msgUid = msg?.uid || msg?.id;
+      if (!msgUid || !msg.attachments || !Array.isArray(msg.attachments)) return;
+      const folder = getFolder(msg);
+
+      msg.attachments.forEach(async (fileName) => {
+        const ext = (fileName.split('.').pop() || '').toLowerCase();
+        const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext);
+        if (!isImage) return;
+
+        const key = `${msgUid}_${fileName}`;
+
+        try {
+          const res = await mailAPI.downloadAttachment(msgUid, fileName, folder);
+          const blobUrl = URL.createObjectURL(new Blob([res.data]));
+          createdBlobUrls.push(blobUrl);
+          setImagePreviews((prev) => ({
+            ...prev,
+            [key]: blobUrl,
+            [fileName]: blobUrl
+          }));
+        } catch (err) {
+          console.error("Failed to load image preview for", fileName, err);
+        }
+      });
     });
 
     return () => {
       createdBlobUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [email]);
+  }, [email, threadEmails]);
 
   const [previewFile, setPreviewFile] = useState(null);
   const [bounceDetails, setBounceDetails] = useState("");
@@ -773,7 +814,7 @@ const EmailDetails = ({
       // Skip known image/binary formats, try to read everything else as text for bounce messages
       if (!['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf', 'zip'].includes(ext)) {
         try {
-          const res = await mailAPI.downloadAttachment(email.uid, file, getFolder());
+          const res = await mailAPI.downloadAttachment(email.uid, file, getFolder(email));
           const reader = new FileReader();
           reader.onload = () => {
             setBounceDetails(prev => prev + `\n\n--- Attachment: ${file} ---\n${reader.result}`);
@@ -793,10 +834,11 @@ const EmailDetails = ({
     });
   };
 
-  const handleDownloadAttachment = async (fileName) => {
+  const handleDownloadAttachment = async (fileName, msgUid = (email?.uid || email?.id), msgObj = email) => {
     try {
       toast.loading(`Downloading ${fileName}...`, { id: "download-attachment" });
-      const res = await mailAPI.downloadAttachment(email.uid, fileName, getFolder());
+      const folder = getFolder(msgObj);
+      const res = await mailAPI.downloadAttachment(msgUid, fileName, folder);
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a");
       link.href = url;
@@ -811,13 +853,14 @@ const EmailDetails = ({
     }
   };
 
-  const handlePreviewAttachment = async (fileName) => {
+  const handlePreviewAttachment = async (fileName, msgUid = (email?.uid || email?.id), msgObj = email) => {
     try {
       const ext = fileName.split('.').pop().toLowerCase();
       const mime = getMimeType(fileName);
 
       toast.loading(`Loading preview...`, { id: "preview-attachment" });
-      const res = await mailAPI.downloadAttachment(email.uid, fileName, getFolder());
+      const folder = getFolder(msgObj);
+      const res = await mailAPI.downloadAttachment(msgUid, fileName, folder);
       
       let textContent = "";
       if (mime === "text/plain") {
@@ -833,7 +876,9 @@ const EmailDetails = ({
         fileName,
         blobUrl: url,
         mimeType: mime,
-        textContent
+        textContent,
+        msgUid,
+        msgObj
       });
       toast.success("Loaded preview", { id: "preview-attachment" });
     } catch (err) {
@@ -1243,26 +1288,101 @@ const EmailDetails = ({
                     </div>
 
                     {/* ATTACHMENTS */}
-                    {m.attachments && m.attachments.length > 0 && (
-                      <div className="mt-4 pt-4 border-t" style={{ borderColor: theme.border }}>
-                        <p className="text-xs font-bold mb-2 text-gray-500 dark:text-gray-400 uppercase tracking-wider text-left">
-                          {t("email_details.attachments", "Attachments")} ({m.attachments.length})
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {m.attachments.map((fileName, idx) => (
-                            <div 
-                              key={idx}
-                              onClick={() => handlePreviewAttachment(fileName)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.05] dark:hover:bg-white/[0.05] cursor-pointer text-xs"
-                              style={{ borderColor: theme.border }}
-                            >
-                              <span>📎</span>
-                              <span className="truncate max-w-[150px] font-medium">{fileName}</span>
-                            </div>
-                          ))}
+                    {(() => {
+                      const isBounce = m.from?.toLowerCase().includes('mailer-daemon') || m.from?.toLowerCase().includes('postmaster');
+                      const visibleAttachments = m.attachments?.filter(file => {
+                        if (!isBounce) return true;
+                        return file !== 'delivery_status.txt' && file !== 'original_message.eml';
+                      }) || [];
+
+                      if (visibleAttachments.length === 0) return null;
+
+                      return (
+                        <div className="mt-6 pt-4 border-t" style={{ borderColor: theme.border }}>
+                          <p className="text-xs font-bold mb-3 text-gray-500 dark:text-gray-400 uppercase tracking-wider text-left">
+                            {t("email_details.attachments", "Attachments")} ({visibleAttachments.length})
+                          </p>
+                          <div className="flex flex-wrap gap-3">
+                            {visibleAttachments.map((file, i) => {
+                              const fileInfo = getFileIcon(file);
+                              const mUid = m.uid || m.id;
+                              const previewUrl = imagePreviews[`${mUid}_${file}`] || imagePreviews[file];
+
+                              return (
+                                <div
+                                  key={i}
+                                  className="w-[180px] h-[135px] rounded-xl border overflow-hidden flex flex-col hover:shadow-md transition-all relative shadow-sm bg-black/[0.01] dark:bg-white/[0.01] hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+                                  style={{ borderColor: theme.border }}
+                                >
+                                  {/* Upper preview / icon block */}
+                                  <div 
+                                    className="h-[85px] w-full flex flex-col items-center justify-center bg-black/[0.03] dark:bg-white/[0.03] border-b relative overflow-hidden cursor-pointer"
+                                    style={{ borderColor: theme.border }}
+                                    onClick={() => handlePreviewAttachment(file, mUid, m)}
+                                  >
+                                    {previewUrl ? (
+                                      <img 
+                                        src={previewUrl} 
+                                        alt={file} 
+                                        className="w-full h-full object-cover select-none hover:scale-105 transition-transform duration-200" 
+                                      />
+                                    ) : (
+                                      <>
+                                        <span className="text-3xl filter drop-shadow-sm select-none">{fileInfo.icon}</span>
+                                        <span 
+                                          className="text-[9px] font-extrabold uppercase tracking-wider mt-1.5 px-2 py-0.5 rounded-full select-none"
+                                          style={{ backgroundColor: `${fileInfo.color}15`, color: fileInfo.color }}
+                                        >
+                                          {fileInfo.name}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {/* Lower details block */}
+                                  <div className="p-2 flex items-center justify-between gap-1 flex-1 min-w-0">
+                                    <div 
+                                      className="flex flex-col min-w-0 flex-1 cursor-pointer"
+                                      onClick={() => handlePreviewAttachment(file, mUid, m)}
+                                    >
+                                      <span 
+                                        className="text-[11px] font-semibold truncate select-all text-left" 
+                                        style={{ color: theme.text }}
+                                        title={file}
+                                      >
+                                        {file}
+                                      </span>
+                                      <span className="text-[9px] opacity-50 font-medium select-none truncate text-left">
+                                        {fileInfo.name} File
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-0.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => handlePreviewAttachment(file, mUid, m)}
+                                        className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer"
+                                        title="Preview file"
+                                      >
+                                        <MdRemoveRedEye size={15} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDownloadAttachment(file, mUid, m)}
+                                        className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer"
+                                        title="Download file"
+                                      >
+                                        <MdFileDownload size={15} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 );
               } else {
@@ -1734,7 +1854,7 @@ const EmailDetails = ({
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => handleDownloadAttachment(previewFile.fileName)}
+                onClick={() => handleDownloadAttachment(previewFile.fileName, previewFile.msgUid, previewFile.msgObj)}
                 className="p-2 rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-colors cursor-pointer"
                 title="Download file"
               >
