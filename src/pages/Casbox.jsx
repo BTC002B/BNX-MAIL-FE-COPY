@@ -1700,38 +1700,121 @@ const Casbox = () => {
   };
 
   const renderBubbleAttachments = (msg) => {
-    if (!msg.attachmentsJson) return null;
-    try {
-      const files = JSON.parse(msg.attachmentsJson);
-      if (!files || files.length === 0) return null;
-      return (
-        <div className="mt-2 space-y-1.5 border-t border-black/5 dark:border-white/5 pt-2">
-          {files.map((fileObj, i) => {
-            const fileName = fileObj.fileName || fileObj.name || (typeof fileObj === 'string' ? fileObj.split('/').pop() : "Attachment");
-            const fileInfo = getFileIcon(fileName);
+    let files = [];
+    if (Array.isArray(msg.attachments) && msg.attachments.length > 0) {
+      files = msg.attachments;
+    } else if (msg.attachmentsJson) {
+      try {
+        files = typeof msg.attachmentsJson === 'string' ? JSON.parse(msg.attachmentsJson) : msg.attachmentsJson;
+      } catch (e) {
+        files = [];
+      }
+    }
+    if (!files || !Array.isArray(files) || files.length === 0) return null;
+
+    return (
+      <div className="mt-2 space-y-2 border-t border-black/5 dark:border-white/5 pt-2">
+        {files.map((fileObj, i) => {
+          const fileName = fileObj.fileName || fileObj.name || (typeof fileObj === 'string' ? fileObj.split('/').pop() : "Attachment");
+          const ext = (fileName.split('.').pop() || '').toLowerCase();
+          const isImg = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext);
+          const isPdf = ext === 'pdf';
+          const fileInfo = getFileIcon(fileName);
+          const urlPath = fileObj.url || fileObj.filePath || fileObj.previewUrl || (typeof fileObj === 'string' ? fileObj : "");
+
+          if (isImg && urlPath) {
+            return (
+              <div key={i} className="rounded-lg overflow-hidden border border-black/10 dark:border-white/10 max-w-[260px]">
+                <img
+                  src={urlPath}
+                  alt={fileName}
+                  className="w-full max-h-[200px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); handlePreviewAttachment(fileObj); }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+                <div className="flex items-center justify-between p-1.5 bg-black/5 dark:bg-white/5 text-[11px]">
+                  <span className="font-medium truncate max-w-[180px]">{fileName}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDownloadAttachment(fileObj); }}
+                    className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-current cursor-pointer shrink-0"
+                    title="Download image"
+                  >
+                    <MdFileDownload size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (isPdf) {
             return (
               <div
                 key={i}
-                className="flex items-center justify-between gap-3 p-1.5 rounded-lg bg-black/5 dark:bg-white/5 text-[11px]"
+                className="flex items-center justify-between gap-3 p-2 rounded-lg bg-red-500/10 dark:bg-red-500/15 border border-red-500/20 text-[11px] max-w-[260px]"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-base shrink-0">{fileInfo.icon}</span>
-                  <span className="font-medium truncate max-w-[120px]">{fileName}</span>
+                  <span className="text-xl shrink-0">📄</span>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-semibold truncate max-w-[140px] text-gray-900 dark:text-gray-100">{fileName}</span>
+                    <span className="text-[9px] font-bold text-red-500 uppercase">PDF</span>
+                  </div>
                 </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handlePreviewAttachment(fileObj); }}
+                    className="p-1 rounded hover:bg-red-500/20 text-red-600 dark:text-red-400 cursor-pointer"
+                    title="View PDF"
+                  >
+                    <MdRemoveRedEye size={14} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDownloadAttachment(fileObj); }}
+                    className="p-1 rounded hover:bg-red-500/20 text-red-600 dark:text-red-400 cursor-pointer"
+                    title="Download PDF"
+                  >
+                    <MdFileDownload size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          // Document & other supported files
+          return (
+            <div
+              key={i}
+              className="flex items-center justify-between gap-3 p-2 rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-[11px] max-w-[260px]"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xl shrink-0">{fileInfo.icon}</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-semibold truncate max-w-[140px] text-gray-900 dark:text-gray-100">{fileName}</span>
+                  <span className="text-[9px] font-bold uppercase opacity-60" style={{ color: fileInfo.color }}>
+                    {ext ? ext.toUpperCase() : fileInfo.name}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handlePreviewAttachment(fileObj); }}
+                  className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-current cursor-pointer"
+                  title="View file"
+                >
+                  <MdRemoveRedEye size={14} />
+                </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDownloadAttachment(fileObj); }}
-                  className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 text-current cursor-pointer shrink-0"
+                  className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-current cursor-pointer"
+                  title="Download file"
                 >
                   <MdFileDownload size={14} />
                 </button>
               </div>
-            );
-          })}
-        </div>
-      );
-    } catch (e) {
-      return null;
-    }
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   const getOtherUserEmail = (msg) => {

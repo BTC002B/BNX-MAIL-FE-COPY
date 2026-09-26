@@ -627,6 +627,7 @@ const FloatingCompose = () => {
     };
     if (formData.cc) payload.cc = formData.cc;
     if (formData.bcc) payload.bcc = formData.bcc;
+    if (attachments && attachments.length > 0) payload.attachments = attachments;
 
     const executeSend = async (tid) => {
       try {
