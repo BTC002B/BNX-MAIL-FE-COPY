@@ -127,16 +127,16 @@ const getNormalizedAttachments = (msg) => {
   
   let rawList = [];
   
-  if (Array.isArray(msg.attachments) && msg.attachments.length > 0) {
+  if (Array.isArray(msg.attachments)) {
     rawList = msg.attachments;
-  } else if (Array.isArray(msg.attachmentsJson) && msg.attachmentsJson.length > 0) {
+  } else if (Array.isArray(msg.attachmentsJson)) {
     rawList = msg.attachmentsJson;
-  } else if (Array.isArray(msg.files) && msg.files.length > 0) {
+  } else if (Array.isArray(msg.files)) {
     rawList = msg.files;
   } else if (msg.attachmentsJson && typeof msg.attachmentsJson === 'string') {
     try {
       const parsed = JSON.parse(msg.attachmentsJson);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         rawList = parsed;
       } else if (parsed && typeof parsed === 'object') {
         rawList = [parsed];
@@ -147,7 +147,7 @@ const getNormalizedAttachments = (msg) => {
   } else if (msg.attachments && typeof msg.attachments === 'string') {
     try {
       const parsed = JSON.parse(msg.attachments);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         rawList = parsed;
       } else if (parsed && typeof parsed === 'object') {
         rawList = [parsed];
@@ -156,7 +156,7 @@ const getNormalizedAttachments = (msg) => {
       // not JSON string
     }
   } else if (msg.attachment) {
-    if (Array.isArray(msg.attachment) && msg.attachment.length > 0) rawList = msg.attachment;
+    if (Array.isArray(msg.attachment)) rawList = msg.attachment;
     else if (typeof msg.attachment === 'string') {
       try {
         const parsed = JSON.parse(msg.attachment);
@@ -212,51 +212,6 @@ const getNormalizedAttachments = (msg) => {
   }).filter(Boolean);
 };
 
-const normalizeMessage = (msg, fallbackAttachments = null) => {
-  if (!msg) return msg;
-  const msgSender = msg.sender || msg.senderEmail || "";
-  const msgContent = msg.content !== undefined && msg.content !== null ? msg.content : (msg.message !== undefined && msg.message !== null ? msg.message : "");
-  
-  let parsedAttachments = null;
-  if (Array.isArray(msg.attachments) && msg.attachments.length > 0) {
-    parsedAttachments = msg.attachments;
-  } else if (Array.isArray(msg.attachmentsJson) && msg.attachmentsJson.length > 0) {
-    parsedAttachments = msg.attachmentsJson;
-  } else if (Array.isArray(msg.files) && msg.files.length > 0) {
-    parsedAttachments = msg.files;
-  } else if (msg.attachmentsJson && typeof msg.attachmentsJson === 'string') {
-    try {
-      const parsed = JSON.parse(msg.attachmentsJson);
-      if (Array.isArray(parsed) && parsed.length > 0) parsedAttachments = parsed;
-      else if (parsed && typeof parsed === 'object') parsedAttachments = [parsed];
-    } catch (e) {}
-  } else if (msg.attachments && typeof msg.attachments === 'string') {
-    try {
-      const parsed = JSON.parse(msg.attachments);
-      if (Array.isArray(parsed) && parsed.length > 0) parsedAttachments = parsed;
-      else if (parsed && typeof parsed === 'object') parsedAttachments = [parsed];
-    } catch (e) {}
-  }
-
-  if ((!parsedAttachments || parsedAttachments.length === 0) && fallbackAttachments && fallbackAttachments.length > 0) {
-    parsedAttachments = fallbackAttachments;
-  }
-
-  const attachmentsJsonStr = msg.attachmentsJson 
-    ? (typeof msg.attachmentsJson === 'string' ? msg.attachmentsJson : JSON.stringify(msg.attachmentsJson))
-    : (parsedAttachments ? JSON.stringify(parsedAttachments) : null);
-
-  return {
-    ...msg,
-    sender: msgSender,
-    content: msgContent,
-    message: msgContent,
-    attachmentsJson: attachmentsJsonStr,
-    attachments: parsedAttachments || [],
-    isOptimistic: false
-  };
-};
-
 const CommentAttachmentItem = ({ att, isMe, onOpenImage, handleDownload, handleView }) => {
   const [imageError, setImageError] = useState(false);
   
@@ -267,8 +222,28 @@ const CommentAttachmentItem = ({ att, isMe, onOpenImage, handleDownload, handleV
   
   const meta = getFileMeta(fileName, fileType);
 
-  // If it's an image and hasn't errored, display the actual image inside the message
-  if (meta.isImage && !imageError && fileUrl) {
+  // If URL is missing, or image failed to load, show safe fallback
+  if (!fileUrl || (meta.isImage && imageError)) {
+    return (
+      <div className={`flex items-center gap-2.5 p-2.5 rounded-xl border border-black/10 dark:border-white/10 shadow-sm max-w-xs transition-all ${
+        isMe ? 'bg-white/15 text-white' : 'bg-black/5 dark:bg-white/5 text-gray-800 dark:text-gray-200'
+      }`}>
+        <div className="p-2 rounded-lg bg-black/10 dark:bg-white/10 text-inherit shrink-0">
+          <MdAttachFile size={20} className="rotate-45" />
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-semibold truncate" title={fileName}>
+            {fileName}
+          </span>
+          <span className="text-[10px] opacity-70">
+            Attachment unavailable
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (meta.isImage) {
     return (
       <div className="flex flex-col rounded-xl overflow-hidden border border-black/10 dark:border-white/10 shadow-sm bg-black/5 dark:bg-white/5 max-w-xs sm:max-w-sm">
         <div 
@@ -289,7 +264,7 @@ const CommentAttachmentItem = ({ att, isMe, onOpenImage, handleDownload, handleV
               type="button" 
               onClick={() => handleView && handleView({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })}
               title="View full image" 
-              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
             >
               <MdVisibility size={14} />
             </button>
@@ -297,7 +272,7 @@ const CommentAttachmentItem = ({ att, isMe, onOpenImage, handleDownload, handleV
               type="button" 
               onClick={() => handleDownload && handleDownload({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })}
               title="Download image" 
-              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
             >
               <MdFileDownload size={14} />
             </button>
@@ -307,8 +282,7 @@ const CommentAttachmentItem = ({ att, isMe, onOpenImage, handleDownload, handleV
     );
   }
 
-  // PDF or Document card (or image error fallback)
-  const IconComp = meta.icon || MdInsertDriveFile;
+  const IconComp = meta.icon;
   return (
     <div 
       className={`flex items-center gap-3 p-2.5 rounded-xl border border-black/10 dark:border-white/10 shadow-sm transition-all max-w-xs sm:max-w-sm ${
@@ -336,26 +310,22 @@ const CommentAttachmentItem = ({ att, isMe, onOpenImage, handleDownload, handleV
         </div>
       </div>
       <div className="flex items-center gap-1 shrink-0 printable-conversation-no-print">
-        {fileUrl && (
-          <button 
-            type="button"
-            onClick={() => handleView && handleView({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })} 
-            title={`View ${fileName}`} 
-            className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
-          >
-            <MdVisibility size={16} />
-          </button>
-        )}
-        {fileUrl && (
-          <button 
-            type="button"
-            onClick={() => handleDownload && handleDownload({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })} 
-            title={`Download ${fileName}`} 
-            className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
-          >
-            <MdFileDownload size={16} />
-          </button>
-        )}
+        <button 
+          type="button"
+          onClick={() => handleView && handleView({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })} 
+          title={`View ${fileName}`} 
+          className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+        >
+          <MdVisibility size={16} />
+        </button>
+        <button 
+          type="button"
+          onClick={() => handleDownload && handleDownload({ ...att, fileName, name: fileName, fileUrl, content: fileUrl })} 
+          title={`Download ${fileName}`} 
+          className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+        >
+          <MdFileDownload size={16} />
+        </button>
       </div>
     </div>
   );
@@ -827,7 +797,7 @@ const ChatRoom = () => {
       const res = await chatAPI.getMessageHistory(chatId);
       if (res.data) {
         const history = Array.isArray(res.data) ? res.data : (res.data.data || []);
-        setMessages(history.map(m => normalizeMessage(m)));
+        setMessages(history);
       }
     } catch (err) {
       console.error("Failed to fetch history:", err);
@@ -931,24 +901,32 @@ const ChatRoom = () => {
         const nearBottom = isUserNearBottom();
 
         setMessages(prev => {
+          const rawAttachments = msg.attachments || (msg.attachmentsJson ? (() => { try { return typeof msg.attachmentsJson === 'string' ? JSON.parse(msg.attachmentsJson) : msg.attachmentsJson; } catch(e){ return null; } })() : null);
+          const normalizedMsg = {
+            ...msg,
+            sender: msgSender || msg.sender,
+            content: msgContent || msg.content,
+            message: msgContent || msg.message,
+            attachmentsJson: msg.attachmentsJson || (Array.isArray(msg.attachments) ? JSON.stringify(msg.attachments) : null),
+            attachments: rawAttachments,
+            isOptimistic: false
+          };
+
           if (prev.some(m => String(m.id) === String(msg.id) && !m.isOptimistic)) return prev;
 
-          const optimisticIdx = prev.findIndex(m => {
-            if (!m.isOptimistic) return false;
-            const sameSender = m.sender === msgSender || m.sender === user?.email;
-            if (!sameSender) return false;
-            const normMContent = (m.content || m.message || "").trim();
-            const normNewContent = (msgContent || "").trim();
-            if (normMContent === normNewContent) return true;
-            if (!normMContent && !normNewContent) return true;
-            return false;
-          });
-
-          const optAtts = optimisticIdx !== -1 ? (prev[optimisticIdx].attachments || prev[optimisticIdx].attachmentsJson) : null;
-          const normalizedMsg = normalizeMessage(msg, optAtts);
+          const optimisticIdx = prev.findIndex(m => 
+            m.isOptimistic && 
+            (m.sender === msgSender || m.sender === user?.email) && 
+            (m.content === msgContent || m.message === msgContent)
+          );
 
           if (optimisticIdx !== -1) {
             const newMsgs = [...prev];
+            const optAtts = prev[optimisticIdx].attachments || prev[optimisticIdx].attachmentsJson;
+            if (!normalizedMsg.attachments && !normalizedMsg.attachmentsJson && optAtts) {
+              normalizedMsg.attachments = prev[optimisticIdx].attachments;
+              normalizedMsg.attachmentsJson = prev[optimisticIdx].attachmentsJson;
+            }
             newMsgs[optimisticIdx] = normalizedMsg;
             return newMsgs;
           }
@@ -984,28 +962,25 @@ const ChatRoom = () => {
     e.preventDefault();
     if (!newMessage.trim() && selectedAttachments.length === 0) return;
 
-    const attachmentsToSend = [...selectedAttachments];
-    const attachmentsJson = attachmentsToSend.length > 0 ? JSON.stringify(attachmentsToSend) : null;
+    const attachmentsJson = selectedAttachments.length > 0 ? JSON.stringify(selectedAttachments) : null;
     const contentText = newMessage;
 
     // Optimistic update
-    const tempId = `temp-${Date.now()}`;
     const tempMsg = {
-      id: tempId,
+      id: `temp-${Date.now()}`,
       chatId: parseInt(chatId),
       sender: user.email,
       content: contentText,
       message: contentText,
       attachmentsJson: attachmentsJson,
-      attachments: attachmentsToSend,
+      attachments: [...selectedAttachments],
       timestamp: new Date().toISOString(),
       isOptimistic: true
     };
     
     setMessages(prev => [...prev, tempMsg]);
     setNewMessage("");
-    setSelectedAttachments([]); // Clear only temporary composer selection
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setSelectedAttachments([]); // Clear after send
     setTimeout(() => scrollToBottom(true), 50);
 
     // Send via WebSocket with HTTP fallback if socket transmission fails
@@ -1023,7 +998,17 @@ const ChatRoom = () => {
       }).then(res => {
         const resData = res.data?.data || res.data;
         if (resData) {
-          const updatedMsg = normalizeMessage(resData, attachmentsToSend);
+          const msgContent = resData.content || resData.message || contentText;
+          const msgSender = resData.sender || resData.senderEmail || user.email;
+          const updatedMsg = {
+            ...resData,
+            sender: msgSender,
+            content: msgContent,
+            message: msgContent,
+            attachmentsJson: resData.attachmentsJson || attachmentsJson,
+            attachments: resData.attachments || selectedAttachments,
+            isOptimistic: false
+          };
           setMessages(prev => prev.map(m => m.id === tempMsg.id ? updatedMsg : m));
         } else {
           setMessages(prev => prev.map(m => m.id === tempMsg.id ? { ...m, isOptimistic: false } : m));
