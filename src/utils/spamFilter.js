@@ -53,21 +53,24 @@ export const filterDuplicateSpamEmails = (emails) => {
     return emails || [];
   }
 
-  const seen = new Set();
-  const result = [];
+  const seen = new Map();
 
   for (const email of emails) {
     if (!email) continue;
     const key = getSpamEmailUniqueKey(email);
     if (!key) {
-      result.push(email);
+      seen.set(Symbol(), email);
       continue;
     }
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.push(email);
+    if (seen.has(key)) {
+      const existing = seen.get(key);
+      if (!existing.isRead && email.isRead) {
+        seen.set(key, { ...existing, isRead: true });
+      }
+    } else {
+      seen.set(key, email);
     }
   }
 
-  return result;
+  return Array.from(seen.values());
 };

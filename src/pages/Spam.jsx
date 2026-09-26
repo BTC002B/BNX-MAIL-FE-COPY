@@ -17,14 +17,24 @@ const Spam = ({ searchQuery }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { theme, readingPaneMode } = useTheme();
-  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleArchive, openCompose } = useMail();
+  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleArchive, openCompose, handleMarkRead, clearReadSpamIds } = useMail();
   const [selectedEmailUid, setSelectedEmailUid] = useState(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   // Frontend-only duplicate filtering: display only one copy based on existing unique ID
   const uniqueEmails = useMemo(() => filterDuplicateSpamEmails(emails), [emails]);
   const selectedEmail = useMemo(
-    () => uniqueEmails.find((e) => String(e.uid) === String(selectedEmailUid)),
+    () => uniqueEmails.find((e) => {
+      if (!selectedEmailUid) return false;
+      const target = String(selectedEmailUid);
+      return (
+        String(e.uid) === target ||
+        String(e.id) === target ||
+        (e.messageId && String(e.messageId) === target) ||
+        (e.emailId && String(e.emailId) === target) ||
+        (e.mailId && String(e.mailId) === target)
+      );
+    }),
     [uniqueEmails, selectedEmailUid]
   );
 
@@ -67,6 +77,7 @@ const Spam = ({ searchQuery }) => {
 
       setSelectedIds(new Set());
       setSelectedEmailUid(null);
+      clearReadSpamIds?.();
       toast.success("All spam messages moved to trash", { id: "delete-all-spam" });
       await fetchEmails('spam', false, 1);
     } catch (err) {
@@ -100,10 +111,30 @@ const Spam = ({ searchQuery }) => {
   }, [uniqueEmails, searchQuery]);
 
   const handleSelectEmail = (email) => {
-    setSelectedEmailUid(email.uid);
+    if (!email) return;
+    const targetId = email.uid ?? email.id ?? email.messageId ?? email.emailId;
+    setSelectedEmailUid(targetId);
+    if (!email.isRead && handleMarkRead) {
+      handleMarkRead(targetId, "spam");
+    }
   };
 
-  
+  const handleNavigateEmail = (nextEmail) => {
+    if (!nextEmail) return;
+    const targetId = nextEmail.uid ?? nextEmail.id ?? nextEmail.messageId ?? nextEmail.emailId;
+    setSelectedEmailUid(targetId);
+    if (!nextEmail.isRead && handleMarkRead) {
+      handleMarkRead(targetId, "spam");
+    }
+  };
+
+  useEffect(() => {
+    if (selectedEmail && !selectedEmail.isRead && handleMarkRead) {
+      const targetId = selectedEmail.uid ?? selectedEmail.id ?? selectedEmail.messageId ?? selectedEmail.emailId;
+      handleMarkRead(targetId, "spam");
+    }
+  }, [selectedEmail, handleMarkRead]);
+
   const handleForward = (email) => {
     openCompose({
       forward: true,
@@ -125,7 +156,7 @@ const handleReply = (email) => {
   const detailsComponent = selectedEmail ? (
 <EmailDetails
       emailList={visibleEmails}
-      onNavigate={(email) => setSelectedEmailUid(email.uid)}
+      onNavigate={handleNavigateEmail}
           email={selectedEmail}
           onBack={() => setSelectedEmailUid(null)}
           onDelete={(uid) => {
@@ -202,7 +233,7 @@ const handleReply = (email) => {
             ) : (
               <EmailList
                 emails={visibleEmails}
-                selectedEmailId={selectedEmail?.uid}
+                selectedEmailId={selectedEmail?.uid ?? selectedEmail?.id ?? selectedEmail?.messageId}
                 onSelectEmail={handleSelectEmail}
                 onDelete={(uid) => handleMoveToTrash(uid, "spam")}
                 onStar={(uid) => handleToggleStar(uid, "spam")}

@@ -151,10 +151,10 @@ const BulkActionsToolbar = ({
     try {
       toast.loading("Updating read status...", { id: "bulk-read" });
       if (hasUnread) {
-        await Promise.all(selectedEmails.map((e) => !e.isRead ? handleMarkRead(e.uid, true) : Promise.resolve()));
+        await Promise.all(selectedEmails.map((e) => !e.isRead ? handleMarkRead(e.uid || e.id || e.messageId, true) : Promise.resolve()));
         toast.success("Emails marked as read", { id: "bulk-read" });
       } else {
-        await Promise.all(selectedEmails.map((e) => e.isRead ? handleMarkUnread(e.uid, true) : Promise.resolve()));
+        await Promise.all(selectedEmails.map((e) => e.isRead ? handleMarkUnread(e.uid || e.id || e.messageId, true) : Promise.resolve()));
         toast.success("Emails marked as unread", { id: "bulk-read" });
       }
       setSelectedIds(new Set());
