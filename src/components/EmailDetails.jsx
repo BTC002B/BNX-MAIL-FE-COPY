@@ -332,81 +332,33 @@ const EmailDetails = ({
     try {
       const cleanSubj = cleanSubject(email.subject);
       
-      const [inboxRes, sentRes] = await Promise.all([
-        mailAPI.getInbox(1, 100),
-        mailAPI.getSent(1, 100)
-      ]);
+      let allRelated = [email];
 
-      let allRelated = [];
-      if (inboxRes.data?.success) {
-        const inboxMails = inboxRes.data.data.emails || inboxRes.data.data || [];
-        allRelated = [...allRelated, ...inboxMails];
-      }
-      if (sentRes.data?.success) {
-        const sentMails = sentRes.data.data.emails || sentRes.data.data || [];
-        allRelated = [...allRelated, ...sentMails];
-      }
-
-      // Merge session local sent replies matching the clean subject
+      // Merge session local sent replies matching the clean subject so you can see your immediate replies
       const matchingLocal = localSentRepliesRef.current.filter(m => cleanSubject(m.subject) === cleanSubj);
       allRelated = [...allRelated, ...matchingLocal];
 
-      // Filter by clean subject match
-      let filtered = allRelated.filter(m => cleanSubject(m.subject) === cleanSubj);
-      
-      // Deduplicate identical messages (e.g. from self-sends in Inbox and Sent)
-      const seenMessages = new Set();
-      filtered = filtered.filter(m => {
-        const cleanBody = (m.body || m.textPlain || "")
-          .replace(/<[^>]+>/g, '')
-          .replace(/\s+/g, '')
-          .trim();
-        const dateStr = m.date || m.receivedDate || m.sentDate || "";
-        const dateEpoch = dateStr ? new Date(dateStr).getTime() : 0;
-        const timeBucket = Math.round(dateEpoch / 10000); 
-        const sender = (m.from || "").trim().toLowerCase();
-        
-        const signature = `${sender}|${cleanBody.substring(0, 100)}|${timeBucket}`;
-        if (seenMessages.has(signature)) {
-          return false;
-        }
-        seenMessages.add(signature);
-        return true;
-      });
-
-      if (!filtered.some(f => (f.uid || f.id) === (email.uid || email.id))) {
-        filtered.push(email);
-      }
-
       // Sort chronologically
-      filtered.sort((a, b) => {
+      allRelated.sort((a, b) => {
         const dateA = new Date(a.date || a.receivedDate || a.sentDate || 0);
         const dateB = new Date(b.date || b.receivedDate || b.sentDate || 0);
         return dateA - dateB;
       });
 
-      setThreadEmails(filtered);
+      setThreadEmails(allRelated);
       setExpandedMessages(prev => {
-        if (Object.keys(prev).length === 0 && filtered.length > 0) {
-          const lastIdx = filtered.length - 1;
-          const lastUid = filtered[lastIdx].uid || filtered[lastIdx].id;
+        if (Object.keys(prev).length === 0 && allRelated.length > 0) {
+          const lastIdx = allRelated.length - 1;
+          const lastUid = allRelated[lastIdx].uid || allRelated[lastIdx].id;
           return { [lastUid]: true };
         }
         return prev;
       });
     } catch (err) {
       console.error("Failed to fetch thread emails:", err);
-      const matchingLocal = localSentRepliesRef.current.filter(m => cleanSubject(m.subject) === cleanSubject(email.subject));
-      const fallbackList = [...matchingLocal, email].sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-      setThreadEmails(fallbackList);
-      setExpandedMessages(prev => {
-        if (Object.keys(prev).length === 0 && fallbackList.length > 0) {
-          const lastIdx = fallbackList.length - 1;
-          const lastUid = fallbackList[lastIdx].uid || fallbackList[lastIdx].id;
-          return { [lastUid]: true };
-        }
-        return prev;
-      });
+      setThreadEmails([email]);
+      const currentUid = email.uid || email.id;
+      setExpandedMessages({ [currentUid]: true });
     } finally {
       setLoadingThread(false);
     }
