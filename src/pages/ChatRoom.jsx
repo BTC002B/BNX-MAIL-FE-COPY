@@ -127,23 +127,23 @@ const getNormalizedAttachments = (msg) => {
   
   let rawList = [];
   
-  if (Array.isArray(msg.attachments)) {
-    rawList = msg.attachments;
-  } else if (Array.isArray(msg.attachmentsJson)) {
-    rawList = msg.attachmentsJson;
-  } else if (Array.isArray(msg.files)) {
-    rawList = msg.files;
-  } else if (msg.attachmentsJson && typeof msg.attachmentsJson === 'string') {
-    try {
-      const parsed = JSON.parse(msg.attachmentsJson);
-      if (Array.isArray(parsed)) {
-        rawList = parsed;
-      } else if (parsed && typeof parsed === 'object') {
-        rawList = [parsed];
+  if (msg.attachmentsJson) {
+    if (typeof msg.attachmentsJson === 'string' && msg.attachmentsJson.trim()) {
+      try {
+        const parsed = JSON.parse(msg.attachmentsJson);
+        if (Array.isArray(parsed)) {
+          rawList = parsed;
+        } else if (parsed && typeof parsed === 'object') {
+          rawList = [parsed];
+        }
+      } catch (e) {
+        rawList = [];
       }
-    } catch (e) {
-      // not JSON string
+    } else if (Array.isArray(msg.attachmentsJson)) {
+      rawList = msg.attachmentsJson;
     }
+  } else if (Array.isArray(msg.attachments) && msg.attachments.length > 0) {
+    rawList = msg.attachments;
   } else if (msg.attachments && typeof msg.attachments === 'string') {
     try {
       const parsed = JSON.parse(msg.attachments);
@@ -215,10 +215,10 @@ const getNormalizedAttachments = (msg) => {
 const CommentAttachmentItem = ({ att, isMe, onOpenImage, handleDownload, handleView }) => {
   const [imageError, setImageError] = useState(false);
   
-  const fileName = att.fileName || att.name || 'Attachment';
-  const fileUrl = att.fileUrl || att.url || att.content || '';
-  const fileType = att.fileType || att.type || '';
-  const fileSize = att.fileSize || att.size || 0;
+  const fileName = att.name || att.fileName || 'Attachment';
+  const fileUrl = att.url || att.fileUrl || att.content || '';
+  const fileType = att.type || att.fileType || '';
+  const fileSize = att.size || att.fileSize || 0;
   
   const meta = getFileMeta(fileName, fileType);
 
@@ -541,9 +541,9 @@ const ChatRoom = () => {
   const handleDownloadAttachment = (att) => {
     try {
       if (!att) return;
-      const content = att.fileUrl || att.url || att.content;
-      const name = att.fileName || att.name || "download";
-      const type = att.fileType || att.type || 'application/octet-stream';
+      const content = att.url || att.fileUrl || att.content;
+      const name = att.name || att.fileName || "download";
+      const type = att.type || att.fileType || 'application/octet-stream';
       if (!content) {
         toast.error("Attachment URL not available");
         return;
@@ -584,8 +584,8 @@ const ChatRoom = () => {
   const handleViewAttachment = (att) => {
     try {
       if (!att) return;
-      const content = att.fileUrl || att.url || att.content;
-      const type = att.fileType || att.type || 'application/octet-stream';
+      const content = att.url || att.fileUrl || att.content;
+      const type = att.type || att.fileType || 'application/octet-stream';
       if (!content) {
         toast.error("Attachment URL not available");
         return;
@@ -753,14 +753,9 @@ const ChatRoom = () => {
             }
             return [...current, {
               name: file.name,
-              fileName: file.name,
+              url: event.target.result,
               type: file.type || 'application/octet-stream',
-              fileType: file.type || 'application/octet-stream',
-              size: file.size,
-              fileSize: file.size,
-              content: event.target.result,
-              fileUrl: event.target.result,
-              url: event.target.result
+              size: file.size
             }];
           });
         };
@@ -894,44 +889,48 @@ const ChatRoom = () => {
     // Subscribe to live messages
     let subscription = null;
     if (isConnected) {
-      subscription = subscribeToChat(chatId, (msg) => {
-        const msgSender = msg.sender || msg.senderEmail;
-        const msgContent = msg.content !== undefined && msg.content !== null ? msg.content : (msg.message !== undefined && msg.message !== null ? msg.message : "");
+      subscription = subscribeToChat(chatId, (response) => {
+        if (!response || !response.id) return;
+        const msgSender = response.sender || response.senderEmail;
+        const msgContent = response.content !== undefined && response.content !== null ? response.content : (response.message !== undefined && response.message !== null ? response.message : "");
         const isMe = msgSender === user?.email;
         const nearBottom = isUserNearBottom();
 
         setMessages(prev => {
-          const rawAttachments = msg.attachments || (msg.attachmentsJson ? (() => { try { return typeof msg.attachmentsJson === 'string' ? JSON.parse(msg.attachmentsJson) : msg.attachmentsJson; } catch(e){ return null; } })() : null);
-          const normalizedMsg = {
-            ...msg,
-            sender: msgSender || msg.sender,
-            content: msgContent || msg.content,
-            message: msgContent || msg.message,
-            attachmentsJson: msg.attachmentsJson || (Array.isArray(msg.attachments) ? JSON.stringify(msg.attachments) : null),
-            attachments: rawAttachments,
+          // If message already exists in list with real ID, don't duplicate
+          if (prev.some(m => String(m.id) === String(response.id))) {
+            return prev;
+          }
+
+          // Complete response object from server - keep attachmentsJson intact
+          const completeMsg = {
+            ...response,
+            sender: msgSender || response.sender,
+            content: msgContent,
+            message: msgContent,
+            attachmentsJson: response.attachmentsJson !== undefined && response.attachmentsJson !== null 
+              ? response.attachmentsJson 
+              : null,
             isOptimistic: false
           };
 
-          if (prev.some(m => String(m.id) === String(msg.id) && !m.isOptimistic)) return prev;
-
+          // Check if it replaces an optimistic message from the same sender
           const optimisticIdx = prev.findIndex(m => 
             m.isOptimistic && 
             (m.sender === msgSender || m.sender === user?.email) &&
-            (m.content === msgContent || m.message === msgContent)
+            ((m.content || "") === (msgContent || "") || (!m.content && !msgContent))
           );
 
           if (optimisticIdx !== -1) {
             const newMsgs = [...prev];
-            const optAtts = prev[optimisticIdx].attachments || prev[optimisticIdx].attachmentsJson;
-            if (!normalizedMsg.attachments && !normalizedMsg.attachmentsJson && optAtts) {
-              normalizedMsg.attachments = prev[optimisticIdx].attachments;
-              normalizedMsg.attachmentsJson = prev[optimisticIdx].attachmentsJson;
+            if (!completeMsg.attachmentsJson && prev[optimisticIdx].attachmentsJson) {
+              completeMsg.attachmentsJson = prev[optimisticIdx].attachmentsJson;
             }
-            newMsgs[optimisticIdx] = normalizedMsg;
+            newMsgs[optimisticIdx] = completeMsg;
             return newMsgs;
           }
 
-          return [...prev, normalizedMsg];
+          return [...prev, completeMsg];
         });
 
         if (isMe || nearBottom) {
@@ -962,28 +961,39 @@ const ChatRoom = () => {
     e.preventDefault();
     if (!newMessage.trim() && selectedAttachments.length === 0) return;
 
-    const attachmentsJson = selectedAttachments.length > 0 ? JSON.stringify(selectedAttachments) : null;
-    const contentText = newMessage;
+    // 3. Create attachment objects with structure: { name, url, type, size }
+    const attachments = selectedAttachments.map(a => ({
+      name: a.name || a.fileName || "attachment",
+      url: a.url || a.fileUrl || a.content || "",
+      type: a.type || a.fileType || "application/octet-stream",
+      size: a.size || a.fileSize || 0
+    }));
+
+    // 4. Convert the attachment array to JSON
+    const attachmentsJson = attachments.length > 0 ? JSON.stringify(attachments) : null;
+    const contentText = newMessage.trim();
 
     // Optimistic update
+    const tempId = `temp-${Date.now()}`;
     const tempMsg = {
-      id: `temp-${Date.now()}`,
+      id: tempId,
       chatId: parseInt(chatId),
       sender: user.email,
       content: contentText,
       message: contentText,
       attachmentsJson: attachmentsJson,
-      attachments: [...selectedAttachments],
       timestamp: new Date().toISOString(),
       isOptimistic: true
     };
     
     setMessages(prev => [...prev, tempMsg]);
     setNewMessage("");
-    setSelectedAttachments([]); // Clear after send
+    // 15. Do not remove the attachment from the sent message when clearing the temporary file-selection state
+    setSelectedAttachments([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setTimeout(() => scrollToBottom(true), 50);
 
-    // Send via WebSocket with HTTP fallback if socket transmission fails
+    // 5. Send existing message request without changing the API
     let isSentViaWs = false;
     if (isConnected) {
       isSentViaWs = sendMessage(chatId, contentText, attachmentsJson) !== false;
@@ -996,27 +1006,31 @@ const ChatRoom = () => {
         message: contentText,
         attachmentsJson: attachmentsJson
       }).then(res => {
-        const resData = res.data?.data || res.data;
-        if (resData) {
-          const msgContent = resData.content || resData.message || contentText;
-          const msgSender = resData.sender || resData.senderEmail || user.email;
-          const updatedMsg = {
-            ...resData,
-            sender: msgSender,
-            content: msgContent,
-            message: msgContent,
-            attachmentsJson: resData.attachmentsJson || attachmentsJson,
-            attachments: resData.attachments || selectedAttachments,
+        const response = res.data?.data || res.data;
+        if (response && response.id) {
+          const completeMsg = {
+            ...response,
+            sender: response.sender || user.email,
+            content: response.content || contentText,
+            message: response.content || contentText,
+            attachmentsJson: response.attachmentsJson !== undefined && response.attachmentsJson !== null 
+              ? response.attachmentsJson 
+              : attachmentsJson,
             isOptimistic: false
           };
-          setMessages(prev => prev.map(m => m.id === tempMsg.id ? updatedMsg : m));
+          setMessages(prev => {
+            if (prev.some(m => String(m.id) === String(response.id))) {
+              return prev.filter(m => m.id !== tempId);
+            }
+            return prev.map(m => m.id === tempId ? completeMsg : m);
+          });
         } else {
-          setMessages(prev => prev.map(m => m.id === tempMsg.id ? { ...m, isOptimistic: false } : m));
+          setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isOptimistic: false } : m));
         }
       }).catch(err => {
         console.error("Failed to send message via HTTP", err);
         toast.error("Failed to send message");
-        setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
+        setMessages(prev => prev.filter(m => m.id !== tempId));
       });
     }
   };
@@ -1402,7 +1416,11 @@ const ChatRoom = () => {
                 </div>
               ) : (
                 messages.map((msg, idx) => {
-                  const isMe = msg.sender === user.email;
+                  const isMe = msg.sender === user?.email || msg.senderEmail === user?.email;
+                  const atts = getNormalizedAttachments(msg);
+                  const hasText = msg.content && msg.content.trim();
+                  if (!hasText && atts.length === 0) return null;
+
                   return (
                     <div key={msg.id || idx} className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300 comment-card printable-item print:mb-3">
                       <div className="max-w-[85%] sm:max-w-[75%] print:max-w-full flex flex-col items-start">
@@ -1417,32 +1435,27 @@ const ChatRoom = () => {
                                 : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-tl-sm'
                             }`}
                           >
-                            {msg.content && msg.content.trim() ? (
-                              <p className={`text-[14px] leading-relaxed whitespace-pre-wrap print:text-black ${getNormalizedAttachments(msg).length > 0 ? 'mb-2.5' : ''}`}>
+                            {hasText ? (
+                              <p className={`text-[14px] leading-relaxed whitespace-pre-wrap print:text-black ${atts.length > 0 ? 'mb-2.5' : ''}`}>
                                 {msg.content}
                               </p>
                             ) : null}
                             
                             {/* Attachments Rendering */}
-                            {(() => {
-                              const atts = getNormalizedAttachments(msg);
-                              if (!atts || atts.length === 0) return null;
-
-                              return (
-                                <div className="mt-1 flex flex-col gap-2">
-                                  {atts.map((att, i) => (
-                                    <CommentAttachmentItem
-                                      key={i}
-                                      att={att}
-                                      isMe={isMe}
-                                      onOpenImage={setPreviewMedia}
-                                      handleDownload={handleDownloadAttachment}
-                                      handleView={handleViewAttachment}
-                                    />
-                                  ))}
-                                </div>
-                              );
-                            })()}
+                            {atts.length > 0 && (
+                              <div className="mt-1 flex flex-col gap-2">
+                                {atts.map((att, i) => (
+                                  <CommentAttachmentItem
+                                    key={i}
+                                    att={att}
+                                    isMe={isMe}
+                                    onOpenImage={setPreviewMedia}
+                                    handleDownload={handleDownloadAttachment}
+                                    handleView={handleViewAttachment}
+                                  />
+                                ))}
+                              </div>
+                            )}
 
                           </div>
 
@@ -1488,7 +1501,7 @@ const ChatRoom = () => {
                       >
                         <div className="w-full h-20 bg-gray-100 dark:bg-gray-900 flex items-center justify-center overflow-hidden">
                           <img 
-                            src={att.content} 
+                            src={att.url || att.content} 
                             alt={att.name} 
                             className="w-full h-full object-cover" 
                           />
