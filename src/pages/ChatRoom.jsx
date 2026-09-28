@@ -351,6 +351,20 @@ const ChatRoom = () => {
   const [hasNewMessagesBelow, setHasNewMessagesBelow] = useState(false);
   const [previewMedia, setPreviewMedia] = useState(null);
 
+  // --- Connection status tracking (avoid false "Reconnected" on file upload) ---
+  // wasConnectedRef: tracks whether socket was previously connected
+  // so we can detect a real disconnect-then-reconnect cycle.
+  const wasConnectedRef = useRef(false);
+  const [connectionLabel, setConnectionLabel] = useState('Online');
+  // Debounce timer ref: prevents acting on sub-second isConnected flickers
+  const connectionDebounceRef = useRef(null);
+  // historyFetchedRef: ensures we only call fetchHistory once per chatId,
+  // NOT every time isConnected changes.
+  const historyFetchedRef = useRef(false);
+  // currentChatIdRef: allows the subscription callback to always read the
+  // latest chatId without being a stale closure dependency.
+  const currentChatIdRef = useRef(chatId);
+
   useEffect(() => {
     if (chat) {
       setIsChatStarred(Boolean(chat.starred || chat.isStarred));
@@ -886,66 +900,113 @@ const ChatRoom = () => {
     setTemplates([...defaultMapped, ...customMapped]);
   };
 
+  // --- Stable socket message handler (must be declared BEFORE the useEffects that reference it) ---
+  // Using useCallback so the reference is stable and subscribeToChat always
+  // gets the same function instance — preventing spurious resubscriptions.
+  const handleIncomingSocketMessage = React.useCallback((msg) => {
+    const msgSender = msg.sender || msg.senderEmail;
+    const msgContent = msg.content !== undefined && msg.content !== null ? msg.content : (msg.message !== undefined && msg.message !== null ? msg.message : "");
+    const isMe = msgSender === user?.email;
+    const nearBottom = isUserNearBottom();
 
+    setMessages(prev => {
+      const rawAttachments = msg.attachments || (msg.attachmentsJson ? (() => { try { return typeof msg.attachmentsJson === 'string' ? JSON.parse(msg.attachmentsJson) : msg.attachmentsJson; } catch(e){ return null; } })() : null);
+      const normalizedMsg = {
+        ...msg,
+        sender: msgSender || msg.sender,
+        content: msgContent || msg.content,
+        message: msgContent || msg.message,
+        attachmentsJson: msg.attachmentsJson || (Array.isArray(msg.attachments) ? JSON.stringify(msg.attachments) : null),
+        attachments: rawAttachments,
+        isOptimistic: false
+      };
+
+      if (prev.some(m => String(m.id) === String(msg.id) && !m.isOptimistic)) return prev;
+
+      const optimisticIdx = prev.findIndex(m =>
+        m.isOptimistic &&
+        (m.sender === msgSender || m.sender === user?.email) &&
+        (m.content === msgContent || m.message === msgContent)
+      );
+
+      if (optimisticIdx !== -1) {
+        const newMsgs = [...prev];
+        const optAtts = prev[optimisticIdx].attachments || prev[optimisticIdx].attachmentsJson;
+        if (!normalizedMsg.attachments && !normalizedMsg.attachmentsJson && optAtts) {
+          normalizedMsg.attachments = prev[optimisticIdx].attachments;
+          normalizedMsg.attachmentsJson = prev[optimisticIdx].attachmentsJson;
+        }
+        newMsgs[optimisticIdx] = normalizedMsg;
+        return newMsgs;
+      }
+
+      return [...prev, normalizedMsg];
+    });
+
+    if (isMe || nearBottom) {
+      setTimeout(() => scrollToBottom(true), 50);
+    } else {
+      setHasNewMessagesBelow(true);
+    }
+  }, [user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- Effect 1: Chat initialisation — runs ONLY when chatId changes ---
+  // Does NOT depend on isConnected, so file uploads / transient socket flickers
+  // will never cause a full history refetch or chat remount.
   useEffect(() => {
+    historyFetchedRef.current = false;
+    currentChatIdRef.current = chatId;
+    setMessages([]);
     fetchChatDetails();
     fetchHistory();
-    
-    // Subscribe to live messages
-    let subscription = null;
-    if (isConnected) {
-      subscription = subscribeToChat(chatId, (msg) => {
-        const msgSender = msg.sender || msg.senderEmail;
-        const msgContent = msg.content !== undefined && msg.content !== null ? msg.content : (msg.message !== undefined && msg.message !== null ? msg.message : "");
-        const isMe = msgSender === user?.email;
-        const nearBottom = isUserNearBottom();
+    historyFetchedRef.current = true;
+  }, [chatId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-        setMessages(prev => {
-          const rawAttachments = msg.attachments || (msg.attachmentsJson ? (() => { try { return typeof msg.attachmentsJson === 'string' ? JSON.parse(msg.attachmentsJson) : msg.attachmentsJson; } catch(e){ return null; } })() : null);
-          const normalizedMsg = {
-            ...msg,
-            sender: msgSender || msg.sender,
-            content: msgContent || msg.content,
-            message: msgContent || msg.message,
-            attachmentsJson: msg.attachmentsJson || (Array.isArray(msg.attachments) ? JSON.stringify(msg.attachments) : null),
-            attachments: rawAttachments,
-            isOptimistic: false
-          };
-
-          if (prev.some(m => String(m.id) === String(msg.id) && !m.isOptimistic)) return prev;
-
-          const optimisticIdx = prev.findIndex(m => 
-            m.isOptimistic && 
-            (m.sender === msgSender || m.sender === user?.email) && 
-            (m.content === msgContent || m.message === msgContent)
-          );
-
-          if (optimisticIdx !== -1) {
-            const newMsgs = [...prev];
-            const optAtts = prev[optimisticIdx].attachments || prev[optimisticIdx].attachmentsJson;
-            if (!normalizedMsg.attachments && !normalizedMsg.attachmentsJson && optAtts) {
-              normalizedMsg.attachments = prev[optimisticIdx].attachments;
-              normalizedMsg.attachmentsJson = prev[optimisticIdx].attachmentsJson;
-            }
-            newMsgs[optimisticIdx] = normalizedMsg;
-            return newMsgs;
-          }
-
-          return [...prev, normalizedMsg];
-        });
-
-        if (isMe || nearBottom) {
-          setTimeout(() => scrollToBottom(true), 50);
-        } else {
-          setHasNewMessagesBelow(true);
-        }
-      });
+  // --- Effect 2: WebSocket subscription — reattaches when connection restores ---
+  // This effect ONLY manages the subscription; it NEVER refetches history.
+  // The 800 ms debounce ignores sub-second isConnected flickers (e.g. those
+  // triggered by FileReader async callbacks or React batched renders) so that
+  // a normal file upload does NOT cause a disconnect/reconnect cycle.
+  useEffect(() => {
+    if (connectionDebounceRef.current) {
+      clearTimeout(connectionDebounceRef.current);
+      connectionDebounceRef.current = null;
     }
 
-    return () => {
-      if (subscription) subscription.unsubscribe();
-    };
-  }, [chatId, isConnected]);
+    if (!isConnected) {
+      connectionDebounceRef.current = setTimeout(() => {
+        wasConnectedRef.current = true;
+        setConnectionLabel('Reconnecting...');
+      }, 800);
+      return () => {
+        if (connectionDebounceRef.current) {
+          clearTimeout(connectionDebounceRef.current);
+          connectionDebounceRef.current = null;
+        }
+      };
+    }
+
+    if (wasConnectedRef.current) {
+      // Genuine reconnect after a real disconnect
+      setConnectionLabel('Reconnected');
+      const labelTimer = setTimeout(() => setConnectionLabel('Online'), 3000);
+      wasConnectedRef.current = false;
+      connectionDebounceRef.current = null;
+      const subscription = subscribeToChat(currentChatIdRef.current, handleIncomingSocketMessage);
+      return () => {
+        clearTimeout(labelTimer);
+        if (subscription) subscription.unsubscribe();
+      };
+    } else {
+      // Initial connection (or chatId change with socket already connected)
+      setConnectionLabel('Online');
+      wasConnectedRef.current = false;
+      const subscription = subscribeToChat(currentChatIdRef.current, handleIncomingSocketMessage);
+      return () => {
+        if (subscription) subscription.unsubscribe();
+      };
+    }
+  }, [isConnected, chatId, handleIncomingSocketMessage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load Group Specific Data
   useEffect(() => {
@@ -1230,7 +1291,7 @@ const ChatRoom = () => {
                 {chat?.type === 'GROUP' && <MdInfoOutline size={14} className="opacity-60 text-gray-500 dark:text-gray-400" />}
               </div>
               <p className="text-[10px] uppercase tracking-widest font-bold text-primary opacity-80">
-                {chat?.type || 'CONVERSATION'} • {isConnected ? 'Online' : 'Reconnecting...'}
+                {chat?.type || 'CONVERSATION'} • {connectionLabel}
               </p>
             </div>
           </div>
