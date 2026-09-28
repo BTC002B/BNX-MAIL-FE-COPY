@@ -17,24 +17,14 @@ const Spam = ({ searchQuery }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { theme, readingPaneMode } = useTheme();
-  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleArchive, openCompose, handleMarkRead, clearReadSpamIds } = useMail();
+  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleArchive, openCompose } = useMail();
   const [selectedEmailUid, setSelectedEmailUid] = useState(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   // Frontend-only duplicate filtering: display only one copy based on existing unique ID
   const uniqueEmails = useMemo(() => filterDuplicateSpamEmails(emails), [emails]);
   const selectedEmail = useMemo(
-    () => uniqueEmails.find((e) => {
-      if (!selectedEmailUid) return false;
-      const target = String(selectedEmailUid);
-      return (
-        String(e.uid) === target ||
-        String(e.id) === target ||
-        (e.messageId && String(e.messageId) === target) ||
-        (e.emailId && String(e.emailId) === target) ||
-        (e.mailId && String(e.mailId) === target)
-      );
-    }),
+    () => uniqueEmails.find((e) => String(e.uid) === String(selectedEmailUid)),
     [uniqueEmails, selectedEmailUid]
   );
 
@@ -77,7 +67,6 @@ const Spam = ({ searchQuery }) => {
 
       setSelectedIds(new Set());
       setSelectedEmailUid(null);
-      clearReadSpamIds?.();
       toast.success("All spam messages moved to trash", { id: "delete-all-spam" });
       await fetchEmails('spam', false, 1);
     } catch (err) {
@@ -111,29 +100,9 @@ const Spam = ({ searchQuery }) => {
   }, [uniqueEmails, searchQuery]);
 
   const handleSelectEmail = (email) => {
-    if (!email) return;
-    const targetId = email.uid ?? email.id ?? email.messageId ?? email.emailId;
-    setSelectedEmailUid(targetId);
-    if (!email.isRead && handleMarkRead) {
-      handleMarkRead(targetId, "spam");
-    }
+    setSelectedEmailUid(email.uid);
   };
 
-  const handleNavigateEmail = (nextEmail) => {
-    if (!nextEmail) return;
-    const targetId = nextEmail.uid ?? nextEmail.id ?? nextEmail.messageId ?? nextEmail.emailId;
-    setSelectedEmailUid(targetId);
-    if (!nextEmail.isRead && handleMarkRead) {
-      handleMarkRead(targetId, "spam");
-    }
-  };
-
-  useEffect(() => {
-    if (selectedEmail && !selectedEmail.isRead && handleMarkRead) {
-      const targetId = selectedEmail.uid ?? selectedEmail.id ?? selectedEmail.messageId ?? selectedEmail.emailId;
-      handleMarkRead(targetId, "spam");
-    }
-  }, [selectedEmail, handleMarkRead]);
 
   const handleForward = (email) => {
     openCompose({
@@ -143,7 +112,7 @@ const Spam = ({ searchQuery }) => {
       originalEmail: email,
     });
   };
-const handleReply = (email) => {
+  const handleReply = (email) => {
     openCompose({
       replyTo: email.senderEmail || email.from,
       subject: `Re: ${email.subject || ""}`,
@@ -152,96 +121,96 @@ const handleReply = (email) => {
   };
 
   /* ---------------- MAIN UI ---------------- */
-  
+
   const detailsComponent = selectedEmail ? (
-<EmailDetails
+    <EmailDetails
       emailList={visibleEmails}
-      onNavigate={handleNavigateEmail}
-          email={selectedEmail}
-          onBack={() => setSelectedEmailUid(null)}
-          onDelete={(uid) => {
-            handleMoveToTrash(uid, "spam");
-            setSelectedEmailUid(null);
-          }}
-          onStar={(uid) => handleToggleStar(uid, "spam")}
-          onArchive={(uid) => {
-            handleArchive(uid, "spam");
-            setSelectedEmailUid(null);
-          }}
-          onReply={handleReply}
-          onForward={handleForward}
-        />
+      onNavigate={(email) => setSelectedEmailUid(email.uid)}
+      email={selectedEmail}
+      onBack={() => setSelectedEmailUid(null)}
+      onDelete={(uid) => {
+        handleMoveToTrash(uid, "spam");
+        setSelectedEmailUid(null);
+      }}
+      onStar={(uid) => handleToggleStar(uid, "spam")}
+      onArchive={(uid) => {
+        handleArchive(uid, "spam");
+        setSelectedEmailUid(null);
+      }}
+      onReply={handleReply}
+      onForward={handleForward}
+    />
   ) : null;
 
   const headerComponent = selectedIds.size > 0 ? (
 
-            <BulkActionsToolbar
-              selectedIds={selectedIds}
-              setSelectedIds={setSelectedIds}
-              visibleEmails={visibleEmails}
-              folder="spam"
-            />
-          
+    <BulkActionsToolbar
+      selectedIds={selectedIds}
+      setSelectedIds={setSelectedIds}
+      visibleEmails={visibleEmails}
+      folder="spam"
+    />
+
   ) : (
 
-            <div
-              className="p-4 sm:p-5 border-b flex items-center justify-between shrink-0 bg-transparent"
-              style={{ borderColor: theme.border }}
-            >
-              <h2
-                className="text-base font-bold flex items-center gap-2"
-                style={{ color: theme.text }}
-              >
-                <MdReport size={20} className="text-red-500" /> Spam
-                <span
-                  className="ml-2 text-xs font-normal"
-                  style={{ color: theme.subText }}
-                >
-                  ({uniqueEmails.length})
-                </span>
-              </h2>
-              {uniqueEmails.length > 0 && (
-                <button
-                  onClick={handleDeleteAllSpam}
-                  disabled={isDeletingAll}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="Delete all spam emails"
-                >
-                  <MdDelete size={16} />
-                  Delete All
-                </button>
-              )}
-            </div>
-          
+    <div
+      className="p-4 sm:p-5 border-b flex items-center justify-between shrink-0 bg-transparent"
+      style={{ borderColor: theme.border }}
+    >
+      <h2
+        className="text-base font-bold flex items-center gap-2"
+        style={{ color: theme.text }}
+      >
+        <MdReport size={20} className="text-red-500" /> Spam
+        <span
+          className="ml-2 text-xs font-normal"
+          style={{ color: theme.subText }}
+        >
+          ({uniqueEmails.length})
+        </span>
+      </h2>
+      {uniqueEmails.length > 0 && (
+        <button
+          onClick={handleDeleteAllSpam}
+          disabled={isDeletingAll}
+          className="px-3 py-1.5 text-xs font-medium rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          title="Delete all spam emails"
+        >
+          <MdDelete size={16} />
+          Delete All
+        </button>
+      )}
+    </div>
+
   );
 
   const listComponent = (
     <div className="flex-1 flex flex-col overflow-hidden">
-{uniqueEmails.length === 0 ? (
-              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
-                <MdReport size={52} className="text-gray-300 dark:text-gray-600 mb-4 opacity-50" />
-                <p
-                  className="text-base font-semibold mb-1"
-                  style={{ color: theme.text }}
-                >
-                  No spam emails
-                </p>
-                <p className="text-sm" style={{ color: theme.subText }}>
-                  Spam emails will automatically appear here
-                </p>
-              </div>
-            ) : (
-              <EmailList
-                emails={visibleEmails}
-                selectedEmailId={selectedEmail?.uid ?? selectedEmail?.id ?? selectedEmail?.messageId}
-                onSelectEmail={handleSelectEmail}
-                onDelete={(uid) => handleMoveToTrash(uid, "spam")}
-                onStar={(uid) => handleToggleStar(uid, "spam")}
-                onArchive={(uid) => handleArchive(uid, "spam")}
-                selectedIds={selectedIds}
-                onToggleSelect={handleToggleSelect}
-              />
-            )}
+      {uniqueEmails.length === 0 ? (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
+          <MdReport size={52} className="text-gray-300 dark:text-gray-600 mb-4 opacity-50" />
+          <p
+            className="text-base font-semibold mb-1"
+            style={{ color: theme.text }}
+          >
+            No spam emails
+          </p>
+          <p className="text-sm" style={{ color: theme.subText }}>
+            Spam emails will automatically appear here
+          </p>
+        </div>
+      ) : (
+        <EmailList
+          emails={visibleEmails}
+          selectedEmailId={selectedEmail?.uid}
+          onSelectEmail={handleSelectEmail}
+          onDelete={(uid) => handleMoveToTrash(uid, "spam")}
+          onStar={(uid) => handleToggleStar(uid, "spam")}
+          onArchive={(uid) => handleArchive(uid, "spam")}
+          selectedIds={selectedIds}
+          onToggleSelect={handleToggleSelect}
+        />
+      )}
     </div>
   );
 
