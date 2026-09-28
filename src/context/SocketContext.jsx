@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
 import { useAuth } from './AuthContext';
 import { useMail } from './MailContext';
@@ -12,9 +12,37 @@ const WS_URL = import.meta.env.VITE_WS_URL;
 
 export const SocketProvider = ({ children }) => {
     const { isAuthenticated, user } = useAuth();
-    const { fetchEmails, fetchEmailsSilently } = useMail();
+    const mailContext = useMail();
+    const mailRef = useRef(mailContext);
+    mailRef.current = mailContext;
+
     const [stompClient, setStompClient] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
+
+    const handlePersonalNotification = (data) => {
+        // console.log('📩 Personal Notification:', data);
+        const { fetchEmails, fetchEmailsSilently } = mailRef.current || {};
+        switch (data.type) {
+            case 'new_email':
+                toast('New email received!', { icon: '📧' });
+                if (fetchEmails) fetchEmails(undefined, true);
+                break;
+            case 'send_progress':
+                if (data.status === 'completed') {
+                    toast.success('Email sent successfully');
+                    if (fetchEmails) fetchEmails(undefined, true);
+                    if (fetchEmailsSilently) {
+                        fetchEmailsSilently('sent');
+                        fetchEmailsSilently('drafts');
+                    }
+                } else if (data.status === 'failed') {
+                    toast.error('Failed to send email');
+                }
+                break;
+            default:
+                toast(data.message || 'Notification received');
+        }
+    };
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -84,31 +112,7 @@ export const SocketProvider = ({ children }) => {
         };
     }, [isAuthenticated]);
 
-    const handlePersonalNotification = (data) => {
-        // console.log('📩 Personal Notification:', data);
-        switch (data.type) {
-            case 'new_email':
-                toast('New email received!', { icon: '📧' });
-                fetchEmails(undefined, true);
-                break;
-            case 'send_progress':
-                if (data.status === 'completed') {
-                    toast.success('Email sent successfully');
-                    fetchEmails(undefined, true);
-                    if (fetchEmailsSilently) {
-                        fetchEmailsSilently('sent');
-                        fetchEmailsSilently('drafts');
-                    }
-                } else if (data.status === 'failed') {
-                    toast.error('Failed to send email');
-                }
-                break;
-            default:
-                toast(data.message || 'Notification received');
-        }
-    };
-
-    const subscribeToChat = (chatId, callback) => {
+    const subscribeToChat = React.useCallback((chatId, callback) => {
         if (!stompClient || !isConnected || !stompClient.connected) return null;
         if (stompClient.webSocket && stompClient.webSocket.readyState !== WebSocket.OPEN) {
             if (stompClient.webSocket.readyState === WebSocket.CLOSED || stompClient.webSocket.readyState === WebSocket.CLOSING) {
@@ -147,10 +151,11 @@ export const SocketProvider = ({ children }) => {
             console.error("Failed to subscribe to chat:", e);
             return null;
         }
-    };
+    }, [stompClient, isConnected]);
 
-    const sendMessage = (chatId, messageContent, attachmentsJson = null) => {
-        if (!stompClient || !isConnected || !user || !stompClient.connected) return false;
+    const userEmailOrUsername = user?.email || user?.username;
+    const sendMessage = React.useCallback((chatId, messageContent, attachmentsJson = null) => {
+        if (!stompClient || !isConnected || !userEmailOrUsername || !stompClient.connected) return false;
         if (stompClient.webSocket && stompClient.webSocket.readyState !== WebSocket.OPEN) {
             return false;
         }
@@ -158,7 +163,7 @@ export const SocketProvider = ({ children }) => {
         try {
             const payload = {
                 chatId: parseInt(chatId),
-                sender: user?.email || user?.username,
+                sender: userEmailOrUsername,
                 message: messageContent,
                 attachmentsJson: attachmentsJson
             };
@@ -182,10 +187,17 @@ export const SocketProvider = ({ children }) => {
             console.error("Failed to send message via STOMP:", e);
             return false;
         }
-    };
+    }, [stompClient, isConnected, userEmailOrUsername]);
+
+    const value = React.useMemo(() => ({
+        stompClient,
+        isConnected,
+        subscribeToChat,
+        sendMessage
+    }), [stompClient, isConnected, subscribeToChat, sendMessage]);
 
     return (
-        <SocketContext.Provider value={{ stompClient, isConnected, subscribeToChat, sendMessage }}>
+        <SocketContext.Provider value={value}>
             {children}
         </SocketContext.Provider>
     );

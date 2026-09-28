@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   MdArrowBack,
@@ -124,6 +124,9 @@ const formatFileSize = (bytes) => {
 
 const getNormalizedAttachments = (msg) => {
   if (!msg) return [];
+  if (msg.parsedAttachments && Array.isArray(msg.parsedAttachments)) {
+    return msg.parsedAttachments;
+  }
   
   let rawList = [];
   
@@ -330,6 +333,98 @@ const CommentAttachmentItem = ({ att, isMe, onOpenImage, handleDownload, handleV
     </div>
   );
 };
+
+const formatMessageTime = (timestamp) => {
+  if (!timestamp) return '';
+  
+  let date;
+  if (Array.isArray(timestamp)) {
+    const [year, month, day, hour, minute, second] = timestamp;
+    date = new Date(year, month - 1, day, hour || 0, minute || 0, second || 0);
+  } else {
+    date = new Date(timestamp);
+  }
+
+  if (isNaN(date.getTime())) return '';
+
+  const now = new Date();
+  
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return `Yesterday, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  }
+  
+  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+};
+
+const CommentMessageItem = React.memo(({
+  msg,
+  isMe,
+  chatName,
+  theme,
+  onOpenImage,
+  handleDownload,
+  handleView,
+  formatTime
+}) => {
+  const atts = msg.parsedAttachments || getNormalizedAttachments(msg);
+  const hasText = msg.content && msg.content.trim();
+  if (!hasText && atts.length === 0) return null;
+
+  return (
+    <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300 comment-card printable-item print:mb-3">
+      <div className="max-w-[85%] sm:max-w-[75%] print:max-w-full flex flex-col items-start">
+        <span className="text-[10px] font-bold mb-1 ml-2 uppercase opacity-60 print:opacity-100 print:text-gray-700 print:text-[11px]" style={{ color: theme.subText }}>
+          {chatName}
+        </span>
+        <div className="flex flex-col w-fit print:w-full">
+          <div 
+            className={`px-4 py-2.5 rounded-2xl shadow-sm relative print:rounded-xl print:border print:border-gray-300 print:bg-white print:text-black print:shadow-none ${
+              isMe 
+                ? 'bg-primary text-white rounded-tr-sm' 
+                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-tl-sm'
+            }`}
+          >
+            {hasText ? (
+              <p className={`text-[14px] leading-relaxed whitespace-pre-wrap print:text-black ${atts.length > 0 ? 'mb-2.5' : ''}`}>
+                {msg.content}
+              </p>
+            ) : null}
+            
+            {/* Attachments Rendering */}
+            {atts.length > 0 && (
+              <div className="mt-1 flex flex-col gap-2">
+                {atts.map((att, i) => (
+                  <CommentAttachmentItem
+                    key={i}
+                    att={att}
+                    isMe={isMe}
+                    onOpenImage={onOpenImage}
+                    handleDownload={handleDownload}
+                    handleView={handleView}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Timestamp outside and below the bubble */}
+          <div 
+            className="text-[9px] mt-1 opacity-60 font-medium select-none text-gray-500 dark:text-gray-400 self-end mr-2 text-right print:opacity-100 print:text-gray-500"
+          >
+            {formatTime(msg.timestamp)}
+            {msg.isOptimistic && " • sending..."}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 const ChatRoom = () => {
   const { chatId } = useParams();
@@ -538,7 +633,7 @@ const ChatRoom = () => {
     });
   };
 
-  const handleDownloadAttachment = (att) => {
+  const handleDownloadAttachment = useCallback((att) => {
     try {
       if (!att) return;
       const content = att.url || att.fileUrl || att.content;
@@ -579,9 +674,9 @@ const ChatRoom = () => {
       console.error("Error downloading attachment:", e);
       toast.error("Failed to download attachment");
     }
-  };
+  }, []);
 
-  const handleViewAttachment = (att) => {
+  const handleViewAttachment = useCallback((att) => {
     try {
       if (!att) return;
       const content = att.url || att.fileUrl || att.content;
@@ -610,7 +705,7 @@ const ChatRoom = () => {
         window.open(att.fileUrl || att.url || att.content, "_blank");
       }
     }
-  };
+  }, []);
 
   const handleLeaveGroup = async () => {
     if (!window.confirm("Are you sure you want to leave this Colab?")) return;
@@ -674,33 +769,6 @@ const ChatRoom = () => {
     }
   };
 
-  const formatMessageTime = (timestamp) => {
-    if (!timestamp) return '';
-    
-    let date;
-    if (Array.isArray(timestamp)) {
-      const [year, month, day, hour, minute, second] = timestamp;
-      date = new Date(year, month - 1, day, hour || 0, minute || 0, second || 0);
-    } else {
-      date = new Date(timestamp);
-    }
-
-    if (isNaN(date.getTime())) return '';
-
-    const now = new Date();
-    
-    if (date.toDateString() === now.toDateString()) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-    if (date.toDateString() === yesterday.toDateString()) {
-      return `Yesterday, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    }
-    
-    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  };
 
   const removeAttachment = (index) => {
     setSelectedAttachments(prev => prev.filter((_, i) => i !== index));
@@ -807,7 +875,11 @@ const ChatRoom = () => {
       const res = await chatAPI.getMessageHistory(chatId);
       if (res.data) {
         const history = Array.isArray(res.data) ? res.data : (res.data.data || []);
-        setMessages(history);
+        const normalizedHistory = history.map(msg => ({
+          ...msg,
+          parsedAttachments: getNormalizedAttachments(msg)
+        }));
+        setMessages(normalizedHistory);
       }
     } catch (err) {
       console.error("Failed to fetch history:", err);
@@ -933,6 +1005,7 @@ const ChatRoom = () => {
             attachmentsJson: response.attachmentsJson !== undefined && response.attachmentsJson !== null 
               ? response.attachmentsJson 
               : null,
+            parsedAttachments: getNormalizedAttachments(response),
             isOptimistic: false
           };
 
@@ -947,6 +1020,9 @@ const ChatRoom = () => {
             const newMsgs = [...prev];
             if (!completeMsg.attachmentsJson && prev[optimisticIdx].attachmentsJson) {
               completeMsg.attachmentsJson = prev[optimisticIdx].attachmentsJson;
+            }
+            if (!completeMsg.parsedAttachments?.length && prev[optimisticIdx].parsedAttachments?.length) {
+              completeMsg.parsedAttachments = prev[optimisticIdx].parsedAttachments;
             }
             newMsgs[optimisticIdx] = completeMsg;
             return newMsgs;
@@ -1009,6 +1085,7 @@ const ChatRoom = () => {
       content: contentText,
       message: contentText,
       attachmentsJson: attachmentsJson,
+      parsedAttachments: attachments,
       timestamp: new Date().toISOString(),
       isOptimistic: true
     };
@@ -1044,6 +1121,7 @@ const ChatRoom = () => {
             attachmentsJson: response.attachmentsJson !== undefined && response.attachmentsJson !== null 
               ? response.attachmentsJson 
               : attachmentsJson,
+            parsedAttachments: getNormalizedAttachments(response),
             isOptimistic: false
           };
           setMessages(prev => {
@@ -1469,62 +1547,18 @@ const ChatRoom = () => {
               ) : (
                 messages.map((msg, idx) => {
                   const isMe = msg.sender === user?.email || msg.senderEmail === user?.email;
-                  const atts = getNormalizedAttachments(msg);
-                  if (msg.attachmentsJson || (msg.attachments && msg.attachments.length > 0) || atts.length > 0) {
-                    console.log("[ATTACHMENT] rendering message:", msg);
-                    console.log("[ATTACHMENT] parsed attachments:", atts);
-                  }
-                  const hasText = msg.content && msg.content.trim();
-                  if (!hasText && atts.length === 0) return null;
-
                   return (
-                    <div key={msg.id || idx} className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300 comment-card printable-item print:mb-3">
-                      <div className="max-w-[85%] sm:max-w-[75%] print:max-w-full flex flex-col items-start">
-                        <span className="text-[10px] font-bold mb-1 ml-2 uppercase opacity-60 print:opacity-100 print:text-gray-700 print:text-[11px]" style={{ color: theme.subText }}>
-                          {chatName}
-                        </span>
-                        <div className="flex flex-col w-fit print:w-full">
-                          <div 
-                            className={`px-4 py-2.5 rounded-2xl shadow-sm relative print:rounded-xl print:border print:border-gray-300 print:bg-white print:text-black print:shadow-none ${
-                              isMe 
-                                ? 'bg-primary text-white rounded-tr-sm' 
-                                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-tl-sm'
-                            }`}
-                          >
-                            {hasText ? (
-                              <p className={`text-[14px] leading-relaxed whitespace-pre-wrap print:text-black ${atts.length > 0 ? 'mb-2.5' : ''}`}>
-                                {msg.content}
-                              </p>
-                            ) : null}
-                            
-                            {/* Attachments Rendering */}
-                            {atts.length > 0 && (
-                              <div className="mt-1 flex flex-col gap-2">
-                                {atts.map((att, i) => (
-                                  <CommentAttachmentItem
-                                    key={i}
-                                    att={att}
-                                    isMe={isMe}
-                                    onOpenImage={setPreviewMedia}
-                                    handleDownload={handleDownloadAttachment}
-                                    handleView={handleViewAttachment}
-                                  />
-                                ))}
-                              </div>
-                            )}
-
-                          </div>
-
-                          {/* Timestamp outside and below the bubble */}
-                          <div 
-                            className="text-[9px] mt-1 opacity-60 font-medium select-none text-gray-500 dark:text-gray-400 self-end mr-2 text-right print:opacity-100 print:text-gray-500"
-                          >
-                            {formatMessageTime(msg.timestamp)}
-                            {msg.isOptimistic && " • sending..."}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <CommentMessageItem
+                      key={msg.id || idx}
+                      msg={msg}
+                      isMe={isMe}
+                      chatName={chatName}
+                      theme={theme}
+                      onOpenImage={setPreviewMedia}
+                      handleDownload={handleDownloadAttachment}
+                      handleView={handleViewAttachment}
+                      formatTime={formatMessageTime}
+                    />
                   );
                 })
               )}
