@@ -709,6 +709,7 @@ const ChatRoom = () => {
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
+    if (fileInputRef.current) fileInputRef.current.value = "";
 
     const MAX_SIZE = 10 * 1024 * 1024; // 10MB limit per file
     const BLOCKED_EXTENSIONS = ['exe', 'bat', 'cmd', 'sh', 'msi', 'vbs', 'scr', 'dll', 'com', 'app', 'bin', 'jar', 'apk', 'dmg', 'iso'];
@@ -742,47 +743,48 @@ const ChatRoom = () => {
       }
 
       // Check if file is already attached
+      let alreadyExists = false;
       setSelectedAttachments(prev => {
         if (prev.some(a => (a.name || a.fileName) === file.name && (a.size || a.fileSize) === file.size)) {
-          toast.error(`"${file.name}" is already attached.`);
-          return prev;
+          alreadyExists = true;
         }
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const fileUrl = event.target.result;
-          
-          // Log B: UPLOAD RESULT
-          const uploadResponse = { success: true, url: fileUrl };
-          console.log("[ATTACHMENT] upload result:", uploadResponse);
-
-          // Log C: ATTACHMENT OBJECT
-          const attachment = {
-            name: file.name,
-            url: fileUrl,
-            type: file.type || 'application/octet-stream',
-            size: file.size
-          };
-          console.log("[ATTACHMENT] attachment object:", attachment);
-
-          setSelectedAttachments(current => {
-            if (current.some(a => (a.name || a.fileName) === file.name && (a.size || a.fileSize) === file.size)) {
-              return current;
-            }
-            return [...current, attachment];
-          });
-        };
-        reader.onerror = () => {
-          toast.error(`Failed to read "${file.name}".`);
-        };
-        reader.readAsDataURL(file);
-
         return prev;
       });
-    });
 
-    // Reset input so the user can re-select files if needed
-    if (fileInputRef.current) fileInputRef.current.value = "";
+      if (alreadyExists) {
+        toast.error(`"${file.name}" is already attached.`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const fileUrl = event.target.result;
+        
+        // Log B: UPLOAD RESULT
+        const uploadResponse = { success: true, url: fileUrl };
+        console.log("[ATTACHMENT] upload result:", uploadResponse);
+
+        // Log C: ATTACHMENT OBJECT
+        const attachment = {
+          name: file.name,
+          url: fileUrl,
+          type: file.type || 'application/octet-stream',
+          size: file.size
+        };
+        console.log("[ATTACHMENT] attachment object:", attachment);
+
+        setSelectedAttachments(current => {
+          if (current.some(a => (a.name || a.fileName) === file.name && (a.size || a.fileSize) === file.size)) {
+            return current;
+          }
+          return [...current, attachment];
+        });
+      };
+      reader.onerror = () => {
+        toast.error(`Failed to read "${file.name}".`);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const fetchChatDetails = async () => {
@@ -895,13 +897,18 @@ const ChatRoom = () => {
   };
 
 
+  // Load chat details and message history ONLY when chatId changes
   useEffect(() => {
-    fetchChatDetails();
-    fetchHistory();
-    
-    // Subscribe to live messages
+    if (chatId) {
+      fetchChatDetails();
+      fetchHistory();
+    }
+  }, [chatId]);
+
+  // Subscribe to live messages over WebSocket
+  useEffect(() => {
     let subscription = null;
-    if (isConnected) {
+    if (chatId && isConnected) {
       subscription = subscribeToChat(chatId, (response) => {
         if (!response || !response.id) return;
         // Log G: MESSAGE RESPONSE
@@ -1021,18 +1028,6 @@ const ChatRoom = () => {
     };
 
     // 5. Send existing message request without changing the API
-    let isSentViaWs = false;
-    if (isConnected) {
-      // Log E: WEBSOCKET SEND
-      console.log("[ATTACHMENT] websocket payload:", payload);
-      try {
-        isSentViaWs = sendMessage(chatId, contentText, attachmentsJson) !== false;
-      } catch (wsErr) {
-        console.warn("[ATTACHMENT] websocket send error:", wsErr);
-        isSentViaWs = false;
-      }
-    } 
-    
     const sendViaRest = () => {
       // Log F: REST FALLBACK
       console.log("[ATTACHMENT] REST payload:", payload);
@@ -1067,20 +1062,28 @@ const ChatRoom = () => {
       });
     };
 
-    if (!isSentViaWs) {
+    if (attachmentsJson) {
+      // Messages with attachments are sent via HTTP REST (POST /api/chat/message)
+      // to avoid WebSocket frame size limits (STOMP buffer overflow).
+      // The backend saves the message, broadcasts it over /topic/chat/{chatId},
+      // and returns the MessageResponse. This ensures the group WebSocket connection
+      // stays 100% stable and in the ONLINE state without any reconnecting.
       sendViaRest();
-    } else if (attachmentsJson) {
-      // Safety confirmation: if WebSocket drops frame due to size, ensure REST fallback saves to DB
-      setTimeout(() => {
-        setMessages(current => {
-          const stillOptimistic = current.some(m => m.id === tempId && m.isOptimistic);
-          if (stillOptimistic) {
-            console.warn("[ATTACHMENT] WebSocket not confirmed in 2.5s, triggering REST fallback");
-            sendViaRest();
-          }
-          return current;
-        });
-      }, 2500);
+    } else {
+      let isSentViaWs = false;
+      if (isConnected) {
+        // Log E: WEBSOCKET SEND
+        console.log("[ATTACHMENT] websocket payload:", payload);
+        try {
+          isSentViaWs = sendMessage(chatId, contentText, null) !== false;
+        } catch (wsErr) {
+          console.warn("[ATTACHMENT] websocket send error:", wsErr);
+          isSentViaWs = false;
+        }
+      }
+      if (!isSentViaWs) {
+        sendViaRest();
+      }
     }
   };
 

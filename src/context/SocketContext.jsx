@@ -40,8 +40,8 @@ export const SocketProvider = ({ children }) => {
                 // console.log('STOMP:', str);
             },
             reconnectDelay: 5000,
-            heartbeatIncoming: 4000,
-            heartbeatOutgoing: 4000,
+            heartbeatIncoming: 10000,
+            heartbeatOutgoing: 10000,
             // Disable SockJS for now to see the raw WebSocket error
             // webSocketFactory: () => new SockJS(WS_URL.replace('wss://', 'https://')),
         });
@@ -111,7 +111,9 @@ export const SocketProvider = ({ children }) => {
     const subscribeToChat = (chatId, callback) => {
         if (!stompClient || !isConnected || !stompClient.connected) return null;
         if (stompClient.webSocket && stompClient.webSocket.readyState !== WebSocket.OPEN) {
-            setIsConnected(false);
+            if (stompClient.webSocket.readyState === WebSocket.CLOSED || stompClient.webSocket.readyState === WebSocket.CLOSING) {
+                setIsConnected(false);
+            }
             return null;
         }
         try {
@@ -150,7 +152,6 @@ export const SocketProvider = ({ children }) => {
     const sendMessage = (chatId, messageContent, attachmentsJson = null) => {
         if (!stompClient || !isConnected || !user || !stompClient.connected) return false;
         if (stompClient.webSocket && stompClient.webSocket.readyState !== WebSocket.OPEN) {
-            setIsConnected(false);
             return false;
         }
         
@@ -162,16 +163,23 @@ export const SocketProvider = ({ children }) => {
                 attachmentsJson: attachmentsJson
             };
 
+            const payloadStr = JSON.stringify(payload);
+            // STOMP WebSocket text frames have buffer limits (e.g. 64KB).
+            // Prevent oversized frames from crashing the WebSocket connection.
+            if (payloadStr.length > 64 * 1024) {
+                console.warn("[ATTACHMENT] Payload exceeds STOMP frame limit, falling back to REST");
+                return false;
+            }
+
             console.log("[ATTACHMENT] websocket payload:", payload);
 
             stompClient.publish({
                 destination: '/app/chat.send',
-                body: JSON.stringify(payload)
+                body: payloadStr
             });
             return true;
         } catch (e) {
-            console.error("Failed to send message:", e);
-            setIsConnected(false);
+            console.error("Failed to send message via STOMP:", e);
             return false;
         }
     };
