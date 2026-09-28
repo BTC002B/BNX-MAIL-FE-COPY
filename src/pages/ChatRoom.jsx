@@ -721,6 +721,9 @@ const ChatRoom = () => {
     ];
 
     files.forEach(file => {
+      // Log A: FILE SELECTED
+      console.log("[ATTACHMENT] selected file:", file);
+
       const ext = (file.name.split('.').pop() || '').toLowerCase();
       if (BLOCKED_EXTENSIONS.includes(ext)) {
         toast.error(`"${file.name}" is not a supported file format.`);
@@ -740,23 +743,33 @@ const ChatRoom = () => {
 
       // Check if file is already attached
       setSelectedAttachments(prev => {
-        if (prev.some(a => a.name === file.name && a.size === file.size)) {
+        if (prev.some(a => (a.name || a.fileName) === file.name && (a.size || a.fileSize) === file.size)) {
           toast.error(`"${file.name}" is already attached.`);
           return prev;
         }
 
         const reader = new FileReader();
         reader.onload = (event) => {
+          const fileUrl = event.target.result;
+          
+          // Log B: UPLOAD RESULT
+          const uploadResponse = { success: true, url: fileUrl };
+          console.log("[ATTACHMENT] upload result:", uploadResponse);
+
+          // Log C: ATTACHMENT OBJECT
+          const attachment = {
+            name: file.name,
+            url: fileUrl,
+            type: file.type || 'application/octet-stream',
+            size: file.size
+          };
+          console.log("[ATTACHMENT] attachment object:", attachment);
+
           setSelectedAttachments(current => {
-            if (current.some(a => a.name === file.name && a.size === file.size)) {
+            if (current.some(a => (a.name || a.fileName) === file.name && (a.size || a.fileSize) === file.size)) {
               return current;
             }
-            return [...current, {
-              name: file.name,
-              url: event.target.result,
-              type: file.type || 'application/octet-stream',
-              size: file.size
-            }];
+            return [...current, attachment];
           });
         };
         reader.onerror = () => {
@@ -891,6 +904,8 @@ const ChatRoom = () => {
     if (isConnected) {
       subscription = subscribeToChat(chatId, (response) => {
         if (!response || !response.id) return;
+        // Log G: MESSAGE RESPONSE
+        console.log("[ATTACHMENT] message response:", response);
         const msgSender = response.sender || response.senderEmail;
         const msgContent = response.content !== undefined && response.content !== null ? response.content : (response.message !== undefined && response.message !== null ? response.message : "");
         const isMe = msgSender === user?.email;
@@ -971,14 +986,19 @@ const ChatRoom = () => {
 
     // 4. Convert the attachment array to JSON
     const attachmentsJson = attachments.length > 0 ? JSON.stringify(attachments) : null;
+    
+    // Log D: FINAL attachmentsJson
+    console.log("[ATTACHMENT] attachmentsJson:", attachmentsJson);
+
     const contentText = newMessage.trim();
+    const senderEmail = user?.email || user?.username || "";
 
     // Optimistic update
     const tempId = `temp-${Date.now()}`;
     const tempMsg = {
       id: tempId,
       chatId: parseInt(chatId),
-      sender: user.email,
+      sender: senderEmail,
       content: contentText,
       message: contentText,
       attachmentsJson: attachmentsJson,
@@ -993,24 +1013,37 @@ const ChatRoom = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
     setTimeout(() => scrollToBottom(true), 50);
 
+    const payload = {
+      chatId: parseInt(chatId),
+      sender: senderEmail,
+      message: contentText,
+      attachmentsJson: attachmentsJson
+    };
+
     // 5. Send existing message request without changing the API
     let isSentViaWs = false;
     if (isConnected) {
-      isSentViaWs = sendMessage(chatId, contentText, attachmentsJson) !== false;
+      // Log E: WEBSOCKET SEND
+      console.log("[ATTACHMENT] websocket payload:", payload);
+      try {
+        isSentViaWs = sendMessage(chatId, contentText, attachmentsJson) !== false;
+      } catch (wsErr) {
+        console.warn("[ATTACHMENT] websocket send error:", wsErr);
+        isSentViaWs = false;
+      }
     } 
     
-    if (!isSentViaWs) {
-      chatAPI.sendMessage({
-        chatId: parseInt(chatId),
-        sender: user.email,
-        message: contentText,
-        attachmentsJson: attachmentsJson
-      }).then(res => {
+    const sendViaRest = () => {
+      // Log F: REST FALLBACK
+      console.log("[ATTACHMENT] REST payload:", payload);
+      chatAPI.sendMessage(payload).then(res => {
         const response = res.data?.data || res.data;
+        // Log G: MESSAGE RESPONSE
+        console.log("[ATTACHMENT] message response:", response);
         if (response && response.id) {
           const completeMsg = {
             ...response,
-            sender: response.sender || user.email,
+            sender: response.sender || senderEmail,
             content: response.content || contentText,
             message: response.content || contentText,
             attachmentsJson: response.attachmentsJson !== undefined && response.attachmentsJson !== null 
@@ -1032,6 +1065,22 @@ const ChatRoom = () => {
         toast.error("Failed to send message");
         setMessages(prev => prev.filter(m => m.id !== tempId));
       });
+    };
+
+    if (!isSentViaWs) {
+      sendViaRest();
+    } else if (attachmentsJson) {
+      // Safety confirmation: if WebSocket drops frame due to size, ensure REST fallback saves to DB
+      setTimeout(() => {
+        setMessages(current => {
+          const stillOptimistic = current.some(m => m.id === tempId && m.isOptimistic);
+          if (stillOptimistic) {
+            console.warn("[ATTACHMENT] WebSocket not confirmed in 2.5s, triggering REST fallback");
+            sendViaRest();
+          }
+          return current;
+        });
+      }, 2500);
     }
   };
 
@@ -1418,6 +1467,10 @@ const ChatRoom = () => {
                 messages.map((msg, idx) => {
                   const isMe = msg.sender === user?.email || msg.senderEmail === user?.email;
                   const atts = getNormalizedAttachments(msg);
+                  if (msg.attachmentsJson || (msg.attachments && msg.attachments.length > 0) || atts.length > 0) {
+                    console.log("[ATTACHMENT] rendering message:", msg);
+                    console.log("[ATTACHMENT] parsed attachments:", atts);
+                  }
                   const hasText = msg.content && msg.content.trim();
                   if (!hasText && atts.length === 0) return null;
 

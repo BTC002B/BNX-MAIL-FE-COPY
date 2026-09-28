@@ -157,10 +157,12 @@ export const SocketProvider = ({ children }) => {
         try {
             const payload = {
                 chatId: parseInt(chatId),
-                sender: user.email,
+                sender: user?.email || user?.username,
                 message: messageContent,
                 attachmentsJson: attachmentsJson
             };
+
+            console.log("[ATTACHMENT] websocket payload:", payload);
 
             stompClient.publish({
                 destination: '/app/chat.send',
