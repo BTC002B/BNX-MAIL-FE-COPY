@@ -1746,20 +1746,50 @@ const Casbox = () => {
 
     return (
       <div className="flex flex-col h-full bg-white dark:bg-[#121212] border-l border-gray-100 dark:border-gray-800 overflow-hidden">
-        {/* Action Toolbar */}
+        {/* Combined Header: Back → Contact Info | Archive · Delete · More */}
         <div
-          className="flex items-center justify-between px-4 sm:px-6 py-2 border-b shrink-0 relative z-20 bg-white dark:bg-[#121212]"
+          className="flex items-center justify-between gap-2 px-4 sm:px-5 py-2.5 border-b shrink-0 relative z-20 bg-white dark:bg-[#121212] min-w-0"
           style={{ borderColor: theme?.border || '#e2e8f0' }}
         >
-          <div className="flex items-center gap-1 sm:gap-2">
+          {/* Left: Back + Avatar + Name/Email */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            {/* Back button */}
             <button
               onClick={() => setSelectedMessage(null)}
-              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer"
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer shrink-0"
               title="Back"
             >
               <MdArrowBack size={20} />
             </button>
-            <div className="h-5 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1" />
+
+            {/* Divider */}
+            <div className="h-5 w-[1px] bg-gray-200 dark:bg-gray-700 shrink-0" />
+
+            {/* Contact Avatar */}
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shrink-0">
+              {getContactInitial(otherUserEmail, selectedMessage)}
+            </div>
+
+            {/* Contact Name + Email */}
+            <div className="flex flex-col min-w-0 flex-1">
+              <span
+                className="font-bold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate leading-tight"
+                title={getDisplayName(otherUserEmail, selectedMessage)}
+              >
+                {getDisplayName(otherUserEmail, selectedMessage)}
+              </span>
+              <span
+                className="text-[10px] text-gray-400 dark:text-gray-500 font-medium truncate leading-tight"
+                title={otherUserEmail}
+              >
+                {otherUserEmail}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: Archive · Delete · More */}
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            {/* Archive / Unarchive */}
             <button
               onClick={handleArchiveChat}
               className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 cursor-pointer"
@@ -1771,6 +1801,8 @@ const Casbox = () => {
                 <MdArchive size={20} />
               )}
             </button>
+
+            {/* Delete */}
             <button
               onClick={() => {
                 const other = getOtherUserEmail(selectedMessage);
@@ -1781,9 +1813,8 @@ const Casbox = () => {
             >
               <MdDeleteOutline size={20} />
             </button>
-          </div>
 
-          <div className="flex items-center gap-1 sm:gap-2">
+            {/* More menu */}
             <div className="relative" ref={moreMenuRef}>
               <button
                 onClick={() => setShowMoreMenu(prev => !prev)}
@@ -1843,36 +1874,6 @@ const Casbox = () => {
                   </button>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* Header */}
-        <div
-          className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between bg-white dark:bg-[#121212] shrink-0 relative z-10 min-w-0"
-          style={{ borderColor: theme?.border || '#e2e8f0' }}
-        >
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-            <button
-              onClick={() => setSelectedMessage(null)}
-              className="p-1.5 sm:p-2 -ml-1 sm:-ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors shrink-0"
-              title="Close"
-            >
-              <MdClose size={22} className="hidden md:block" />
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-            </button>
-
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm sm:text-base shrink-0">
-              {getContactInitial(otherUserEmail, selectedMessage)}
-            </div>
-
-            <div className="flex flex-col min-w-0 flex-1">
-              <span className="font-bold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate" title={getDisplayName(otherUserEmail, selectedMessage)}>
-                {getDisplayName(otherUserEmail, selectedMessage)}
-              </span>
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium truncate" title={otherUserEmail}>
-                {otherUserEmail}
-              </span>
             </div>
           </div>
         </div>
