@@ -100,6 +100,7 @@ const Send = ({ searchQuery }) => {
         setSelectedEmailUid(null);
       }}
       onApplyLabel={handleApplyLabel}
+      onSnooze={handleSnooze}
     />
   ) : null;
 

@@ -13,7 +13,7 @@ import ReadingPaneLayout from "../components/ReadingPaneLayout";
 const Starred = ({ searchQuery }) => {
   const navigate = useNavigate();
   const { theme, readingPaneMode } = useTheme();
-  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleApplyLabel, handleArchive, handleUnarchive, openCompose } = useMail();
+  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleApplyLabel, handleArchive, handleUnarchive, handleSnooze, openCompose } = useMail();
   const [selectedEmailUid, setSelectedEmailUid] = useState(null);
   const selectedEmail = emails.find((e) => String(e.uid) === String(selectedEmailUid));
 
@@ -94,8 +94,9 @@ const handleReply = (email) => {
         setSelectedEmailUid(null);
       }}
       onReply={handleReply}
-          onForward={handleForward}
+      onForward={handleForward}
       onApplyLabel={handleApplyLabel}
+      onSnooze={handleSnooze}
     />
   ) : null;
 

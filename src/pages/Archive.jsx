@@ -10,7 +10,7 @@ import ReadingPaneLayout from "../components/ReadingPaneLayout";
 
 const Archive = ({ searchQuery }) => {
   const { theme, readingPaneMode } = useTheme();
-  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleUnarchive } = useMail();
+  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleUnarchive, handleSnooze, handleApplyLabel } = useMail();
 
   const [selectedEmailUid, setSelectedEmailUid] = useState(null);
   const selectedEmail = emails.find((e) => String(e.uid) === String(selectedEmailUid));
@@ -183,6 +183,8 @@ const Archive = ({ searchQuery }) => {
         setSelectedEmailUid(null);
       }}
       isArchiveFolder={true}
+      onApplyLabel={handleApplyLabel}
+      onSnooze={handleSnooze}
     />
   ) : null;
 

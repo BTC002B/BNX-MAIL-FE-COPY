@@ -17,7 +17,7 @@ const Spam = ({ searchQuery }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { theme, readingPaneMode } = useTheme();
-  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleArchive, openCompose } = useMail();
+  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleArchive, handleSnooze, handleApplyLabel, openCompose } = useMail();
   const [selectedEmailUid, setSelectedEmailUid] = useState(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
@@ -139,6 +139,8 @@ const Spam = ({ searchQuery }) => {
       }}
       onReply={handleReply}
       onForward={handleForward}
+      onApplyLabel={handleApplyLabel}
+      onSnooze={handleSnooze}
     />
   ) : null;
 

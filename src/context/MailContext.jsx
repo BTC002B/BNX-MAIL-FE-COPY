@@ -675,12 +675,54 @@ export const MailProvider = ({ children }) => {
     };
 
     const handleSnooze = async (uid, wakeUpAt, folder = 'INBOX', silent = false) => {
+        const targetFolder = folder || currentFolderRef.current || 'INBOX';
+        const strUid = String(uid);
+
+        // Optimistically remove the email from the active emails list
+        setEmails(prev => prev.filter(m => String(m.uid) !== strUid && String(m.id) !== strUid));
+        setTotalEmails(prev => Math.max(0, prev - 1));
+
+        // Purge from in-memory pages cache
+        Object.keys(pagesCache.current).forEach(fKey => {
+            if (pagesCache.current[fKey]) {
+                Object.keys(pagesCache.current[fKey]).forEach(pKey => {
+                    if (Array.isArray(pagesCache.current[fKey][pKey])) {
+                        pagesCache.current[fKey][pKey] = pagesCache.current[fKey][pKey].filter(
+                            m => String(m.uid) !== strUid && String(m.id) !== strUid
+                        );
+                    }
+                });
+            }
+        });
+
+        // Invalidate affected folder caches
+        invalidateCache('inbox');
+        invalidateCache('all-inbox');
+        invalidateCache('allinbox');
+        invalidateCache('all-mail');
+        invalidateCache('allmail');
+        invalidateCache('snoozed');
+        invalidateCache('unread');
+        invalidateCache('starred');
+        if (currentFolderRef.current) {
+            invalidateCache(currentFolderRef.current);
+        }
+
         try {
-            await mailAPI.snooze(uid, wakeUpAt, folder);
-            setEmails(prev => prev.filter(m => String(m.uid) !== String(uid)));
+            await mailAPI.snooze(uid, wakeUpAt, targetFolder);
             if (!silent) toast.success('Snoozed email');
+            return true;
         } catch (error) {
-            if (!silent) toast.error('Failed to snooze');
+            console.error('Failed to snooze email:', error);
+            if (!silent) toast.error(error.response?.data?.message || 'Failed to snooze');
+            // Refresh current folder to restore state on error
+            if (currentFolderRef.current?.startsWith('label-')) {
+                const labelId = currentFolderRef.current.replace('label-', '');
+                fetchLabelEmails(labelId, true, currentPageRef.current);
+            } else {
+                fetchEmails(currentFolderRef.current, true, currentPageRef.current);
+            }
+            throw error;
         }
     };
 
@@ -723,32 +765,167 @@ export const MailProvider = ({ children }) => {
         }
     };
 
-    const handleApplyLabel = async (uid, labelId, folder = currentFolder, silent = false) => {
-        try {
-            await mailAPI.applyLabel(uid, labelId, folder);
-            if (!silent) toast.success('Label applied');
-            if (currentFolder.startsWith('label-')) {
-                const currentLabelId = currentFolder.replace('label-', '');
-                fetchLabelEmails(currentLabelId, false, currentPageRef.current);
-            } else {
-                fetchEmails(currentFolder, false, currentPageRef.current);
+    const handleApplyLabel = async (uid, labelId, folder = currentFolderRef.current || 'INBOX', silent = false) => {
+        const targetFolder = folder || currentFolderRef.current || 'INBOX';
+        const strUid = String(uid);
+        const strLabelId = String(labelId);
+        const targetLabel = labels.find(l => String(l.id) === strLabelId || l.name?.toLowerCase() === strLabelId.toLowerCase());
+        const labelToAdd = targetLabel || { id: labelId, name: labelId, colorHex: '#135bec' };
+
+        let wasAlreadyApplied = false;
+
+        // Optimistically apply label in active emails list
+        setEmails(prev => prev.map(m => {
+            if (String(m.uid) === strUid || String(m.id) === strUid) {
+                const currentLabels = Array.isArray(m.labels) ? m.labels : [];
+                const alreadyHas = currentLabels.some(l => 
+                    String(l.id) === strLabelId || 
+                    (targetLabel && (String(l.id) === String(targetLabel.id) || l.name === targetLabel.name))
+                );
+                if (alreadyHas) {
+                    wasAlreadyApplied = true;
+                    return m;
+                }
+                return {
+                    ...m,
+                    labels: [...currentLabels, labelToAdd]
+                };
             }
+            return m;
+        }));
+
+        if (wasAlreadyApplied) {
+            return true;
+        }
+
+        // Update in-memory pagesCache
+        Object.keys(pagesCache.current).forEach(fKey => {
+            if (pagesCache.current[fKey]) {
+                Object.keys(pagesCache.current[fKey]).forEach(pKey => {
+                    if (Array.isArray(pagesCache.current[fKey][pKey])) {
+                        pagesCache.current[fKey][pKey] = pagesCache.current[fKey][pKey].map(m => {
+                            if (String(m.uid) === strUid || String(m.id) === strUid) {
+                                const currentLabels = Array.isArray(m.labels) ? m.labels : [];
+                                const alreadyHas = currentLabels.some(l => 
+                                    String(l.id) === strLabelId || 
+                                    (targetLabel && (String(l.id) === String(targetLabel.id) || l.name === targetLabel.name))
+                                );
+                                if (alreadyHas) return m;
+                                return {
+                                    ...m,
+                                    labels: [...currentLabels, labelToAdd]
+                                };
+                            }
+                            return m;
+                        });
+                    }
+                });
+            }
+        });
+
+        invalidateCache(`label-${labelId}`);
+        if (currentFolderRef.current) {
+            invalidateCache(currentFolderRef.current);
+        }
+
+        try {
+            await mailAPI.applyLabel(uid, labelId, targetFolder);
+            if (!silent) toast.success('Label applied');
+            return true;
         } catch (error) {
-            if (!silent) toast.error('Failed to apply label');
+            console.error('Failed to apply label:', error);
+            // Revert optimistic update
+            setEmails(prev => prev.map(m => {
+                if (String(m.uid) === strUid || String(m.id) === strUid) {
+                    return {
+                        ...m,
+                        labels: (m.labels || []).filter(l => String(l.id) !== strLabelId && l.name !== labelToAdd.name)
+                    };
+                }
+                return m;
+            }));
+            if (!silent) toast.error(error.response?.data?.message || 'Failed to apply label');
+            throw error;
         }
     };
 
-    const handleRemoveLabel = async (uid, labelId, folder = currentFolder, silent = false) => {
-        try {
-            await mailAPI.removeLabel(uid, labelId, folder);
-            if (!silent) toast.success('Label removed');
-            if (currentFolder === `label-${labelId}`) {
-                setEmails(prev => prev.filter(m => String(m.uid) !== String(uid)));
-            } else {
-                setEmails(prev => prev.map(m => String(m.uid) === String(uid) ? { ...m, labels: m.labels?.filter(l => l.id !== labelId) } : m));
+    const handleRemoveLabel = async (uid, labelId, folder = currentFolderRef.current || 'INBOX', silent = false) => {
+        const targetFolder = folder || currentFolderRef.current || 'INBOX';
+        const strUid = String(uid);
+        const strLabelId = String(labelId);
+        let removedLabel = null;
+
+        // Optimistically remove label from active list
+        setEmails(prev => {
+            if (currentFolderRef.current === `label-${labelId}`) {
+                return prev.filter(m => String(m.uid) !== strUid && String(m.id) !== strUid);
             }
+            return prev.map(m => {
+                if (String(m.uid) === strUid || String(m.id) === strUid) {
+                    removedLabel = (m.labels || []).find(l => String(l.id) === strLabelId || l.name === labelId);
+                    return {
+                        ...m,
+                        labels: (m.labels || []).filter(l => String(l.id) !== strLabelId && l.name !== labelId)
+                    };
+                }
+                return m;
+            });
+        });
+
+        if (currentFolderRef.current === `label-${labelId}`) {
+            setTotalEmails(prev => Math.max(0, prev - 1));
+        }
+
+        // Update in-memory pagesCache
+        Object.keys(pagesCache.current).forEach(fKey => {
+            if (pagesCache.current[fKey]) {
+                Object.keys(pagesCache.current[fKey]).forEach(pKey => {
+                    if (Array.isArray(pagesCache.current[fKey][pKey])) {
+                        if (fKey === `label-${labelId}`) {
+                            pagesCache.current[fKey][pKey] = pagesCache.current[fKey][pKey].filter(
+                                m => String(m.uid) !== strUid && String(m.id) !== strUid
+                            );
+                        } else {
+                            pagesCache.current[fKey][pKey] = pagesCache.current[fKey][pKey].map(m => {
+                                if (String(m.uid) === strUid || String(m.id) === strUid) {
+                                    return {
+                                        ...m,
+                                        labels: (m.labels || []).filter(l => String(l.id) !== strLabelId && l.name !== labelId)
+                                    };
+                                }
+                                return m;
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
+        invalidateCache(`label-${labelId}`);
+        if (currentFolderRef.current) {
+            invalidateCache(currentFolderRef.current);
+        }
+
+        try {
+            await mailAPI.removeLabel(uid, labelId, targetFolder);
+            if (!silent) toast.success('Label removed');
+            return true;
         } catch (error) {
-            if (!silent) toast.error('Failed to remove label');
+            console.error('Failed to remove label:', error);
+            // Revert on error
+            if (removedLabel) {
+                setEmails(prev => prev.map(m => {
+                    if (String(m.uid) === strUid || String(m.id) === strUid) {
+                        return {
+                            ...m,
+                            labels: [...(m.labels || []), removedLabel]
+                        };
+                    }
+                    return m;
+                }));
+            }
+            if (!silent) toast.error(error.response?.data?.message || 'Failed to remove label');
+            throw error;
         }
     };
 

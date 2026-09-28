@@ -13,7 +13,7 @@ import ReadingPaneLayout from "../components/ReadingPaneLayout";
 const Unread = ({ searchQuery }) => {
   const navigate = useNavigate();
   const { theme, readingPaneMode } = useTheme();
-  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleMarkRead, handleApplyLabel, handleArchive, handleUnarchive, openCompose } = useMail();
+  const { emails, loading, fetchEmails, handleToggleStar, handleMoveToTrash, handleMarkRead, handleApplyLabel, handleArchive, handleUnarchive, handleSnooze, openCompose } = useMail();
   const [selectedEmailUid, setSelectedEmailUid] = useState(null);
 
   const unreadEmails = emails.filter((e) => !e.isRead);
@@ -95,6 +95,7 @@ const Unread = ({ searchQuery }) => {
       onReply={handleReply}
       onForward={handleForward}
       onApplyLabel={handleApplyLabel}
+      onSnooze={handleSnooze}
     />
   ) : null;
 

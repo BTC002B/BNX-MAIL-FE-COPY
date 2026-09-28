@@ -142,6 +142,8 @@ const Notification = ({ searchQuery }) => {
     handleArchive, 
     handleMarkRead, 
     handleMarkUnread, 
+    handleSnooze,
+    handleApplyLabel,
     openCompose 
   } = useMail();
 
@@ -304,6 +306,8 @@ const Notification = ({ searchQuery }) => {
       }}
       onReply={handleReply}
       onForward={handleForward}
+      onApplyLabel={handleApplyLabel}
+      onSnooze={handleSnooze}
     />
   ) : null;
 

@@ -21,8 +21,8 @@ const EmailList = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { theme, emailsPerPage, backgroundImage } = useTheme();
-  const { isComposeOpen, totalEmails, currentPage, handlePageChange, loading } = useMail();
+  const { isComposeOpen, totalEmails, currentPage, handlePageChange, loading, labels, handleSnooze: contextHandleSnooze } = useMail();
+  const snoozeAction = onSnooze || contextHandleSnooze;
 
   const [snoozeOpenUid, setSnoozeOpenUid] = useState(null);
   const [customPickerUid, setCustomPickerUid] = useState(null);
@@ -172,11 +172,11 @@ const EmailList = ({
                         alert("Please select a future date and time.");
                         return;
                       }
-                      onSnooze?.(snoozeOpenUid, dateObj.toISOString());
+                      snoozeAction?.(snoozeOpenUid, dateObj.toISOString());
                       setSnoozeOpenUid(null);
                       setCustomPickerUid(null);
                     }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20"
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20 cursor-pointer"
                   >
                     Save
                   </button>
@@ -188,7 +188,7 @@ const EmailList = ({
                   <button
                     key={idx}
                     onClick={() => {
-                      onSnooze?.(snoozeOpenUid, opt.time.toISOString());
+                      snoozeAction?.(snoozeOpenUid, opt.time.toISOString());
                       setSnoozeOpenUid(null);
                     }}
                     className="w-full text-left px-4 py-2.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center justify-between gap-3 cursor-pointer transition-colors"
@@ -351,15 +351,22 @@ const EmailList = ({
                   {/* Labels */}
                   {email.labels && email.labels.length > 0 && (
                     <div className="hidden sm:flex gap-1 shrink-0 mr-2 select-none">
-                      {email.labels.map((label) => (
-                        <span
-                          key={label.id}
-                          className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-tight text-white border border-black/5 dark:border-white/5"
-                          style={{ backgroundColor: label.colorHex }}
-                        >
-                          {label.name}
-                        </span>
-                      ))}
+                      {email.labels.map((label) => {
+                        const labelId = typeof label === 'string' ? label : (label.id || label.name);
+                        const labelName = typeof label === 'string' ? label : (label.name || label.id);
+                        const labelColor = typeof label === 'string' 
+                          ? (labels.find(l => l.name === label || l.id === label)?.colorHex || '#135bec')
+                          : (label.colorHex || '#135bec');
+                        return (
+                          <span
+                            key={labelId}
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-tight text-white border border-black/5 dark:border-white/5"
+                            style={{ backgroundColor: labelColor }}
+                          >
+                            {labelName}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
 

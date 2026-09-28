@@ -39,7 +39,8 @@ import {
   MdCloudQueue,
   MdImage,
   MdLock,
-  MdEditDocument
+  MdEditDocument,
+  MdCheck
 } from "react-icons/md";
 import { useMail } from "../context/MailContext";
 import { useAuth } from "../context/AuthContext";
@@ -126,8 +127,22 @@ const EmailDetails = ({
   const { theme, readingPaneMode } = useTheme();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const { labels, handleRemoveLabel, handleCreateLabel, fetchEmails, currentFolder, handleMarkUnread, handleEmailSent } = useMail();
+  const { labels, handleRemoveLabel, handleCreateLabel, fetchEmails, currentFolder, handleMarkUnread, handleEmailSent, handleApplyLabel, handleSnooze } = useMail();
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const snoozeAction = onSnooze || handleSnooze;
+  const applyLabelAction = onApplyLabel || handleApplyLabel;
+
+  const [localLabels, setLocalLabels] = useState(email?.labels || []);
+  const [isSnoozing, setIsSnoozing] = useState(false);
+  const [isApplyingLabel, setIsApplyingLabel] = useState(false);
+
+  useEffect(() => {
+    setLocalLabels(email?.labels || []);
+  }, [email?.labels, email?.uid]);
+
+  const snoozeRef = React.useRef(null);
+  const labelsRef = React.useRef(null);
 
   const normalizeEmail = (addr) => {
     if (!addr) return "";
@@ -309,6 +324,98 @@ const EmailDetails = ({
   const [customSnooze, setCustomSnooze] = useState(false);
   const [customDateTime, setCustomDateTime] = useState("");
   const [imagePreviews, setImagePreviews] = useState({});
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (snoozeRef.current && !snoozeRef.current.contains(e.target)) {
+        setShowSnooze(false);
+        setCustomSnooze(false);
+      }
+      if (labelsRef.current && !labelsRef.current.contains(e.target)) {
+        setShowLabels(false);
+      }
+    };
+    if (showSnooze || showLabels) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showSnooze, showLabels]);
+
+  const handleSnoozeOption = async (targetUid, isoDate) => {
+    if (isSnoozing) return;
+    setIsSnoozing(true);
+    try {
+      const targetFolder = email?.folderName || getFolder();
+      if (snoozeAction) {
+        await snoozeAction(targetUid || email?.uid, isoDate, targetFolder);
+      }
+      setShowSnooze(false);
+      setCustomSnooze(false);
+      if (handleClose) {
+        handleClose();
+      }
+    } catch (err) {
+      console.error("Snooze error:", err);
+    } finally {
+      setIsSnoozing(false);
+    }
+  };
+
+  const handleApplyLabelOption = async (labelId) => {
+    if (isApplyingLabel) return;
+    const strLabelId = String(labelId);
+    const targetLabel = labels.find(
+      (l) => String(l.id) === strLabelId || l.name?.toLowerCase() === strLabelId.toLowerCase()
+    );
+    const labelObj = targetLabel || { id: labelId, name: labelId, colorHex: "#135bec" };
+
+    const alreadyApplied = (localLabels || []).some(
+      (l) =>
+        String(l.id || l) === strLabelId ||
+        (targetLabel && (String(l.id) === String(targetLabel.id) || (l.name && l.name === targetLabel.name)))
+    );
+
+    if (alreadyApplied) {
+      setShowLabels(false);
+      return;
+    }
+
+    const prevLabels = localLabels;
+    setLocalLabels((prev) => [...prev, labelObj]);
+    setShowLabels(false);
+
+    setIsApplyingLabel(true);
+    try {
+      const targetFolder = email?.folderName || getFolder();
+      if (applyLabelAction) {
+        await applyLabelAction(email.uid, labelId, targetFolder);
+      }
+    } catch (err) {
+      console.error("Apply label error:", err);
+      setLocalLabels(prevLabels);
+    } finally {
+      setIsApplyingLabel(false);
+    }
+  };
+
+  const handleRemoveLabelOption = async (labelId) => {
+    const strLabelId = String(labelId);
+    const prevLabels = localLabels;
+    setLocalLabels((prev) =>
+      prev.filter((l) => String(l.id || l) !== strLabelId && l.name !== labelId)
+    );
+    try {
+      const targetFolder = email?.folderName || getFolder();
+      if (handleRemoveLabel) {
+        await handleRemoveLabel(email.uid, labelId, targetFolder);
+      }
+    } catch (err) {
+      console.error("Remove label error:", err);
+      setLocalLabels(prevLabels);
+    }
+  };
 
   // Conversation Thread states and fetchers
   const localSentRepliesRef = React.useRef([]);
@@ -968,7 +1075,7 @@ const EmailDetails = ({
             {isActuallyArchived ? <MdUnarchive size={20} /> : <MdArchive size={20} />}
           </button>
 
-          <div className="relative">
+          <div className="relative" ref={snoozeRef}>
             <button
               onClick={() => {
                 setShowSnooze(!showSnooze);
@@ -1014,6 +1121,7 @@ const EmailDetails = ({
                         Back
                       </button>
                       <button
+                        disabled={isSnoozing}
                         onClick={() => {
                           if (!customDateTime) {
                             alert("Please select a valid date and time.");
@@ -1024,14 +1132,11 @@ const EmailDetails = ({
                             alert("Please select a future date and time.");
                             return;
                           }
-                          onSnooze?.(email.uid, dateObj.toISOString());
-                          setShowSnooze(false);
-                          setCustomSnooze(false);
-                          if (onBack) onBack();
+                          handleSnoozeOption(email.uid, dateObj.toISOString());
                         }}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20"
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20 disabled:opacity-50 cursor-pointer"
                       >
-                        Save
+                        {isSnoozing ? "Saving..." : "Save"}
                       </button>
                     </div>
                   </div>
@@ -1040,12 +1145,11 @@ const EmailDetails = ({
                     {getSnoozeOptions().map((opt, idx) => (
                       <button
                         key={idx}
+                        disabled={isSnoozing}
                         onClick={() => {
-                          onSnooze?.(email.uid, opt.time.toISOString());
-                          setShowSnooze(false);
-                          if (onBack) onBack();
+                          handleSnoozeOption(email.uid, opt.time.toISOString());
                         }}
-                        className="w-full text-left px-4 py-2.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center justify-between gap-3 cursor-pointer transition-colors"
+                        className="w-full text-left px-4 py-2.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center justify-between gap-3 cursor-pointer transition-colors disabled:opacity-50"
                       >
                         <div className="flex items-center gap-3 truncate">
                           {opt.icon}
@@ -1075,7 +1179,7 @@ const EmailDetails = ({
             )}
           </div>
 
-          <div className="relative">
+          <div className="relative" ref={labelsRef}>
             <button
               onClick={() => { setShowLabels(!showLabels); setShowSnooze(false); }}
               className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400 hover:text-indigo-500 cursor-pointer"
@@ -1091,22 +1195,33 @@ const EmailDetails = ({
                 {(() => {
                   const renderLabelDropdownTree = (parentId, depth = 0) => {
                     const children = labels.filter(l => l.parentId === parentId || (!l.parentId && parentId === null));
-                    return children.map(l => (
-                      <div key={l.id}>
-                        <button
-                          onClick={() => {
-                            onApplyLabel?.(email.uid, l.id);
-                            setShowLabels(false);
-                          }}
-                          className="w-full text-left py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center gap-2 cursor-pointer"
-                          style={{ color: theme.text, paddingLeft: `${16 + (depth * 16)}px`, paddingRight: '16px' }}
-                        >
-                          <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: l.colorHex }} />
-                          <span className="text-sm truncate">{l.name}</span>
-                        </button>
-                        {renderLabelDropdownTree(l.id, depth + 1)}
-                      </div>
-                    ));
+                    return children.map(l => {
+                      const strLId = String(l.id);
+                      const isApplied = (localLabels || []).some(
+                        item => String(item.id || item) === strLId || item.name === l.name
+                      );
+                      return (
+                        <div key={l.id}>
+                          <button
+                            disabled={isApplyingLabel}
+                            onClick={() => {
+                              handleApplyLabelOption(l.id);
+                            }}
+                            className="w-full text-left py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] flex items-center justify-between gap-2 cursor-pointer disabled:opacity-50"
+                            style={{ color: theme.text, paddingLeft: `${16 + (depth * 16)}px`, paddingRight: '16px' }}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: l.colorHex }} />
+                              <span className="text-sm truncate">{l.name}</span>
+                            </div>
+                            {isApplied && (
+                              <MdCheck size={16} className="text-blue-500 shrink-0" />
+                            )}
+                          </button>
+                          {renderLabelDropdownTree(l.id, depth + 1)}
+                        </div>
+                      );
+                    });
                   };
                   const tree = renderLabelDropdownTree(null);
                   return (
@@ -1121,9 +1236,7 @@ const EmailDetails = ({
                             window.dispatchEvent(new CustomEvent('openLabelCreateModal', {
                               detail: {
                                 onSuccess: (newLabelId) => {
-                                  if (onApplyLabel) {
-                                    onApplyLabel(email.uid, newLabelId);
-                                  }
+                                  handleApplyLabelOption(newLabelId);
                                 }
                               }
                             }));
@@ -1190,25 +1303,32 @@ const EmailDetails = ({
             {email.subject || "(No Subject)"}
           </h1>
           <div className="flex flex-wrap gap-2">
-            {email.labels?.map((label) => (
-              <span
-                key={label.id}
-                className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white shadow-sm border border-black/5 dark:border-white/5 flex items-center gap-1.5"
-                style={{ backgroundColor: label.colorHex }}
-              >
-                {label.name}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveLabel(email.uid, label.id, getFolder());
-                  }}
-                  className="hover:bg-black/20 rounded-full p-0.5 transition-colors flex items-center justify-center"
-                  title="Remove label"
+            {localLabels?.map((label) => {
+              const labelId = typeof label === 'string' ? label : (label.id || label.name);
+              const labelName = typeof label === 'string' ? label : (label.name || label.id);
+              const labelColor = typeof label === 'string' 
+                ? (labels.find(l => l.name === label || l.id === label)?.colorHex || '#135bec')
+                : (label.colorHex || '#135bec');
+              return (
+                <span
+                  key={labelId}
+                  className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white shadow-sm border border-black/5 dark:border-white/5 flex items-center gap-1.5"
+                  style={{ backgroundColor: labelColor }}
                 >
-                  <MdClose size={12} />
-                </button>
-              </span>
-            ))}
+                  {labelName}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveLabelOption(labelId);
+                    }}
+                    className="hover:bg-black/20 rounded-full p-0.5 transition-colors flex items-center justify-center cursor-pointer"
+                    title="Remove label"
+                  >
+                    <MdClose size={12} />
+                  </button>
+                </span>
+              );
+            })}
           </div>
         </div>
 

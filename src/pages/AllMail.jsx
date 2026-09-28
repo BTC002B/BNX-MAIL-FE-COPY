@@ -14,7 +14,7 @@ const AllMail = ({ searchQuery }) => {
   const navigate = useNavigate();
   const { labelId } = useParams();
   const { theme, readingPaneMode } = useTheme();
-  const { emails, loading, fetchEmails, fetchLabelEmails, handleToggleStar, handleMoveToTrash, handleMarkRead, handleApplyLabel, labels, currentFolder, handleArchive, handleUnarchive, openCompose } = useMail();
+  const { emails, loading, fetchEmails, fetchLabelEmails, handleToggleStar, handleMoveToTrash, handleMarkRead, handleApplyLabel, handleSnooze, labels, currentFolder, handleArchive, handleUnarchive, openCompose } = useMail();
   const [selectedEmailUid, setSelectedEmailUid] = useState(null);
   const selectedEmail = emails.find(
     (e) => String(e.uid) === String(selectedEmailUid) || `${e.uid}__${e.folderName || ''}` === String(selectedEmailUid)
@@ -208,6 +208,7 @@ const handleReply = (email) => {
           onReply={handleReply}
           onForward={handleForward}
           onApplyLabel={handleApplyLabel}
+          onSnooze={handleSnooze}
         />
   ) : null;
 

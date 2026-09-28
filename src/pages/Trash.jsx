@@ -14,7 +14,7 @@ import ReadingPaneLayout from "../components/ReadingPaneLayout";
 const Trash = ({ searchQuery }) => {
   const { t } = useTranslation();
   const { theme, readingPaneMode } = useTheme();
-  const { emails, loading, fetchEmails, handleDeletePermanently } = useMail();
+  const { emails, loading, fetchEmails, handleDeletePermanently, handleSnooze, handleApplyLabel } = useMail();
   const [selectedEmail, setSelectedEmail] = useState(null);
 
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -101,6 +101,8 @@ const Trash = ({ searchQuery }) => {
               email={selectedEmail}
               onBack={() => setSelectedEmail(null)}
               onDelete={handlePermanentDelete}
+              onApplyLabel={handleApplyLabel}
+              onSnooze={handleSnooze}
             />
           </div>
         </div>

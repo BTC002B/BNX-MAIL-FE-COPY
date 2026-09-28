@@ -12,7 +12,7 @@ import ReadingPaneLayout from "../components/ReadingPaneLayout";
 const BulkMail = ({ searchQuery }) => {
   const navigate = useNavigate();
   const { theme, readingPaneMode } = useTheme();
-  const { handleToggleStar, handleMoveToTrash, handleArchive, openCompose } = useMail();
+  const { handleToggleStar, handleMoveToTrash, handleArchive, handleSnooze, handleApplyLabel, openCompose } = useMail();
   const [selectedEmailUid, setSelectedEmailUid] = useState(null);
 
   // Zoho-style elements state variables
@@ -83,6 +83,8 @@ const BulkMail = ({ searchQuery }) => {
       }}
       onReply={handleReply}
       onForward={handleForward}
+      onApplyLabel={handleApplyLabel}
+      onSnooze={handleSnooze}
     />
   ) : null;
 
