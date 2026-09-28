@@ -21,6 +21,7 @@ const EmailList = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { theme, emailsPerPage, backgroundImage } = useTheme();
   const { isComposeOpen, totalEmails, currentPage, handlePageChange, loading, labels, handleSnooze: contextHandleSnooze } = useMail();
   const snoozeAction = onSnooze || contextHandleSnooze;
 
