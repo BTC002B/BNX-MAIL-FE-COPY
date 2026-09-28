@@ -443,22 +443,12 @@ export const MailProvider = ({ children }) => {
         }
     }, [user, fetchLabels]);
 
-    const isChatOrColabActive = () => {
-        return typeof window !== 'undefined' && 
-            (window.location.pathname.startsWith('/chat') || window.location.pathname.startsWith('/colab'));
-    };
-
-    // Background pre-fetching of critical folders - staggered and non-blocking
+    // Background pre-fetching of critical folders
     useEffect(() => {
         if (user) {
             const prefetchFolders = async () => {
-                if (isChatOrColabActive()) {
-                    return;
-                }
                 const folders = ['inbox', 'sent', 'draft', 'trash', 'starred', 'spam', 'archive', 'snoozed', 'unread'];
-                // Stagger requests sequentially to prevent saturating the browser HTTP connection pool
                 for (const folder of folders) {
-                    if (isChatOrColabActive()) break;
                     const folderKey = folder.toLowerCase();
                     if (
                         (!pagesCache.current[folderKey] || !pagesCache.current[folderKey][1]) &&
@@ -530,8 +520,6 @@ export const MailProvider = ({ children }) => {
                         } catch (e) {
                             console.error(`Failed to pre-fetch folder ${folder}:`, e);
                         }
-                        // Pause briefly between folders so high-priority traffic is never blocked
-                        await new Promise(r => setTimeout(r, 800));
                     }
                 }
             };
@@ -556,10 +544,6 @@ export const MailProvider = ({ children }) => {
 
         const interval = setInterval(() => {
             if (!document.hidden) {
-                // If user is active in Colab/Chat, yield network bandwidth to comments/chat
-                if (isChatOrColabActive()) {
-                    return;
-                }
                 if (currentFolderRef.current.startsWith('label-')) {
                     const labelId = currentFolderRef.current.replace('label-', '');
                     fetchLabelEmails(labelId, true, currentPageRef.current);

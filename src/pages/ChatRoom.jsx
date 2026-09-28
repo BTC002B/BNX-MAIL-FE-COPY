@@ -180,8 +180,7 @@ const compressImageFile = (file, maxWidth = 1600, maxHeight = 1600, quality = 0.
   });
 };
 
-// Module-level caches for fast loading and attachment parsing
-const chatMessagesCache = new Map(); // chatId -> normalizedMessages
+// Module-level cache for fast attachment parsing
 const attachmentCache = new Map(); // cacheKey -> parsedAttachments
 
 const getNormalizedAttachments = (msg) => {
@@ -511,19 +510,9 @@ const ChatRoom = () => {
   const { isConnected, subscribeToChat, sendMessage } = useSocket();
 
   const [chat, setChat] = useState(location.state?.chat || null);
-  const [messages, setMessages] = useState(() => {
-    if (chatId && chatMessagesCache.has(String(chatId))) {
-      return chatMessagesCache.get(String(chatId));
-    }
-    return [];
-  });
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(() => {
-    if (chatId && chatMessagesCache.has(String(chatId))) {
-      return false;
-    }
-    return true;
-  });
+  const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const [isChatStarred, setIsChatStarred] = useState(false);
@@ -533,28 +522,14 @@ const ChatRoom = () => {
   const [previewMedia, setPreviewMedia] = useState(null);
   const processedMessageIdsRef = useRef(new Set());
 
-  // Fast restore when navigating between chats
   useEffect(() => {
     processedMessageIdsRef.current.clear();
-    if (chatId) {
-      const cid = String(chatId);
-      if (chatMessagesCache.has(cid)) {
-        setMessages(chatMessagesCache.get(cid));
-        setLoading(false);
-      } else {
-        setMessages([]);
-        setLoading(true);
-      }
-    }
-  }, [chatId]);
-
-  useEffect(() => {
     if (chat) {
       setIsChatStarred(Boolean(chat.starred || chat.isStarred));
     } else {
       setIsChatStarred(false);
     }
-  }, [chat]);
+  }, [chat, chatId]);
 
   const handleArchiveChat = async () => {
     const targetId = chatId || chat?.uid || chat?.id;
@@ -879,11 +854,7 @@ const ChatRoom = () => {
     // If this message ID was already processed, ignore to prevent duplicate processing
     if (processedMessageIdsRef.current.has(msgId)) {
       if (fromRestTempId) {
-        setMessages(prev => {
-          const filtered = prev.filter(m => m.id !== fromRestTempId);
-          if (chatId) chatMessagesCache.set(String(chatId), filtered);
-          return filtered;
-        });
+        setMessages(prev => prev.filter(m => m.id !== fromRestTempId));
       }
       return;
     }
@@ -902,9 +873,7 @@ const ChatRoom = () => {
       // Check if message is already in list
       if (prev.some(m => String(m.id) === msgId)) {
         if (fromRestTempId) {
-          const filtered = prev.filter(m => m.id !== fromRestTempId);
-          if (chatId) chatMessagesCache.set(String(chatId), filtered);
-          return filtered;
+          return prev.filter(m => m.id !== fromRestTempId);
         }
         return prev;
       }
@@ -938,7 +907,6 @@ const ChatRoom = () => {
         );
       }
 
-      let updatedMsgs;
       if (replaceIdx !== -1) {
         const newMsgs = [...prev];
         // Preserve optimistic attachment details if server response had empty parsedAttachments
@@ -949,15 +917,10 @@ const ChatRoom = () => {
           completeMsg.attachmentsJson = newMsgs[replaceIdx].attachmentsJson;
         }
         newMsgs[replaceIdx] = completeMsg;
-        updatedMsgs = newMsgs;
-      } else {
-        updatedMsgs = [...prev, completeMsg];
+        return newMsgs;
       }
 
-      if (chatId) {
-        chatMessagesCache.set(String(chatId), updatedMsgs);
-      }
-      return updatedMsgs;
+      return [...prev, completeMsg];
     });
 
     if (isMe || nearBottom) {
@@ -965,7 +928,7 @@ const ChatRoom = () => {
     } else {
       setHasNewMessagesBelow(true);
     }
-  }, [user?.email, chatId]);
+  }, [user?.email]);
 
   const removeAttachment = (index) => {
     setSelectedAttachments(prev => prev.filter((_, i) => i !== index));
@@ -1067,18 +1030,10 @@ const ChatRoom = () => {
     }
   };
 
-  const fetchHistory = async (targetChatId = chatId) => {
-    if (!targetChatId) return;
-    const cid = String(targetChatId);
-    const hasCache = chatMessagesCache.has(cid);
-
-    // Only show loading spinner if we don't have cached messages
-    if (!hasCache) {
-      setLoading(true);
-    }
-
+  const fetchHistory = async () => {
     try {
-      const res = await chatAPI.getMessageHistory(targetChatId);
+      setLoading(true);
+      const res = await chatAPI.getMessageHistory(chatId);
       if (res.data) {
         const history = Array.isArray(res.data) ? res.data : (res.data.data || []);
         history.forEach(msg => {
@@ -1090,17 +1045,14 @@ const ChatRoom = () => {
           ...msg,
           parsedAttachments: getNormalizedAttachments(msg)
         }));
-        chatMessagesCache.set(cid, normalizedHistory);
         setMessages(normalizedHistory);
       }
     } catch (err) {
       console.error("Failed to fetch history:", err);
-      if (!hasCache) {
-        toast.error("Failed to load message history");
-      }
+      toast.error("Failed to load message history");
     } finally {
       setLoading(false);
-      setTimeout(() => scrollToBottom(true), 50);
+      setTimeout(() => scrollToBottom(true), 100);
     }
   };
 
@@ -1185,55 +1137,36 @@ const ChatRoom = () => {
 
   // Load chat details and message history ONLY when chatId changes
   useEffect(() => {
-    if (!chatId) return;
-
-    // 1. Comments loading starts immediately with highest priority
-    fetchHistory(chatId);
-
-    // 2. Defer secondary chat metadata so history request has unblocked HTTP sockets
-    const detailsTimer = setTimeout(() => {
+    if (chatId) {
       fetchChatDetails();
-    }, 50);
-
-    return () => clearTimeout(detailsTimer);
+      fetchHistory();
+    }
   }, [chatId]);
-
-  // Keep a stable ref to handleIncomingMessage so WebSocket subscription doesn't re-create
-  const handleIncomingMessageRef = useRef(handleIncomingMessage);
-  handleIncomingMessageRef.current = handleIncomingMessage;
 
   // Subscribe to live messages over WebSocket
   useEffect(() => {
     let subscription = null;
     if (chatId && isConnected) {
       subscription = subscribeToChat(chatId, (response) => {
-        handleIncomingMessageRef.current(response);
+        handleIncomingMessage(response);
       });
     }
 
     return () => {
       if (subscription) subscription.unsubscribe();
     };
-  }, [chatId, isConnected, subscribeToChat]);
+  }, [chatId, isConnected, handleIncomingMessage]);
 
-  // Load Group Specific Data - deferred so Comments loading is never delayed
+  // Load Group Specific Data
   useEffect(() => {
-    let timer = null;
     if (chat?.type === 'GROUP') {
-      // Defer broadcasts, members, and templates so Comments gets 100% priority
-      timer = setTimeout(() => {
-        fetchChatMembers();
-        fetchBroadcasts();
-        fetchTemplates();
-      }, 150);
+      fetchChatMembers();
+      fetchBroadcasts();
+      fetchTemplates();
     } else {
       setMembersList(chat?.memberEmails || []);
     }
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [chatId, chat?.type]);
+  }, [chatId, chat?.type, user?.email]);
 
   const handleSend = (e) => {
     e.preventDefault();
@@ -1267,11 +1200,7 @@ const ChatRoom = () => {
       isOptimistic: true
     };
     
-    setMessages(prev => {
-      const next = [...prev, tempMsg];
-      if (chatId) chatMessagesCache.set(String(chatId), next);
-      return next;
-    });
+    setMessages(prev => [...prev, tempMsg]);
     setNewMessage("");
     setSelectedAttachments([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1291,20 +1220,12 @@ const ChatRoom = () => {
         if (response && response.id) {
           handleIncomingMessage(response, tempId);
         } else {
-          setMessages(prev => {
-            const next = prev.map(m => m.id === tempId ? { ...m, isOptimistic: false } : m);
-            if (chatId) chatMessagesCache.set(String(chatId), next);
-            return next;
-          });
+          setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isOptimistic: false } : m));
         }
       }).catch(err => {
         console.error("Failed to send message via HTTP", err);
         toast.error("Failed to send message");
-        setMessages(prev => {
-          const next = prev.filter(m => m.id !== tempId);
-          if (chatId) chatMessagesCache.set(String(chatId), next);
-          return next;
-        });
+        setMessages(prev => prev.filter(m => m.id !== tempId));
       });
     };
 
@@ -1412,42 +1333,6 @@ const ChatRoom = () => {
 
   const chatPartner = chat?.memberEmails?.find(e => e !== user.email);
   const chatName = chat?.type === 'DIRECT' ? chatPartner?.split('@')[0] : (chat?.name || `Chat #${chatId}`);
-
-  // Memoize rendered message list so input typing, emoji picker, or more menu never re-renders the list
-  const renderedMessageList = useMemo(() => {
-    if (loading && messages.length === 0) {
-      return (
-        <div className="flex justify-center p-10 printable-conversation-no-print">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      );
-    }
-    if (messages.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full opacity-30 text-center print:opacity-70 print:p-4">
-          <MdChat size={64} className="mb-4 print:hidden" />
-          <p className="text-lg font-medium print:text-base print:text-gray-600">No messages yet</p>
-          <p className="text-sm print:hidden">Be the first to say hello!</p>
-        </div>
-      );
-    }
-    return messages.map((msg, idx) => {
-      const isMe = msg.sender === user?.email || msg.senderEmail === user?.email;
-      return (
-        <CommentMessageItem
-          key={msg.id || idx}
-          msg={msg}
-          isMe={isMe}
-          chatName={chatName}
-          theme={theme}
-          onOpenImage={setPreviewMedia}
-          handleDownload={handleDownloadAttachment}
-          handleView={handleViewAttachment}
-          formatTime={formatMessageTime}
-        />
-      );
-    });
-  }, [messages, loading, user?.email, chatName, theme, handleDownloadAttachment, handleViewAttachment]);
 
   return (
     <div className="flex flex-col h-full bg-transparent overflow-hidden chat-room-root">
@@ -1735,7 +1620,34 @@ const ChatRoom = () => {
               onScroll={handleMessagesScroll}
               className="h-full overflow-y-auto p-6 space-y-4 hidden-scrollbar bg-white/10 dark:bg-black/10 print:overflow-visible print:h-auto print:p-0 print:space-y-3 print:bg-transparent"
             >
-              {renderedMessageList}
+              {loading && messages.length === 0 ? (
+                <div className="flex justify-center p-10 printable-conversation-no-print">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full opacity-30 text-center print:opacity-70 print:p-4">
+                  <MdChat size={64} className="mb-4 print:hidden" />
+                  <p className="text-lg font-medium print:text-base print:text-gray-600">No messages yet</p>
+                  <p className="text-sm print:hidden">Be the first to say hello!</p>
+                </div>
+              ) : (
+                messages.map((msg, idx) => {
+                  const isMe = msg.sender === user?.email || msg.senderEmail === user?.email;
+                  return (
+                    <CommentMessageItem
+                      key={msg.id || idx}
+                      msg={msg}
+                      isMe={isMe}
+                      chatName={chatName}
+                      theme={theme}
+                      onOpenImage={setPreviewMedia}
+                      handleDownload={handleDownloadAttachment}
+                      handleView={handleViewAttachment}
+                      formatTime={formatMessageTime}
+                    />
+                  );
+                })
+              )}
               <div ref={messagesEndRef} />
             </div>
 
