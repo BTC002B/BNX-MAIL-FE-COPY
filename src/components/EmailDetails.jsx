@@ -127,7 +127,7 @@ const EmailDetails = ({
   const { theme, readingPaneMode } = useTheme();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const { labels, handleRemoveLabel, handleCreateLabel, fetchEmails, currentFolder, handleMarkUnread, handleEmailSent, handleApplyLabel, handleSnooze } = useMail();
+  const { labels, fetchLabels, handleRemoveLabel, handleCreateLabel, fetchEmails, currentFolder, handleMarkUnread, handleEmailSent, handleApplyLabel, handleSnooze } = useMail();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const snoozeAction = onSnooze || handleSnooze;
@@ -1181,7 +1181,14 @@ const EmailDetails = ({
 
           <div className="relative" ref={labelsRef}>
             <button
-              onClick={() => { setShowLabels(!showLabels); setShowSnooze(false); }}
+              onClick={() => {
+                const next = !showLabels;
+                setShowLabels(next);
+                setShowSnooze(false);
+                if (next && fetchLabels) {
+                  fetchLabels();
+                }
+              }}
               className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400 hover:text-indigo-500 cursor-pointer"
               title="Labels"
             >

@@ -255,7 +255,7 @@ export const mailAPI = {
     trash: (uid, folder = 'INBOX') => api.post(`${API_ENDPOINTS.MAIL.MOVE_TRASH}/${uid}?folder=${folder}`),
     restore: (uid) => api.post(`${API_ENDPOINTS.MAIL.RESTORE}/${uid}`),
     permanentDelete: (uid) => api.delete(`${API_ENDPOINTS.MAIL.PERMANENT}/${uid}`),
-    snooze: (uid, wakeUpAt, folder = 'INBOX') => api.post(`${API_ENDPOINTS.MAIL.SNOOZE}/${uid}?wakeUpAt=${wakeUpAt}&folder=${folder}`),
+    snooze: (uid, wakeUpAt, folder = 'INBOX') => api.post(`${API_ENDPOINTS.MAIL.SNOOZE}/${uid}?wakeUpAt=${encodeURIComponent(wakeUpAt)}&folder=${encodeURIComponent(folder)}`),
     getArchive: (page = 1, limit = 50) => api.get(`${API_ENDPOINTS.MAIL.ARCHIVE}?page=${page}&limit=${limit}`),
     archive: (uid, folder = 'INBOX') => api.post(`${API_ENDPOINTS.MAIL.MOVE_ARCHIVE}/${uid}?folder=${folder}`),
     unarchive: (uid) => api.post(`${API_ENDPOINTS.MAIL.UNARCHIVE}/${uid}`),
@@ -272,8 +272,8 @@ export const mailAPI = {
     createLabel: (data) => api.post(API_ENDPOINTS.MAIL.LABELS, data),
     updateLabel: (id, data) => api.put(`${API_ENDPOINTS.MAIL.LABELS}/${id}`, data),
     deleteLabel: (id) => api.delete(`${API_ENDPOINTS.MAIL.LABELS}/${id}`),
-    applyLabel: (uid, labelId, folder = 'INBOX') => api.post(`${API_ENDPOINTS.MAIL.APPLY_LABEL}/${uid}?labelId=${labelId}&folder=${folder}`),
-    removeLabel: (uid, labelId, folder = 'INBOX') => api.delete(`${API_ENDPOINTS.MAIL.REMOVE_LABEL}/${uid}?labelId=${labelId}&folder=${folder}`),
+    applyLabel: (uid, labelId, folder = 'INBOX') => api.post(`${API_ENDPOINTS.MAIL.APPLY_LABEL}/${uid}?labelId=${encodeURIComponent(labelId)}&folder=${encodeURIComponent(folder)}`),
+    removeLabel: (uid, labelId, folder = 'INBOX') => api.delete(`${API_ENDPOINTS.MAIL.REMOVE_LABEL}/${uid}?labelId=${encodeURIComponent(labelId)}&folder=${encodeURIComponent(folder)}`),
     getCategory: (category) => api.get(`${API_ENDPOINTS.MAIL.CATEGORY}/${category}`),
 };
 
