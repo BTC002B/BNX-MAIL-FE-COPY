@@ -122,6 +122,64 @@ const formatFileSize = (bytes) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
+const readFileAsDataUrl = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (e) => reject(e);
+    reader.readAsDataURL(file);
+  });
+};
+
+const compressImageFile = (file, maxWidth = 1600, maxHeight = 1600, quality = 0.85) => {
+  return new Promise((resolve) => {
+    if (file.size <= 250 * 1024) {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            maxHeight = height;
+          }
+        }
+
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+          const dataUrl = canvas.toDataURL(outputType, quality);
+          resolve(dataUrl);
+        } catch (canvasErr) {
+          resolve(e.target.result);
+        }
+      };
+      img.onerror = () => resolve(e.target.result);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+};
+
 const getNormalizedAttachments = (msg) => {
   if (!msg) return [];
   if (msg.parsedAttachments && Array.isArray(msg.parsedAttachments)) {
@@ -445,8 +503,10 @@ const ChatRoom = () => {
   const moreMenuRef = useRef(null);
   const [hasNewMessagesBelow, setHasNewMessagesBelow] = useState(false);
   const [previewMedia, setPreviewMedia] = useState(null);
+  const processedMessageIdsRef = useRef(new Set());
 
   useEffect(() => {
+    processedMessageIdsRef.current.clear();
     if (chat) {
       setIsChatStarred(Boolean(chat.starred || chat.isStarred));
     } else {
@@ -770,11 +830,94 @@ const ChatRoom = () => {
   };
 
 
+  const handleIncomingMessage = useCallback((response, fromRestTempId = null) => {
+    if (!response || !response.id) return;
+    const msgId = String(response.id);
+
+    // If this message ID was already processed, ignore to prevent duplicate processing
+    if (processedMessageIdsRef.current.has(msgId)) {
+      if (fromRestTempId) {
+        setMessages(prev => prev.filter(m => m.id !== fromRestTempId));
+      }
+      return;
+    }
+
+    // Mark message ID as processed immediately
+    processedMessageIdsRef.current.add(msgId);
+
+    const msgSender = response.sender || response.senderEmail || user?.email || "";
+    const msgContent = response.content !== undefined && response.content !== null 
+      ? response.content 
+      : (response.message !== undefined && response.message !== null ? response.message : "");
+    const isMe = msgSender === user?.email;
+    const nearBottom = isUserNearBottom();
+
+    setMessages(prev => {
+      // Check if message is already in list
+      if (prev.some(m => String(m.id) === msgId)) {
+        if (fromRestTempId) {
+          return prev.filter(m => m.id !== fromRestTempId);
+        }
+        return prev;
+      }
+
+      const completeMsg = {
+        ...response,
+        id: response.id,
+        sender: msgSender,
+        content: msgContent,
+        message: msgContent,
+        attachmentsJson: response.attachmentsJson !== undefined && response.attachmentsJson !== null 
+          ? response.attachmentsJson 
+          : null,
+        parsedAttachments: getNormalizedAttachments(response),
+        timestamp: response.timestamp || new Date().toISOString(),
+        isOptimistic: false
+      };
+
+      // Find optimistic message to replace:
+      // 1. By exact tempId if passed from REST
+      // 2. Or by optimistic flag and sender/content match from WebSocket
+      let replaceIdx = -1;
+      if (fromRestTempId) {
+        replaceIdx = prev.findIndex(m => m.id === fromRestTempId);
+      }
+      if (replaceIdx === -1) {
+        replaceIdx = prev.findIndex(m => 
+          m.isOptimistic && 
+          (m.sender === msgSender || m.sender === user?.email) &&
+          ((m.content || "") === (msgContent || "") || (!m.content && !msgContent))
+        );
+      }
+
+      if (replaceIdx !== -1) {
+        const newMsgs = [...prev];
+        // Preserve optimistic attachment details if server response had empty parsedAttachments
+        if (!completeMsg.parsedAttachments?.length && newMsgs[replaceIdx].parsedAttachments?.length) {
+          completeMsg.parsedAttachments = newMsgs[replaceIdx].parsedAttachments;
+        }
+        if (!completeMsg.attachmentsJson && newMsgs[replaceIdx].attachmentsJson) {
+          completeMsg.attachmentsJson = newMsgs[replaceIdx].attachmentsJson;
+        }
+        newMsgs[replaceIdx] = completeMsg;
+        return newMsgs;
+      }
+
+      return [...prev, completeMsg];
+    });
+
+    if (isMe || nearBottom) {
+      setTimeout(() => scrollToBottom(true), 50);
+    } else {
+      setHasNewMessagesBelow(true);
+    }
+  }, [user?.email]);
+
   const removeAttachment = (index) => {
     setSelectedAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -789,25 +932,22 @@ const ChatRoom = () => {
       'ppt', 'pptx', 'odp'
     ];
 
-    files.forEach(file => {
-      // Log A: FILE SELECTED
-      console.log("[ATTACHMENT] selected file:", file);
-
+    for (const file of files) {
       const ext = (file.name.split('.').pop() || '').toLowerCase();
       if (BLOCKED_EXTENSIONS.includes(ext)) {
         toast.error(`"${file.name}" is not a supported file format.`);
-        return;
+        continue;
       }
 
       const isAllowed = (file.type && file.type.startsWith('image/')) || SUPPORTED_EXTENSIONS.includes(ext);
       if (!isAllowed) {
         toast.error(`"${file.name}" is not a supported file format. Please attach images, PDFs, or documents.`);
-        return;
+        continue;
       }
 
       if (file.size > MAX_SIZE) {
         toast.error(`"${file.name}" is too large. Maximum allowed size is 10MB.`);
-        return;
+        continue;
       }
 
       // Check if file is already attached
@@ -821,38 +961,42 @@ const ChatRoom = () => {
 
       if (alreadyExists) {
         toast.error(`"${file.name}" is already attached.`);
-        return;
+        continue;
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const fileUrl = event.target.result;
-        
-        // Log B: UPLOAD RESULT
-        const uploadResponse = { success: true, url: fileUrl };
-        console.log("[ATTACHMENT] upload result:", uploadResponse);
+      try {
+        // If file already has a usable URL/path, use it directly without Base64 conversion
+        let fileUrl = file.url || file.fileUrl || file.path;
 
-        // Log C: ATTACHMENT OBJECT
-        const attachment = {
-          name: file.name,
-          url: fileUrl,
-          type: file.type || 'application/octet-stream',
-          size: file.size
-        };
-        console.log("[ATTACHMENT] attachment object:", attachment);
-
-        setSelectedAttachments(current => {
-          if (current.some(a => (a.name || a.fileName) === file.name && (a.size || a.fileSize) === file.size)) {
-            return current;
+        if (!fileUrl) {
+          // If it's an image, optimize dimensions/quality to avoid massive payloads
+          if (file.type && file.type.startsWith('image/') && !file.type.includes('svg')) {
+            fileUrl = await compressImageFile(file);
+          } else {
+            fileUrl = await readFileAsDataUrl(file);
           }
-          return [...current, attachment];
-        });
-      };
-      reader.onerror = () => {
-        toast.error(`Failed to read "${file.name}".`);
-      };
-      reader.readAsDataURL(file);
-    });
+        }
+
+        if (fileUrl) {
+          const attachment = {
+            name: file.name,
+            url: fileUrl,
+            type: file.type || 'application/octet-stream',
+            size: file.size
+          };
+
+          setSelectedAttachments(current => {
+            if (current.some(a => (a.name || a.fileName) === file.name && (a.size || a.fileSize) === file.size)) {
+              return current;
+            }
+            return [...current, attachment];
+          });
+        }
+      } catch (err) {
+        console.error("Failed to process attachment file:", err);
+        toast.error(`Failed to process "${file.name}".`);
+      }
+    }
   };
 
   const fetchChatDetails = async () => {
@@ -875,6 +1019,11 @@ const ChatRoom = () => {
       const res = await chatAPI.getMessageHistory(chatId);
       if (res.data) {
         const history = Array.isArray(res.data) ? res.data : (res.data.data || []);
+        history.forEach(msg => {
+          if (msg && msg.id) {
+            processedMessageIdsRef.current.add(String(msg.id));
+          }
+        });
         const normalizedHistory = history.map(msg => ({
           ...msg,
           parsedAttachments: getNormalizedAttachments(msg)
@@ -982,67 +1131,14 @@ const ChatRoom = () => {
     let subscription = null;
     if (chatId && isConnected) {
       subscription = subscribeToChat(chatId, (response) => {
-        if (!response || !response.id) return;
-        // Log G: MESSAGE RESPONSE
-        console.log("[ATTACHMENT] message response:", response);
-        const msgSender = response.sender || response.senderEmail;
-        const msgContent = response.content !== undefined && response.content !== null ? response.content : (response.message !== undefined && response.message !== null ? response.message : "");
-        const isMe = msgSender === user?.email;
-        const nearBottom = isUserNearBottom();
-
-        setMessages(prev => {
-          // If message already exists in list with real ID, don't duplicate
-          if (prev.some(m => String(m.id) === String(response.id))) {
-            return prev;
-          }
-
-          // Complete response object from server - keep attachmentsJson intact
-          const completeMsg = {
-            ...response,
-            sender: msgSender || response.sender,
-            content: msgContent,
-            message: msgContent,
-            attachmentsJson: response.attachmentsJson !== undefined && response.attachmentsJson !== null 
-              ? response.attachmentsJson 
-              : null,
-            parsedAttachments: getNormalizedAttachments(response),
-            isOptimistic: false
-          };
-
-          // Check if it replaces an optimistic message from the same sender
-          const optimisticIdx = prev.findIndex(m => 
-            m.isOptimistic && 
-            (m.sender === msgSender || m.sender === user?.email) &&
-            ((m.content || "") === (msgContent || "") || (!m.content && !msgContent))
-          );
-
-          if (optimisticIdx !== -1) {
-            const newMsgs = [...prev];
-            if (!completeMsg.attachmentsJson && prev[optimisticIdx].attachmentsJson) {
-              completeMsg.attachmentsJson = prev[optimisticIdx].attachmentsJson;
-            }
-            if (!completeMsg.parsedAttachments?.length && prev[optimisticIdx].parsedAttachments?.length) {
-              completeMsg.parsedAttachments = prev[optimisticIdx].parsedAttachments;
-            }
-            newMsgs[optimisticIdx] = completeMsg;
-            return newMsgs;
-          }
-
-          return [...prev, completeMsg];
-        });
-
-        if (isMe || nearBottom) {
-          setTimeout(() => scrollToBottom(true), 50);
-        } else {
-          setHasNewMessagesBelow(true);
-        }
+        handleIncomingMessage(response);
       });
     }
 
     return () => {
       if (subscription) subscription.unsubscribe();
     };
-  }, [chatId, isConnected]);
+  }, [chatId, isConnected, handleIncomingMessage]);
 
   // Load Group Specific Data
   useEffect(() => {
@@ -1059,7 +1155,7 @@ const ChatRoom = () => {
     e.preventDefault();
     if (!newMessage.trim() && selectedAttachments.length === 0) return;
 
-    // 3. Create attachment objects with structure: { name, url, type, size }
+    // Create attachment objects with structure: { name, url, type, size }
     const attachments = selectedAttachments.map(a => ({
       name: a.name || a.fileName || "attachment",
       url: a.url || a.fileUrl || a.content || "",
@@ -1067,17 +1163,14 @@ const ChatRoom = () => {
       size: a.size || a.fileSize || 0
     }));
 
-    // 4. Convert the attachment array to JSON
+    // Convert the attachment array to JSON
     const attachmentsJson = attachments.length > 0 ? JSON.stringify(attachments) : null;
-    
-    // Log D: FINAL attachmentsJson
-    console.log("[ATTACHMENT] attachmentsJson:", attachmentsJson);
 
     const contentText = newMessage.trim();
     const senderEmail = user?.email || user?.username || "";
 
-    // Optimistic update
-    const tempId = `temp-${Date.now()}`;
+    // Optimistic update with unique temp ID
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const tempMsg = {
       id: tempId,
       chatId: parseInt(chatId),
@@ -1092,7 +1185,6 @@ const ChatRoom = () => {
     
     setMessages(prev => [...prev, tempMsg]);
     setNewMessage("");
-    // 15. Do not remove the attachment from the sent message when clearing the temporary file-selection state
     setSelectedAttachments([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setTimeout(() => scrollToBottom(true), 50);
@@ -1104,32 +1196,12 @@ const ChatRoom = () => {
       attachmentsJson: attachmentsJson
     };
 
-    // 5. Send existing message request without changing the API
+    // Send message via HTTP REST
     const sendViaRest = () => {
-      // Log F: REST FALLBACK
-      console.log("[ATTACHMENT] REST payload:", payload);
       chatAPI.sendMessage(payload).then(res => {
         const response = res.data?.data || res.data;
-        // Log G: MESSAGE RESPONSE
-        console.log("[ATTACHMENT] message response:", response);
         if (response && response.id) {
-          const completeMsg = {
-            ...response,
-            sender: response.sender || senderEmail,
-            content: response.content || contentText,
-            message: response.content || contentText,
-            attachmentsJson: response.attachmentsJson !== undefined && response.attachmentsJson !== null 
-              ? response.attachmentsJson 
-              : attachmentsJson,
-            parsedAttachments: getNormalizedAttachments(response),
-            isOptimistic: false
-          };
-          setMessages(prev => {
-            if (prev.some(m => String(m.id) === String(response.id))) {
-              return prev.filter(m => m.id !== tempId);
-            }
-            return prev.map(m => m.id === tempId ? completeMsg : m);
-          });
+          handleIncomingMessage(response, tempId);
         } else {
           setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isOptimistic: false } : m));
         }
@@ -1150,12 +1222,9 @@ const ChatRoom = () => {
     } else {
       let isSentViaWs = false;
       if (isConnected) {
-        // Log E: WEBSOCKET SEND
-        console.log("[ATTACHMENT] websocket payload:", payload);
         try {
           isSentViaWs = sendMessage(chatId, contentText, null) !== false;
         } catch (wsErr) {
-          console.warn("[ATTACHMENT] websocket send error:", wsErr);
           isSentViaWs = false;
         }
       }

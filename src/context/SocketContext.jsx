@@ -172,11 +172,8 @@ export const SocketProvider = ({ children }) => {
             // STOMP WebSocket text frames have buffer limits (e.g. 64KB).
             // Prevent oversized frames from crashing the WebSocket connection.
             if (payloadStr.length > 64 * 1024) {
-                console.warn("[ATTACHMENT] Payload exceeds STOMP frame limit, falling back to REST");
                 return false;
             }
-
-            console.log("[ATTACHMENT] websocket payload:", payload);
 
             stompClient.publish({
                 destination: '/app/chat.send',
