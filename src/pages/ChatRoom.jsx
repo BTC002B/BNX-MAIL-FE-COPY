@@ -1197,20 +1197,6 @@ const ChatRoom = () => {
       {/* HEADER */}
       <div className="p-4 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between bg-white/40 dark:bg-gray-900/40 backdrop-blur-md shrink-0 relative z-10 printable-conversation-no-print">
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => {
-              if (chat?.type === 'DIRECT') {
-                navigate("/chat");
-              } else {
-                navigate("/colab");
-              }
-            }}
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-            style={{ color: theme.text }}
-          >
-            <MdArrowBack size={24} />
-          </button>
-          
           {/* Clickable Group Name to open Colab Info Modal */}
           <div 
             onClick={() => {
