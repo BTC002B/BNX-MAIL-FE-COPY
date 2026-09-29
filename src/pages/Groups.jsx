@@ -75,7 +75,7 @@ const Groups = () => {
         }
         fetchChats(hasCached);
         fetchInvitations();
-    }, [user?.email, location.pathname]);
+    }, [user?.email, isGroupsMode]);
 
     const handleAcceptInvitation = async (id) => {
         try {

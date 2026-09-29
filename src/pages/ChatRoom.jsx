@@ -1088,16 +1088,43 @@ const ChatRoom = () => {
     }
   };
 
-  const fetchChatDetails = async () => {
+  const abortControllerRef = useRef(null);
+
+  useEffect(() => {
+    // Abort pending requests from previous chat room when switching
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [chatId]);
+
+  const fetchChatDetails = async (signal) => {
     if (chat) return;
     const cachedChat = chatCache.getChat(chatId);
     if (cachedChat) {
       setChat(cachedChat);
       return;
     }
+    if (user?.email) {
+      const userChats = chatCache.getUserChats(user.email);
+      if (Array.isArray(userChats) && userChats.length > 0) {
+        const found = userChats.find(c => String(c.id) === String(chatId));
+        if (found) {
+          setChat(found);
+          chatCache.setChat(chatId, found);
+          return;
+        }
+      }
+    }
     if (!user?.email) return;
     try {
-      const res = await chatAPI.getUserChats(user.email);
+      const res = await chatAPI.getUserChats(user.email, { signal });
       if (res.data) {
         const chatList = Array.isArray(res.data) ? res.data : (res.data.data || []);
         const currentChat = chatList.find(c => String(c.id) === String(chatId));
@@ -1107,13 +1134,14 @@ const ChatRoom = () => {
         }
       }
     } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       console.error("Failed to fetch chat details:", err);
     }
   };
 
   const isFetchingHistoryRef = useRef(false);
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (signal) => {
     if (!chatId || isFetchingHistoryRef.current) return;
     const hasCached = chatCache.hasMessages(chatId);
     if (!hasCached) {
@@ -1122,7 +1150,7 @@ const ChatRoom = () => {
     isFetchingHistoryRef.current = true;
 
     try {
-      const res = await chatCache.dedupe(`msg_${chatId}`, () => chatAPI.getMessageHistory(chatId));
+      const res = await chatCache.dedupe(`msg_${chatId}`, () => chatAPI.getMessageHistory(chatId, { signal }));
       if (res && res.data) {
         const history = Array.isArray(res.data) ? res.data : (res.data.data || []);
         history.forEach(msg => {
@@ -1136,8 +1164,12 @@ const ChatRoom = () => {
         chatCache.setMessages(chatId, history);
       }
     } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       console.error("Failed to fetch history:", err);
-      if (!hasCached) {
+      const fallback = chatCache.getMessages(chatId);
+      if (fallback && fallback.length > 0) {
+        setMessages(fallback);
+      } else if (!hasCached) {
         toast.error("Failed to load message history");
       }
     } finally {
@@ -1147,34 +1179,40 @@ const ChatRoom = () => {
     }
   };
 
-  const fetchChatMembers = async () => {
+  const fetchChatMembers = async (signal) => {
     if (!chatId) return;
     try {
-      const res = await chatCache.dedupe(`mbrs_${chatId}`, () => chatAPI.getMembers(chatId));
+      const res = await chatCache.dedupe(`mbrs_${chatId}`, () => chatAPI.getMembers(chatId, { signal }));
       if (res && res.data) {
         setMembersList(res.data);
         chatCache.setMembers(chatId, res.data);
       }
     } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       console.warn("Error fetching chat members:", err);
+      const fallback = chatCache.getMembers(chatId);
+      if (fallback) setMembersList(fallback);
     }
   };
 
-  const fetchBroadcasts = async () => {
+  const fetchBroadcasts = async (signal) => {
     if (!chatId) return;
     const hasCached = chatCache.hasBroadcasts(chatId);
     if (!hasCached) {
       setLoadingBroadcasts(true);
     }
     try {
-      const res = await chatCache.dedupe(`bcast_${chatId}`, () => chatAPI.getBroadcasts(chatId));
+      const res = await chatCache.dedupe(`bcast_${chatId}`, () => chatAPI.getBroadcasts(chatId, { signal }));
       if (res && res.data) {
         const list = res.data || [];
         setBroadcasts(list);
         chatCache.setBroadcasts(chatId, list);
       }
     } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       console.warn("Failed to load broadcasts:", err);
+      const fallback = chatCache.getBroadcasts(chatId);
+      if (fallback) setBroadcasts(fallback);
     } finally {
       setLoadingBroadcasts(false);
     }
@@ -1248,8 +1286,8 @@ const ChatRoom = () => {
       });
     }
 
-    // Immediately start Comments API request without waiting for any other operations
-    fetchHistory();
+    // Immediately start Comments API request with signal
+    fetchHistory(abortControllerRef.current?.signal);
   }, [chatId]);
 
   // 2. Auxiliary Data (Chat details, Broadcasts, Members): Deferred to give Comments API immediate priority
@@ -1272,9 +1310,10 @@ const ChatRoom = () => {
 
     // Defer auxiliary requests slightly so Comments request hits the network first
     const timer = setTimeout(() => {
-      fetchChatDetails();
-      fetchChatMembers();
-      fetchBroadcasts();
+      const signal = abortControllerRef.current?.signal;
+      fetchChatDetails(signal);
+      fetchChatMembers(signal);
+      fetchBroadcasts(signal);
     }, 40);
 
     return () => clearTimeout(timer);

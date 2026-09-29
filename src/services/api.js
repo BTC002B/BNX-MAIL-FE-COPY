@@ -338,10 +338,10 @@ export const groupAPI = {
 export const chatAPI = {
     createDirectChat: (data) => api.post(API_ENDPOINTS.CHAT.DIRECT, data),
     createGroupChat: (data) => api.post(API_ENDPOINTS.CHAT.GROUP, data),
-    getUserChats: (email) => {
+    getUserChats: (email, config = {}) => {
         if (!email) return Promise.resolve({ data: [] });
         return chatCache.dedupe(`user_chats_${email}`, () => 
-            api.get(API_ENDPOINTS.CHAT.USER_CHATS.replace(':email', email))
+            api.get(API_ENDPOINTS.CHAT.USER_CHATS.replace(':email', email), { timeout: 30000, ...config })
         ).then(res => {
             if (res?.data) {
                 const list = Array.isArray(res.data) ? res.data : (res.data.data || []);
@@ -350,16 +350,16 @@ export const chatAPI = {
             return res;
         });
     },
-    getMessageHistory: (chatId) => {
+    getMessageHistory: (chatId, config = {}) => {
         return chatCache.dedupe(`msg_${chatId}`, () =>
-            api.get(API_ENDPOINTS.CHAT.MESSAGES.replace(':chatId', chatId), { timeout: 45000 })
+            api.get(API_ENDPOINTS.CHAT.MESSAGES.replace(':chatId', chatId), { timeout: 45000, ...config })
         );
     },
     sendMessage: (data) => api.post(API_ENDPOINTS.CHAT.SEND_MESSAGE, data),
     addMembers: (chatId, data) => api.post(`/api/chat/${chatId}/members`, data),
-    getMembers: (chatId) => {
+    getMembers: (chatId, config = {}) => {
         return chatCache.dedupe(`mbrs_${chatId}`, () =>
-            api.get(`/api/chat/${chatId}/members`, { timeout: 30000 })
+            api.get(`/api/chat/${chatId}/members`, { timeout: 30000, ...config })
         ).then(res => {
             if (res?.data) {
                 chatCache.setMembers(chatId, res.data);
@@ -367,9 +367,9 @@ export const chatAPI = {
             return res;
         });
     },
-    getBroadcasts: (chatId) => {
+    getBroadcasts: (chatId, config = {}) => {
         return chatCache.dedupe(`bcast_${chatId}`, () =>
-            api.get(`/api/chat/${chatId}/broadcasts`, { timeout: 30000 })
+            api.get(`/api/chat/${chatId}/broadcasts`, { timeout: 30000, ...config })
         ).then(res => {
             if (res?.data) {
                 chatCache.setBroadcasts(chatId, res.data);
@@ -379,9 +379,9 @@ export const chatAPI = {
     },
     sendBroadcast: (chatId, data) => api.post(`/api/chat/${chatId}/broadcast`, data),
 
-    getInvitations: () => {
+    getInvitations: (config = {}) => {
         return chatCache.dedupe('invitations', () =>
-            api.get('/api/chat/invitations')
+            api.get('/api/chat/invitations', { timeout: 30000, ...config })
         ).then(res => {
             if (res?.data) {
                 chatCache.setInvitations(res.data);
