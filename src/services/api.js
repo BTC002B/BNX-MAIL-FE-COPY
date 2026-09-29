@@ -49,6 +49,11 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        if (!error.response) {
+            console.warn(`[Network Error] Unable to connect to server: ${error.message || 'Network Error'} (${error.config?.url})`);
+            return Promise.reject(error);
+        }
+
         console.log("=== API ERROR INTERCEPTOR ===");
         console.log("Status:", error.response?.status);
         console.log("Data:", error.response?.data);
