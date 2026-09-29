@@ -9,6 +9,11 @@ const memoryCache = {
   broadcasts: new Map(),     // chatId -> { data, timestamp }
   members: new Map(),        // chatId -> { data, timestamp }
   invitations: null,         // { data, timestamp }
+  casboxMessages: new Map(), // email -> { data, timestamp }
+  casboxThreads: new Map(),  // contactEmail -> { data, timestamp }
+  casboxAliases: null,       // { data, timestamp }
+  casboxSettings: null,      // { data, timestamp }
+  casboxConnections: null,   // { data, timestamp }
   inFlight: new Map(),       // key -> Promise
 };
 
@@ -275,6 +280,102 @@ export const chatCache = {
         })
         .catch(() => {});
     }
+  },
+
+  // Casbox Messages
+  getCasboxMessages(email) {
+    if (!email) return null;
+    const mem = memoryCache.casboxMessages.get(email);
+    if (mem?.data) return mem.data;
+
+    const stored = readSS(`casbox_messages_${email}`);
+    if (stored && Array.isArray(stored)) {
+      memoryCache.casboxMessages.set(email, { data: stored, timestamp: Date.now() });
+      return stored;
+    }
+    return null;
+  },
+
+  setCasboxMessages(email, msgs) {
+    if (!email || !Array.isArray(msgs)) return;
+    memoryCache.casboxMessages.set(email, { data: msgs, timestamp: Date.now() });
+    writeSS(`casbox_messages_${email}`, msgs);
+  },
+
+  hasCasboxMessages(email) {
+    const list = this.getCasboxMessages(email);
+    return Boolean(list && list.length > 0);
+  },
+
+  // Casbox Threads
+  getCasboxThread(contactEmail) {
+    if (!contactEmail) return null;
+    const mem = memoryCache.casboxThreads.get(contactEmail.toLowerCase());
+    if (mem?.data) return mem.data;
+
+    const stored = readSS(`casbox_thread_${contactEmail.toLowerCase()}`);
+    if (stored && Array.isArray(stored)) {
+      memoryCache.casboxThreads.set(contactEmail.toLowerCase(), { data: stored, timestamp: Date.now() });
+      return stored;
+    }
+    return null;
+  },
+
+  setCasboxThread(contactEmail, thread) {
+    if (!contactEmail || !Array.isArray(thread)) return;
+    memoryCache.casboxThreads.set(contactEmail.toLowerCase(), { data: thread, timestamp: Date.now() });
+    writeSS(`casbox_thread_${contactEmail.toLowerCase()}`, thread);
+  },
+
+  // Casbox Settings (accepted & blocked contacts)
+  getCasboxSettings() {
+    if (memoryCache.casboxSettings?.data) return memoryCache.casboxSettings.data;
+    const stored = readSS('casbox_settings');
+    if (stored && typeof stored === 'object') {
+      memoryCache.casboxSettings = { data: stored, timestamp: Date.now() };
+      return stored;
+    }
+    return null;
+  },
+
+  setCasboxSettings(settings) {
+    if (!settings || typeof settings !== 'object') return;
+    memoryCache.casboxSettings = { data: settings, timestamp: Date.now() };
+    writeSS('casbox_settings', settings);
+  },
+
+  // Casbox Aliases
+  getCasboxAliases() {
+    if (memoryCache.casboxAliases?.data) return memoryCache.casboxAliases.data;
+    const stored = readSS('casbox_aliases');
+    if (stored && typeof stored === 'object') {
+      memoryCache.casboxAliases = { data: stored, timestamp: Date.now() };
+      return stored;
+    }
+    return null;
+  },
+
+  setCasboxAliases(aliases) {
+    if (!aliases || typeof aliases !== 'object') return;
+    memoryCache.casboxAliases = { data: aliases, timestamp: Date.now() };
+    writeSS('casbox_aliases', aliases);
+  },
+
+  // Casbox Connections
+  getCasboxConnections() {
+    if (memoryCache.casboxConnections?.data) return memoryCache.casboxConnections.data;
+    const stored = readSS('casbox_connections');
+    if (stored && Array.isArray(stored)) {
+      memoryCache.casboxConnections = { data: stored, timestamp: Date.now() };
+      return stored;
+    }
+    return null;
+  },
+
+  setCasboxConnections(connections) {
+    if (!Array.isArray(connections)) return;
+    memoryCache.casboxConnections = { data: connections, timestamp: Date.now() };
+    writeSS('casbox_connections', connections);
   }
 };
 

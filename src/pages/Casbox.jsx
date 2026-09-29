@@ -1,15 +1,59 @@
 import { useTranslation } from "../context/LanguageContext";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { useMail } from "../context/MailContext";
 import { casboxAPI, api, userAPI, mailAPI, contactAliasAPI, connectionAPI } from "../services/api";
+import { chatCache } from "../services/chatCache";
 import { MdCheck, MdDoneAll, MdStarBorder, MdStar, MdDeleteOutline, MdRefresh, MdSend, MdClose, MdRemoveRedEye, MdFileDownload, MdReply, MdBlock, MdArrowBack, MdArchive, MdUnarchive, MdAccessTime, MdLabel, MdDelete, MdMoreVert, MdInsertEmoticon, MdChevronRight, MdChevronLeft, MdEdit, MdPersonAdd } from "react-icons/md";
 import toast from "react-hot-toast";
 import ReadingPaneLayout from "../components/ReadingPaneLayout";
 import logo from "../assets/bnx-remove.png";
+
+const timestampCache = new Map();
+const parseTimestamp = (ts) => {
+  if (!ts) return new Date();
+  if (timestampCache.has(ts)) {
+    return timestampCache.get(ts);
+  }
+  let date;
+  if (Array.isArray(ts)) {
+    const [year, month, day, hour = 0, minute = 0, second = 0] = ts;
+    date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  } else if (typeof ts === 'string') {
+    const str = ts.endsWith('Z') || ts.includes('+') ? ts : ts + 'Z';
+    date = new Date(str);
+  } else {
+    date = new Date(ts);
+  }
+  if (timestampCache.size > 2000) {
+    timestampCache.clear();
+  }
+  timestampCache.set(ts, date);
+  return date;
+};
+
+const attachmentParseCache = new Map();
+const parseMessageAttachments = (attachmentsJson) => {
+  if (!attachmentsJson || typeof attachmentsJson !== 'string') return null;
+  if (attachmentParseCache.has(attachmentsJson)) {
+    return attachmentParseCache.get(attachmentsJson);
+  }
+  try {
+    const parsed = JSON.parse(attachmentsJson);
+    const result = Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+    if (attachmentParseCache.size > 1000) {
+      attachmentParseCache.clear();
+    }
+    attachmentParseCache.set(attachmentsJson, result);
+    return result;
+  } catch (e) {
+    attachmentParseCache.set(attachmentsJson, null);
+    return null;
+  }
+};
 
 const getMimeType = (fileName) => {
   const ext = fileName?.split('.').pop().toLowerCase() || '';
@@ -259,10 +303,10 @@ const Casbox = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { stompClient, isConnected } = useSocket();
-  const { openCompose, emails, handleArchive, handleSnooze, handleMoveToTrash, handleToggleStar } = useMail();
+  const { openCompose, handleArchive, handleSnooze, handleMoveToTrash, handleToggleStar } = useMail();
 
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState(() => chatCache.getCasboxMessages(user?.email) || []);
+  const [loading, setLoading] = useState(() => !chatCache.hasCasboxMessages(user?.email));
 
   const [selectedMessage, setSelectedMessage] = useState(null);
 
@@ -270,9 +314,8 @@ const Casbox = () => {
   const [showArchive, setShowArchive] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
 
-  const [acceptedContacts, setAcceptedContacts] = useState([]);
-  const [blockedContacts, setBlockedContacts] = useState([]);
-  const [knownContacts, setKnownContacts] = useState(new Set());
+  const [acceptedContacts, setAcceptedContacts] = useState(() => chatCache.getCasboxSettings()?.casboxAccepted || []);
+  const [blockedContacts, setBlockedContacts] = useState(() => chatCache.getCasboxSettings()?.casboxBlocked || []);
   const [showBlockedModal, setShowBlockedModal] = useState(false);
 
   const [threadMessages, setThreadMessages] = useState([]);
@@ -337,7 +380,7 @@ const Casbox = () => {
   const [isDeletingConversation, setIsDeletingConversation] = useState(false);
   const listMenuRef = React.useRef(null);
 
-  const [contactAliases, setContactAliases] = useState({});
+  const [contactAliases, setContactAliases] = useState(() => chatCache.getCasboxAliases() || {});
   const [showEditNameModal, setShowEditNameModal] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
   const [customNameInput, setCustomNameInput] = useState("");
@@ -357,6 +400,7 @@ const Casbox = () => {
           }
         });
         setContactAliases(prev => ({ ...prev, ...map }));
+        chatCache.setCasboxAliases(map);
       }
     } catch (e) {
       console.error("Failed to load contact aliases", e);
@@ -367,7 +411,7 @@ const Casbox = () => {
     fetchAliases();
   }, []);
 
-  const [connections, setConnections] = useState([]);
+  const [connections, setConnections] = useState(() => chatCache.getCasboxConnections() || []);
   const [loadingConnections, setLoadingConnections] = useState(false);
   const [showConnectionsModal, setShowConnectionsModal] = useState(false);
   const [connectionToDisconnect, setConnectionToDisconnect] = useState(null);
@@ -380,6 +424,7 @@ const Casbox = () => {
       const res = await connectionAPI.getAccepted();
       if (res.data && Array.isArray(res.data)) {
         setConnections(res.data);
+        chatCache.setCasboxConnections(res.data);
       }
     } catch (e) {
       console.error("Failed to load connections", e);
@@ -413,7 +458,7 @@ const Casbox = () => {
     };
   }, [showConnectionsModal]);
 
-  const isDisconnectedContact = (emailOrUsername) => {
+  const isDisconnectedContact = useCallback((emailOrUsername) => {
     if (!emailOrUsername) return false;
     const lower = emailOrUsername.toLowerCase();
     const local = (lower.includes('@') ? lower.split('@')[0] : lower);
@@ -426,7 +471,7 @@ const Casbox = () => {
              (cUser && (cUser === lower || cUser === local)) ||
              (cId && cId === lower);
     });
-  };
+  }, [connections]);
 
   const handleConfirmDisconnect = async () => {
     if (!connectionToDisconnect) return;
@@ -675,6 +720,7 @@ const Casbox = () => {
           const s = res.data.data;
           setAcceptedContacts(s.casboxAccepted || []);
           setBlockedContacts(s.casboxBlocked || []);
+          chatCache.setCasboxSettings(s);
         }
       } catch (e) {
         console.error("Failed to load casbox settings", e);
@@ -682,6 +728,17 @@ const Casbox = () => {
     };
     fetchSettings();
   }, []);
+
+  // Rehydrate messages from cache when user?.email becomes ready if initially empty
+  useEffect(() => {
+    if (user?.email && messages.length === 0) {
+      const cached = chatCache.getCasboxMessages(user.email);
+      if (cached && cached.length > 0) {
+        setMessages(cached);
+        setLoading(false);
+      }
+    }
+  }, [user?.email, messages.length]);
 
   useEffect(() => {
     if (location.state?.preselectContact && messages.length > 0) {
@@ -704,31 +761,32 @@ const Casbox = () => {
     }
   }, [location.state, messages, user?.email]);
 
-  useEffect(() => {
+  // Synchronous derivation of known contacts - ensures zero-delay message rendering on load
+  const knownContacts = useMemo(() => {
     const contacts = new Set();
-
-    // Auto-accept contacts from regular emails
-    if (emails && emails.length > 0) {
-      emails.forEach(email => {
-        if (email.senderEmail) contacts.add(email.senderEmail);
-        if (email.receiverEmail) contacts.add(email.receiverEmail);
-        if (email.to && Array.isArray(email.to)) {
-          email.to.forEach(t => contacts.add(t));
-        }
-      });
-    }
 
     // Auto-accept people we have sent a Casbox message to
     if (messages && messages.length > 0 && user?.email) {
-      messages.forEach(msg => {
+      for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i];
         if (msg.senderEmail === user.email && msg.receiverEmail) {
           contacts.add(msg.receiverEmail);
         }
-      });
+      }
     }
 
-    setKnownContacts(contacts);
-  }, [emails, messages, user?.email]);
+    // Auto-accept actively connected contacts
+    if (connections && connections.length > 0) {
+      for (let i = 0; i < connections.length; i++) {
+        const conn = connections[i];
+        if (conn.status?.toUpperCase() === 'CONNECTED' && conn.contactEmail) {
+          contacts.add(conn.contactEmail);
+        }
+      }
+    }
+
+    return contacts;
+  }, [messages, connections, user?.email]);
 
   React.useEffect(() => {
     return () => {
@@ -739,17 +797,26 @@ const Casbox = () => {
     };
   }, [selectedMessage]);
 
-  const fetchThread = async (contactEmail) => {
+  const fetchThread = useCallback(async (contactEmail) => {
+    if (!contactEmail) return;
     try {
-      setLoadingThread(true);
+      const cached = chatCache.getCasboxThread(contactEmail);
+      if (cached && cached.length > 0) {
+        setThreadMessages(cached);
+        setLoadingThread(false);
+      } else {
+        setLoadingThread(true);
+      }
       const res = await casboxAPI.getThread(contactEmail);
-      setThreadMessages(res.data || []);
+      const threadData = res.data || [];
+      setThreadMessages(threadData);
+      chatCache.setCasboxThread(contactEmail, threadData);
     } catch (e) {
       console.error("Failed to fetch thread", e);
     } finally {
       setLoadingThread(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (selectedMessage) {
@@ -764,7 +831,7 @@ const Casbox = () => {
       setThreadMessages([]);
       setIsChatStarred(false);
     }
-  }, [selectedMessage, user?.email]);
+  }, [selectedMessage, user?.email, fetchThread]);
 
   const handleArchiveChat = async () => {
     if (!selectedMessage) return;
@@ -1057,6 +1124,67 @@ const Casbox = () => {
     }
   };
 
+  const fetchMessages = useCallback(async (background = false) => {
+    try {
+      if (!background && messages.length === 0) setLoading(true);
+      const res = await casboxAPI.getAllMessages();
+      const msgs = res.data || [];
+
+      // Cache messages in chatCache
+      if (user?.email) {
+        chatCache.setCasboxMessages(user.email, msgs);
+      }
+
+      // Check if messages actually changed to avoid re-rendering
+      setMessages(prev => {
+        if (prev.length === msgs.length) {
+          const isIdentical = prev.every((m, idx) => {
+            const incoming = msgs[idx];
+            return incoming &&
+                   (m.id === incoming.id || m.uid === incoming.uid) &&
+                   m.status === incoming.status &&
+                   Boolean(m.isArchived || m.archived) === Boolean(incoming.isArchived || incoming.archived);
+          });
+          if (isIdentical) return prev;
+        }
+        return msgs;
+      });
+
+      // Collect any aliases returned in the messages DTOs
+      const dtoAliases = {};
+      for (let i = 0; i < msgs.length; i++) {
+        const m = msgs[i];
+        if (m.customName && m.customName.trim()) {
+          const val = m.customName.trim();
+          if (m.contactUserId) dtoAliases[String(m.contactUserId)] = val;
+          const other = m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail;
+          if (other) {
+            dtoAliases[other.toLowerCase()] = val;
+            dtoAliases[other.split('@')[0].toLowerCase()] = val;
+          }
+          if (m.contactUsername) dtoAliases[m.contactUsername.toLowerCase()] = val;
+        }
+      }
+      if (Object.keys(dtoAliases).length > 0) {
+        setContactAliases(prev => ({ ...prev, ...dtoAliases }));
+        chatCache.setCasboxAliases(dtoAliases);
+      }
+
+      if (selectedContactRef.current) {
+        const contactEmail = selectedContactRef.current;
+        casboxAPI.getThread(contactEmail).then(r => {
+          const threadData = r.data || [];
+          setThreadMessages(threadData);
+          chatCache.setCasboxThread(contactEmail, threadData);
+        }).catch(console.error);
+      }
+    } catch (err) {
+      if (!background) toast.error("Failed to fetch messages");
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.email, messages.length]);
+
   useEffect(() => {
     fetchMessages();
 
@@ -1076,7 +1204,7 @@ const Casbox = () => {
       clearInterval(interval);
       window.removeEventListener('casbox_message_sent', handleCasboxMessageSent);
     };
-  }, []);
+  }, [fetchMessages]);
 
   useEffect(() => {
     if (!stompClient || !isConnected || !stompClient.connected) return;
@@ -1097,8 +1225,10 @@ const Casbox = () => {
             ...(newMsg.contactUserId ? { [String(newMsg.contactUserId)]: val } : {})
           }));
         }
+
+        const newId = newMsg.id || newMsg.uid;
         setMessages(prev => {
-          if (prev.some(m => m.id === newMsg.id)) return prev;
+          if (prev.some(m => (m.id && m.id === newId) || (m.uid && m.uid === newId))) return prev;
           return [newMsg, ...prev];
         });
 
@@ -1106,7 +1236,7 @@ const Casbox = () => {
         const activeContact = selectedContactRef.current;
         if (activeContact && (newMsg.senderEmail === activeContact || newMsg.receiverEmail === activeContact)) {
           setThreadMessages(prev => {
-            if (prev.some(m => m.id === newMsg.id)) return prev;
+            if (prev.some(m => (m.id && m.id === newId) || (m.uid && m.uid === newId))) return prev;
             return [...prev, newMsg];
           });
         }
@@ -1114,8 +1244,9 @@ const Casbox = () => {
 
       statusSub = stompClient.subscribe('/user/queue/casbox/status', (msg) => {
         const updatedMsg = JSON.parse(msg.body);
-        setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
-        setThreadMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
+        const updateId = updatedMsg.id || updatedMsg.uid;
+        setMessages(prev => prev.map(m => ((m.id && m.id === updateId) || (m.uid && m.uid === updateId)) ? updatedMsg : m));
+        setThreadMessages(prev => prev.map(m => ((m.id && m.id === updateId) || (m.uid && m.uid === updateId)) ? updatedMsg : m));
       });
 
       casboxAPI.markAsDelivered().catch(console.error);
@@ -1135,43 +1266,7 @@ const Casbox = () => {
         }
       } catch (e) {}
     };
-  }, [stompClient, isConnected]);
-
-  const fetchMessages = async (background = false) => {
-    try {
-      if (!background) setLoading(true);
-      const res = await casboxAPI.getAllMessages();
-      const msgs = res.data || [];
-      setMessages(msgs);
-
-      // Collect any aliases returned in the messages DTOs
-      const dtoAliases = {};
-      msgs.forEach(m => {
-        if (m.customName && m.customName.trim()) {
-          const val = m.customName.trim();
-          if (m.contactUserId) dtoAliases[String(m.contactUserId)] = val;
-          const other = m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail;
-          if (other) {
-            dtoAliases[other.toLowerCase()] = val;
-            dtoAliases[other.split('@')[0].toLowerCase()] = val;
-          }
-          if (m.contactUsername) dtoAliases[m.contactUsername.toLowerCase()] = val;
-        }
-      });
-      if (Object.keys(dtoAliases).length > 0) {
-        setContactAliases(prev => ({ ...prev, ...dtoAliases }));
-      }
-
-      if (selectedContactRef.current) {
-        const contactEmail = selectedContactRef.current;
-        casboxAPI.getThread(contactEmail).then(r => setThreadMessages(r.data || [])).catch(console.error);
-      }
-    } catch (err) {
-      if (!background) toast.error("Failed to fetch messages");
-    } finally {
-      if (!background) setLoading(false);
-    }
-  };
+  }, [stompClient, isConnected, user?.email]);
 
   const handleSelectMessage = async (msg) => {
     setSelectedMessage(msg);
@@ -1207,67 +1302,88 @@ const Casbox = () => {
     return null;
   };
 
-  const parseTimestamp = (ts) => {
-    if (!ts) return new Date();
-    if (Array.isArray(ts)) {
-      const [year, month, day, hour = 0, minute = 0, second = 0] = ts;
-      return new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  const {
+    unblockedMessages,
+    activeUnarchived,
+    archivedMessages,
+    mainMessages,
+    requestMessages,
+  } = useMemo(() => {
+    const blockedSet = new Set(blockedContacts);
+    const acceptedSet = new Set(acceptedContacts);
+    const userEmail = user?.email;
+
+    const unblocked = messages.filter(msg => !blockedSet.has(msg.senderEmail));
+    const active = [];
+    const archived = [];
+
+    for (let i = 0; i < unblocked.length; i++) {
+      const msg = unblocked[i];
+      if (msg.isArchived || msg.archived) {
+        archived.push(msg);
+      } else {
+        active.push(msg);
+      }
     }
-    if (typeof ts === 'string') {
-      const str = ts.endsWith('Z') || ts.includes('+') ? ts : ts + 'Z';
-      return new Date(str);
+
+    const main = [];
+    const requests = [];
+
+    for (let i = 0; i < active.length; i++) {
+      const msg = active[i];
+      const contact = msg.senderEmail === userEmail ? msg.receiverEmail : msg.senderEmail;
+      if (isDisconnectedContact(contact)) continue;
+
+      const isKnown = msg.senderEmail === userEmail ||
+                      knownContacts.has(msg.senderEmail) ||
+                      acceptedSet.has(msg.senderEmail);
+
+      if (isKnown) {
+        main.push(msg);
+      } else if (msg.receiverEmail === userEmail) {
+        requests.push(msg);
+      }
     }
-    return new Date(ts);
-  };
 
-  const unblockedMessages = messages.filter(msg => {
-    return !blockedContacts.includes(msg.senderEmail);
-  });
-
-  const activeUnarchived = unblockedMessages.filter(msg => !msg.isArchived && !msg.archived);
-  const archivedMessages = unblockedMessages.filter(msg => Boolean(msg.isArchived || msg.archived));
-
-  const sentMessages = activeUnarchived.filter(msg => msg.senderEmail === user?.email);
-  const allReceived = activeUnarchived.filter(msg => msg.receiverEmail === user?.email);
-
-  const receivedMessages = allReceived.filter(msg =>
-    knownContacts.has(msg.senderEmail) || acceptedContacts.includes(msg.senderEmail)
-  );
-  const requestMessages = allReceived.filter(msg =>
-    !knownContacts.has(msg.senderEmail) && !acceptedContacts.includes(msg.senderEmail)
-  );
-
-  const mainMessages = activeUnarchived.filter(msg => {
-    const contact = msg.senderEmail === user?.email ? msg.receiverEmail : msg.senderEmail;
-    if (isDisconnectedContact(contact)) return false;
-    if (msg.senderEmail === user?.email) return true;
-    return knownContacts.has(msg.senderEmail) || acceptedContacts.includes(msg.senderEmail);
-  });
-
-  const filteredMessages = (activeTab === 'messages' || activeTab === 'received' || activeTab === 'sent') ? mainMessages
-    : activeTab === 'requests' ? requestMessages
-      : archivedMessages;
-
-  // Group messages by conversation contact
-  const conversationGroups = {};
-  filteredMessages.forEach(msg => {
-    const contact = msg.senderEmail === user?.email ? msg.receiverEmail : msg.senderEmail;
-    if (!contact) return;
-    if (!conversationGroups[contact]) {
-      conversationGroups[contact] = [];
-    }
-    conversationGroups[contact].push(msg);
-  });
-
-  const conversationList = Object.keys(conversationGroups).map(contact => {
-    const msgs = conversationGroups[contact];
-    const sorted = [...msgs].sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp));
     return {
-      contact,
-      latestMessage: sorted[0],
-      messages: sorted
+      unblockedMessages: unblocked,
+      activeUnarchived: active,
+      archivedMessages: archived,
+      mainMessages: main,
+      requestMessages: requests,
     };
-  }).sort((a, b) => parseTimestamp(b.latestMessage.timestamp) - parseTimestamp(a.latestMessage.timestamp));
+  }, [messages, blockedContacts, acceptedContacts, knownContacts, user?.email, isDisconnectedContact]);
+
+  const filteredMessages = useMemo(() => {
+    if (activeTab === 'messages' || activeTab === 'received' || activeTab === 'sent') return mainMessages;
+    if (activeTab === 'requests') return requestMessages;
+    return archivedMessages;
+  }, [activeTab, mainMessages, requestMessages, archivedMessages]);
+
+  const conversationList = useMemo(() => {
+    const userEmail = user?.email;
+    const conversationGroups = {};
+
+    for (let i = 0; i < filteredMessages.length; i++) {
+      const msg = filteredMessages[i];
+      const contact = msg.senderEmail === userEmail ? msg.receiverEmail : msg.senderEmail;
+      if (!contact) continue;
+      if (!conversationGroups[contact]) {
+        conversationGroups[contact] = [];
+      }
+      conversationGroups[contact].push(msg);
+    }
+
+    return Object.keys(conversationGroups).map(contact => {
+      const msgs = conversationGroups[contact];
+      const sorted = [...msgs].sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp));
+      return {
+        contact,
+        latestMessage: sorted[0],
+        messages: sorted
+      };
+    }).sort((a, b) => parseTimestamp(b.latestMessage.timestamp) - parseTimestamp(a.latestMessage.timestamp));
+  }, [filteredMessages, user?.email]);
 
   const isMessageUnread = (m) => {
     if (!m || m.receiverEmail !== user?.email) return false;
@@ -1520,7 +1636,12 @@ const Casbox = () => {
 
   const listComponent = (
     <div className="flex-1 overflow-y-auto hidden-scrollbar relative bg-transparent">
-      {conversationList.length === 0 && !loading ? (
+      {loading && conversationList.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-600 opacity-80 pb-20">
+          <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-xs font-medium text-gray-400 dark:text-gray-500">Loading messages...</p>
+        </div>
+      ) : conversationList.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-600 opacity-80 pb-20">
           {activeTab === 'archive' ? (
             <>
@@ -1700,38 +1821,34 @@ const Casbox = () => {
   };
 
   const renderBubbleAttachments = (msg) => {
-    if (!msg.attachmentsJson) return null;
-    try {
-      const files = JSON.parse(msg.attachmentsJson);
-      if (!files || files.length === 0) return null;
-      return (
-        <div className="mt-2 space-y-1.5 border-t border-black/5 dark:border-white/5 pt-2">
-          {files.map((fileObj, i) => {
-            const fileName = fileObj.fileName || fileObj.name || (typeof fileObj === 'string' ? fileObj.split('/').pop() : "Attachment");
-            const fileInfo = getFileIcon(fileName);
-            return (
-              <div
-                key={i}
-                className="flex items-center justify-between gap-3 p-1.5 rounded-lg bg-black/5 dark:bg-white/5 text-[11px]"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-base shrink-0">{fileInfo.icon}</span>
-                  <span className="font-medium truncate max-w-[120px]">{fileName}</span>
-                </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDownloadAttachment(fileObj); }}
-                  className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 text-current cursor-pointer shrink-0"
-                >
-                  <MdFileDownload size={14} />
-                </button>
+    if (!msg?.attachmentsJson) return null;
+    const files = parseMessageAttachments(msg.attachmentsJson);
+    if (!files || files.length === 0) return null;
+    return (
+      <div className="mt-2 space-y-1.5 border-t border-black/5 dark:border-white/5 pt-2">
+        {files.map((fileObj, i) => {
+          const fileName = fileObj.fileName || fileObj.name || (typeof fileObj === 'string' ? fileObj.split('/').pop() : "Attachment");
+          const fileInfo = getFileIcon(fileName);
+          return (
+            <div
+              key={fileObj.id || fileObj.fileName || i}
+              className="flex items-center justify-between gap-3 p-1.5 rounded-lg bg-black/5 dark:bg-white/5 text-[11px]"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base shrink-0">{fileInfo.icon}</span>
+                <span className="font-medium truncate max-w-[120px]">{fileName}</span>
               </div>
-            );
-          })}
-        </div>
-      );
-    } catch (e) {
-      return null;
-    }
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDownloadAttachment(fileObj); }}
+                className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 text-current cursor-pointer shrink-0"
+              >
+                <MdFileDownload size={14} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   const getOtherUserEmail = (msg) => {

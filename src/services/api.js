@@ -406,8 +406,14 @@ export const vaultAPI = {
 
 // Casbox APIs
 export const casboxAPI = {
-    getAllMessages: () => api.get('/api/casbox'),
-    getThread: (contactEmail) => api.get(`/api/casbox/thread/${encodeURIComponent(contactEmail)}`),
+    getAllMessages: () => {
+        return chatCache.dedupe('casbox_all_messages', () => api.get('/api/casbox'));
+    },
+    getThread: (contactEmail) => {
+        return chatCache.dedupe(`casbox_thread_${contactEmail.toLowerCase()}`, () => 
+            api.get(`/api/casbox/thread/${encodeURIComponent(contactEmail)}`)
+        );
+    },
     sendMessage: (data) => api.post('/api/casbox/send', data),
     updateStatus: (data) => api.patch('/api/casbox/status', data),
     markAsDelivered: () => api.post('/api/casbox/delivered'),
