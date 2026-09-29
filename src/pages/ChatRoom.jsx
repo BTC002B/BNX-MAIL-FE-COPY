@@ -528,6 +528,20 @@ const CommentMessageItem = React.memo(({
       </div>
     </div>
   );
+}, (prev, next) => {
+  return (
+    prev.msg.id === next.msg.id &&
+    prev.msg.content === next.msg.content &&
+    prev.msg.message === next.msg.message &&
+    prev.msg.isOptimistic === next.msg.isOptimistic &&
+    prev.msg.timestamp === next.msg.timestamp &&
+    prev.msg.attachmentsJson === next.msg.attachmentsJson &&
+    prev.isMe === next.isMe &&
+    prev.chatName === next.chatName &&
+    prev.theme?.accent === next.theme?.accent &&
+    prev.theme?.text === next.theme?.text &&
+    prev.theme?.mode === next.theme?.mode
+  );
 });
 
 const ChatRoom = () => {
@@ -567,12 +581,15 @@ const ChatRoom = () => {
 
   useEffect(() => {
     processedMessageIdsRef.current.clear();
+  }, [chatId]);
+
+  useEffect(() => {
     if (chat) {
       setIsChatStarred(Boolean(chat.starred || chat.isStarred));
     } else {
       setIsChatStarred(false);
     }
-  }, [chat, chatId]);
+  }, [chat]);
 
   const handleArchiveChat = async () => {
     const targetId = chatId || chat?.uid || chat?.id;
@@ -1094,12 +1111,16 @@ const ChatRoom = () => {
     }
   };
 
+  const isFetchingHistoryRef = useRef(false);
+
   const fetchHistory = async () => {
-    if (!chatId) return;
+    if (!chatId || isFetchingHistoryRef.current) return;
     const hasCached = chatCache.hasMessages(chatId);
     if (!hasCached) {
       setLoading(true);
     }
+    isFetchingHistoryRef.current = true;
+
     try {
       const res = await chatCache.dedupe(`msg_${chatId}`, () => chatAPI.getMessageHistory(chatId));
       if (res && res.data) {
@@ -1109,12 +1130,10 @@ const ChatRoom = () => {
             processedMessageIdsRef.current.add(String(msg.id));
           }
         });
-        const normalizedHistory = history.map(msg => ({
-          ...msg,
-          parsedAttachments: getNormalizedAttachments(msg)
-        }));
-        setMessages(normalizedHistory);
-        chatCache.setMessages(chatId, normalizedHistory);
+        // Render messages immediately without blocking on synchronous attachment parsing
+        setMessages(history);
+        setLoading(false);
+        chatCache.setMessages(chatId, history);
       }
     } catch (err) {
       console.error("Failed to fetch history:", err);
@@ -1122,8 +1141,9 @@ const ChatRoom = () => {
         toast.error("Failed to load message history");
       }
     } finally {
+      isFetchingHistoryRef.current = false;
       setLoading(false);
-      setTimeout(() => scrollToBottom(true), 100);
+      setTimeout(() => scrollToBottom(true), 50);
     }
   };
 
@@ -1214,35 +1234,50 @@ const ChatRoom = () => {
   };
 
 
-  // Load chat details, message history, members, and broadcasts in parallel with instant cache
+  // 1. Comments Loading: Independent & immediate (Priority 1)
   useEffect(() => {
-    if (chatId) {
-      // Rehydrate instantly from cache if available (< 10ms)
-      const cachedChat = chatCache.getChat(chatId);
-      if (cachedChat && !chat) {
-        setChat(cachedChat);
-      }
-      const cachedMsgs = chatCache.getMessages(chatId);
-      if (cachedMsgs?.length) {
-        setMessages(cachedMsgs);
-        setLoading(false);
-      }
-      const cachedBcasts = chatCache.getBroadcasts(chatId);
-      if (cachedBcasts) {
-        setBroadcasts(cachedBcasts);
-        setLoadingBroadcasts(false);
-      }
-      const cachedMbrs = chatCache.getMembers(chatId);
-      if (cachedMbrs?.length) {
-        setMembersList(cachedMbrs);
-      }
+    if (!chatId) return;
 
-      // Concurrently fetch fresh data in parallel
+    // Fast rehydrate from cache if available (< 5ms)
+    const cachedMsgs = chatCache.getMessages(chatId);
+    if (cachedMsgs && Array.isArray(cachedMsgs)) {
+      setMessages(cachedMsgs);
+      setLoading(false);
+      cachedMsgs.forEach(m => {
+        if (m && m.id) processedMessageIdsRef.current.add(String(m.id));
+      });
+    }
+
+    // Immediately start Comments API request without waiting for any other operations
+    fetchHistory();
+  }, [chatId]);
+
+  // 2. Auxiliary Data (Chat details, Broadcasts, Members): Deferred to give Comments API immediate priority
+  useEffect(() => {
+    if (!chatId) return;
+
+    const cachedChat = chatCache.getChat(chatId);
+    if (cachedChat && !chat) {
+      setChat(cachedChat);
+    }
+    const cachedBcasts = chatCache.getBroadcasts(chatId);
+    if (cachedBcasts) {
+      setBroadcasts(cachedBcasts);
+      setLoadingBroadcasts(false);
+    }
+    const cachedMbrs = chatCache.getMembers(chatId);
+    if (cachedMbrs?.length) {
+      setMembersList(cachedMbrs);
+    }
+
+    // Defer auxiliary requests slightly so Comments request hits the network first
+    const timer = setTimeout(() => {
       fetchChatDetails();
-      fetchHistory();
       fetchChatMembers();
       fetchBroadcasts();
-    }
+    }, 40);
+
+    return () => clearTimeout(timer);
   }, [chatId]);
 
   // Subscribe to live messages over WebSocket

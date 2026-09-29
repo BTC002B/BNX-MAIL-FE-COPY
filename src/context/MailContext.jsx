@@ -524,6 +524,12 @@ export const MailProvider = ({ children }) => {
                 }
             };
 
+            const isChatMode = typeof window !== 'undefined' && 
+                (window.location.pathname.startsWith('/colab') || 
+                 window.location.pathname.startsWith('/chat') || 
+                 window.location.pathname.startsWith('/casbox'));
+            if (isChatMode) return;
+
             const timer = setTimeout(prefetchFolders, 3000);
             return () => clearTimeout(timer);
         }
@@ -544,6 +550,12 @@ export const MailProvider = ({ children }) => {
 
         const interval = setInterval(() => {
             if (!document.hidden) {
+                const isChatMode = typeof window !== 'undefined' && 
+                    (window.location.pathname.startsWith('/colab') || 
+                     window.location.pathname.startsWith('/chat') || 
+                     window.location.pathname.startsWith('/casbox'));
+                if (isChatMode) return;
+
                 if (currentFolderRef.current.startsWith('label-')) {
                     const labelId = currentFolderRef.current.replace('label-', '');
                     fetchLabelEmails(labelId, true, currentPageRef.current);

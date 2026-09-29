@@ -27,16 +27,26 @@ const readSS = (key) => {
 // Safe sessionStorage writer with quota protection
 const writeSS = (key, data) => {
   try {
-    // To prevent QuotaExceededError, sanitize large base64 attachments if any
+    // Sanitize large base64 attachments from storage to keep sessionStorage tiny (< 50KB) and prevent QuotaExceededError
     const serialized = JSON.stringify(data, (k, v) => {
-      if (typeof v === 'string' && v.startsWith('data:') && v.length > 50000) {
+      if (typeof v === 'string' && v.startsWith('data:') && v.length > 1000) {
         return '[data-url-omitted-from-storage]';
       }
       return v;
     });
     sessionStorage.setItem(SS_PREFIX + key, serialized);
   } catch (e) {
-    // Gracefully handle storage errors
+    try {
+      // If quota exceeded, clean up stale colab keys and retry once
+      Object.keys(sessionStorage).forEach(k => {
+        if (k.startsWith(SS_PREFIX) && k !== SS_PREFIX + key) {
+          sessionStorage.removeItem(k);
+        }
+      });
+      sessionStorage.setItem(SS_PREFIX + key, JSON.stringify(data));
+    } catch (e2) {
+      // Gracefully ignore storage quota limits
+    }
   }
 };
 
@@ -168,7 +178,7 @@ export const chatCache = {
 
   hasMessages(chatId) {
     const list = this.getMessages(chatId);
-    return Array.isArray(list) && list.length > 0;
+    return Array.isArray(list);
   },
 
   // Broadcasts
