@@ -44,6 +44,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
+        // Silently ignore intentional request cancellations (e.g. AbortController when switching chats)
+        if (axios.isCancel(error) || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+            return Promise.reject(error);
+        }
+
         if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
             console.warn(`[API Timeout] Request timed out: ${error.config?.url}`);
             return Promise.reject(error);
