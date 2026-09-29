@@ -256,40 +256,58 @@ const ConnectionRow = React.memo(({
 const parseTimestamp = (timestamp) => {
   if (!timestamp) return new Date(0);
   try {
-    let date;
-    if (Array.isArray(timestamp)) {
-      const [year, month, day, hour, minute, second] = timestamp;
-      date = new Date(year, (month || 1) - 1, day || 1, hour || 0, minute || 0, second || 0);
-    } else if (typeof timestamp === 'string') {
-      const formatted = timestamp.includes(' ') && !timestamp.includes('T')
-        ? timestamp.replace(' ', 'T')
-        : timestamp;
-      date = new Date(formatted);
-    } else {
-      date = new Date(timestamp);
+    if (timestamp instanceof Date) {
+      return isNaN(timestamp.getTime()) ? new Date(0) : timestamp;
     }
-    return isNaN(date.getTime()) ? new Date(0) : date;
+    if (typeof timestamp === 'number') {
+      const d = new Date(timestamp);
+      return isNaN(d.getTime()) ? new Date(0) : d;
+    }
+    if (Array.isArray(timestamp)) {
+      // Jackson array format from UTC server: [year, month, day, hour, minute, second, nano]
+      const [year, month = 1, day = 1, hour = 0, minute = 0, second = 0] = timestamp;
+      const d = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+      return isNaN(d.getTime()) ? new Date(0) : d;
+    }
+    if (typeof timestamp === 'string') {
+      let str = timestamp.trim();
+      if (!str) return new Date(0);
+
+      if (str.includes(' ') && !str.includes('T')) {
+        str = str.replace(' ', 'T');
+      }
+
+      // Backend stores and sends UTC timestamps formatted with ISO_LOCAL_DATE_TIME (without 'Z').
+      // In JavaScript ECMAScript, ISO strings without timezone are treated as local time.
+      // If no timezone offset (Z or +/-HH:mm) is present, treat as UTC by appending 'Z'.
+      const hasTimezone = /Z$|[+-]\d{2}(:?\d{2})?$/i.test(str);
+      if (!hasTimezone) {
+        str = `${str}Z`;
+      }
+
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? new Date(0) : d;
+    }
+    const d = new Date(timestamp);
+    return isNaN(d.getTime()) ? new Date(0) : d;
   } catch (e) {
     return new Date(0);
   }
 };
 
 const getTimestampMs = (timestamp) => {
-  if (!timestamp) return 0;
-  if (typeof timestamp === 'number') return timestamp;
-  if (timestamp instanceof Date) return timestamp.getTime();
-  if (Array.isArray(timestamp)) {
-    const [year, month, day, hour, minute, second] = timestamp;
-    return new Date(year, (month || 1) - 1, day || 1, hour || 0, minute || 0, second || 0).getTime() || 0;
-  }
-  if (typeof timestamp === 'string') {
-    const formatted = timestamp.includes(' ') && !timestamp.includes('T')
-      ? timestamp.replace(' ', 'T')
-      : timestamp;
-    const ms = Date.parse(formatted);
-    return isNaN(ms) ? 0 : ms;
-  }
-  return 0;
+  return parseTimestamp(timestamp).getTime() || 0;
+};
+
+const formatCashboxTime = (timestamp) => {
+  const date = parseTimestamp(timestamp);
+  if (!date || isNaN(date.getTime()) || date.getTime() === 0) return '';
+  return date.toLocaleTimeString('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }).replace(/[\u202f\u00a0]/g, ' ');
 };
 
 const parseMessageAttachments = (attachmentsJson) => {
@@ -1666,7 +1684,7 @@ const Casbox = () => {
                   </span>
                   <div className="flex items-center gap-1 shrink-0">
                     <span className={`text-xs ${unreadCount > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-400 dark:text-gray-500'}`}>
-                      {parseTimestamp(msg?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatCashboxTime(msg?.timestamp)}
                     </span>
                     <div className="relative shrink-0" ref={openMenuId === chat.contact ? listMenuRef : null}>
                       <button
@@ -2037,7 +2055,7 @@ const Casbox = () => {
                       <div 
                         className="text-[9px] mt-1 select-none font-normal text-gray-400 dark:text-gray-500 self-end mr-1 text-right"
                       >
-                        {parseTimestamp(msg?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatCashboxTime(msg?.timestamp)}
                       </div>
 
                       {isMe && index === sortedThread.length - 1 && (
