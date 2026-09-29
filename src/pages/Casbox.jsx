@@ -274,6 +274,17 @@ const parseTimestamp = (timestamp) => {
   }
 };
 
+const getStatusIcon = (status) => {
+  const s = status?.toUpperCase();
+  if (s === 'SEEN') {
+    return <MdDoneAll size={14} className="text-blue-500 inline-block" title="Seen" />;
+  }
+  if (s === 'DELIVERED') {
+    return <MdDoneAll size={14} className="text-gray-400 dark:text-gray-500 inline-block" title="Delivered" />;
+  }
+  return <MdCheck size={14} className="text-gray-400 dark:text-gray-500 inline-block" title="Sent" />;
+};
+
 const Casbox = () => {
   const { t } = useTranslation();
   const { theme, readingPaneMode } = useTheme();
@@ -597,6 +608,11 @@ const Casbox = () => {
     } finally {
       setIsUpdatingConnection(false);
     }
+  };
+
+  const getOtherUserEmail = (msg) => {
+    if (!msg) return "";
+    return msg.senderEmail === user?.email ? msg.receiverEmail : msg.senderEmail;
   };
 
   const getDisplayName = (emailOrUsername, msg) => {
@@ -1710,11 +1726,6 @@ const Casbox = () => {
         })}
       </div>
     );
-  };
-
-  const getOtherUserEmail = (msg) => {
-    if (!msg) return "";
-    return msg.senderEmail === user?.email ? msg.receiverEmail : msg.senderEmail;
   };
 
   const detailsComponent = selectedMessage ? (() => {
