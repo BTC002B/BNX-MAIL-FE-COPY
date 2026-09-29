@@ -1067,14 +1067,13 @@ const ChatRoom = () => {
   };
 
   const fetchHistory = async () => {
-    if (!chatId || chatId === 'undefined') return;
     const hasCached = chatCache.hasMessages(chatId);
-    if (!hasCached && messages.length === 0) {
+    if (!hasCached) {
       setLoading(true);
     }
     try {
       const res = await chatAPI.getMessageHistory(chatId);
-      if (res?.data) {
+      if (res.data) {
         const history = Array.isArray(res.data) ? res.data : (res.data.data || []);
         history.forEach(msg => {
           if (msg && msg.id) {
@@ -1089,10 +1088,8 @@ const ChatRoom = () => {
         chatCache.setMessages(chatId, normalizedHistory);
       }
     } catch (err) {
-      console.warn("Failed to fetch history:", err?.message || err);
-      // Only toast error if we really don't have any cached messages to display
-      const currentCache = chatCache.getMessages(chatId);
-      if ((!currentCache || currentCache.length === 0) && messages.length === 0) {
+      console.error("Failed to fetch history:", err);
+      if (!hasCached) {
         toast.error("Failed to load message history");
       }
     } finally {

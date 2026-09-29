@@ -43,12 +43,12 @@ const Groups = () => {
                 setChats(chatList);
                 chatCache.setUserChats(user.email, chatList);
 
-                // Safely prewarm only the active chat in background without saturating network connections
-                if (chatList.length > 0 && chatList[0]?.id) {
-                    setTimeout(() => {
-                        chatCache.prefetchChat(chatList[0].id, chatAPI);
-                    }, 500);
-                }
+                // Auto-prewarm top 3 chats in background
+                chatList.slice(0, 3).forEach(c => {
+                    if (c && c.id) {
+                        chatCache.prefetchChat(c.id, chatAPI);
+                    }
+                });
             }
         } catch (err) {
             console.error("Failed to load chats:", err);
