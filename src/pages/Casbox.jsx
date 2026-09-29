@@ -1,5 +1,5 @@
 import { useTranslation } from "../context/LanguageContext";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -259,7 +259,7 @@ const Casbox = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { stompClient, isConnected } = useSocket();
-  const { openCompose, emails, handleArchive, handleSnooze, handleMoveToTrash, handleToggleStar } = useMail();
+  const { openCompose, handleArchive, handleSnooze, handleMoveToTrash, handleToggleStar } = useMail();
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -270,10 +270,82 @@ const Casbox = () => {
   const [showArchive, setShowArchive] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
 
-  const [acceptedContacts, setAcceptedContacts] = useState([]);
-  const [blockedContacts, setBlockedContacts] = useState([]);
-  const [knownContacts, setKnownContacts] = useState(new Set());
+  const [acceptedContacts, setAcceptedContacts] = useState(() => {
+    try {
+      const s = sessionStorage.getItem('bnx_casbox_accepted');
+      return s ? JSON.parse(s) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [blockedContacts, setBlockedContacts] = useState(() => {
+    try {
+      const s = sessionStorage.getItem('bnx_casbox_blocked');
+      return s ? JSON.parse(s) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [showBlockedModal, setShowBlockedModal] = useState(false);
+
+  // Existing Cashbox API call started immediately as the very first effect on mount
+  const fetchMessages = useCallback(async (background = false) => {
+    try {
+      if (!background && messages.length === 0) setLoading(true);
+      const res = await casboxAPI.getAllMessages();
+      const msgs = res.data || [];
+      setMessages(msgs);
+
+      // Collect any aliases returned in the messages DTOs
+      const dtoAliases = {};
+      for (let i = 0; i < msgs.length; i++) {
+        const m = msgs[i];
+        if (m.customName && m.customName.trim()) {
+          const val = m.customName.trim();
+          if (m.contactUserId) dtoAliases[String(m.contactUserId)] = val;
+          const other = m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail;
+          if (other) {
+            dtoAliases[other.toLowerCase()] = val;
+            dtoAliases[other.split('@')[0].toLowerCase()] = val;
+          }
+          if (m.contactUsername) dtoAliases[m.contactUsername.toLowerCase()] = val;
+        }
+      }
+      if (Object.keys(dtoAliases).length > 0) {
+        setContactAliases(prev => ({ ...prev, ...dtoAliases }));
+      }
+
+      if (selectedContactRef.current) {
+        const contactEmail = selectedContactRef.current;
+        casboxAPI.getThread(contactEmail).then(r => setThreadMessages(r.data || [])).catch(console.error);
+      }
+    } catch (err) {
+      if (!background) toast.error("Failed to fetch messages");
+    } finally {
+      if (!background) setLoading(false);
+    }
+  }, [user?.email, messages.length]);
+
+  useEffect(() => {
+    fetchMessages();
+
+    // Background auto-polling for new casbox messages every 10 seconds
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchMessages(true);
+      }
+    }, 10000);
+
+    const handleCasboxMessageSent = (e) => {
+      fetchMessages(true);
+    };
+    window.addEventListener('casbox_message_sent', handleCasboxMessageSent);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('casbox_message_sent', handleCasboxMessageSent);
+    };
+  }, [fetchMessages]);
 
   const [threadMessages, setThreadMessages] = useState([]);
   const [loadingThread, setLoadingThread] = useState(false);
@@ -337,7 +409,14 @@ const Casbox = () => {
   const [isDeletingConversation, setIsDeletingConversation] = useState(false);
   const listMenuRef = React.useRef(null);
 
-  const [contactAliases, setContactAliases] = useState({});
+  const [contactAliases, setContactAliases] = useState(() => {
+    try {
+      const s = sessionStorage.getItem('bnx_casbox_aliases');
+      return s ? JSON.parse(s) : {};
+    } catch (e) {
+      return {};
+    }
+  });
   const [showEditNameModal, setShowEditNameModal] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
   const [customNameInput, setCustomNameInput] = useState("");
@@ -356,7 +435,13 @@ const Casbox = () => {
             if (item.contactUsername) map[item.contactUsername.toLowerCase()] = trimmed;
           }
         });
-        setContactAliases(prev => ({ ...prev, ...map }));
+        setContactAliases(prev => {
+          const next = { ...prev, ...map };
+          try {
+            sessionStorage.setItem('bnx_casbox_aliases', JSON.stringify(next));
+          } catch (e) {}
+          return next;
+        });
       }
     } catch (e) {
       console.error("Failed to load contact aliases", e);
@@ -367,7 +452,14 @@ const Casbox = () => {
     fetchAliases();
   }, []);
 
-  const [connections, setConnections] = useState([]);
+  const [connections, setConnections] = useState(() => {
+    try {
+      const s = sessionStorage.getItem('bnx_casbox_connections');
+      return s ? JSON.parse(s) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [loadingConnections, setLoadingConnections] = useState(false);
   const [showConnectionsModal, setShowConnectionsModal] = useState(false);
   const [connectionToDisconnect, setConnectionToDisconnect] = useState(null);
@@ -380,6 +472,9 @@ const Casbox = () => {
       const res = await connectionAPI.getAccepted();
       if (res.data && Array.isArray(res.data)) {
         setConnections(res.data);
+        try {
+          sessionStorage.setItem('bnx_casbox_connections', JSON.stringify(res.data));
+        } catch (e) {}
       }
     } catch (e) {
       console.error("Failed to load connections", e);
@@ -673,8 +768,14 @@ const Casbox = () => {
         const res = await userAPI.getSettings();
         if (res.data?.success) {
           const s = res.data.data;
-          setAcceptedContacts(s.casboxAccepted || []);
-          setBlockedContacts(s.casboxBlocked || []);
+          const accepted = s.casboxAccepted || [];
+          const blocked = s.casboxBlocked || [];
+          setAcceptedContacts(accepted);
+          setBlockedContacts(blocked);
+          try {
+            sessionStorage.setItem('bnx_casbox_accepted', JSON.stringify(accepted));
+            sessionStorage.setItem('bnx_casbox_blocked', JSON.stringify(blocked));
+          } catch (e) {}
         }
       } catch (e) {
         console.error("Failed to load casbox settings", e);
@@ -704,26 +805,27 @@ const Casbox = () => {
     }
   }, [location.state, messages, user?.email]);
 
-  useEffect(() => {
+  // Synchronous derivation of known contacts - never blocks rendering or waits for unrelated operations
+  const knownContacts = useMemo(() => {
     const contacts = new Set();
-    if (emails && emails.length > 0) {
-      emails.forEach(email => {
-        if (email.senderEmail) contacts.add(email.senderEmail);
-        if (email.receiverEmail) contacts.add(email.receiverEmail);
-        if (email.to && Array.isArray(email.to)) {
-          email.to.forEach(t => contacts.add(t));
-        }
-      });
-    }
     if (messages && messages.length > 0 && user?.email) {
-      messages.forEach(msg => {
+      for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i];
         if (msg.senderEmail === user.email && msg.receiverEmail) {
-          contacts.add(msg.receiverEmail);
+          contacts.add(msg.receiverEmail.toLowerCase());
         }
-      });
+      }
     }
-    setKnownContacts(contacts);
-  }, [emails, messages, user?.email]);
+    if (connections && connections.length > 0) {
+      for (let i = 0; i < connections.length; i++) {
+        const conn = connections[i];
+        if (conn.status?.toUpperCase() === 'CONNECTED' && conn.contactEmail) {
+          contacts.add(conn.contactEmail.toLowerCase());
+        }
+      }
+    }
+    return contacts;
+  }, [messages, connections, user?.email]);
 
   React.useEffect(() => {
     return () => {
@@ -1052,217 +1154,76 @@ const Casbox = () => {
     }
   };
 
-  useEffect(() => {
-    fetchMessages();
+  const unblockedMessages = useMemo(() => {
+    const blockedSet = new Set(blockedContacts.map(e => e.toLowerCase()));
+    return messages.filter(msg => !blockedSet.has(msg.senderEmail?.toLowerCase()));
+  }, [messages, blockedContacts]);
 
-    // Background auto-polling for new casbox messages every 10 seconds
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        fetchMessages(true);
-      }
-    }, 10000);
+  const activeUnarchived = useMemo(() => {
+    return unblockedMessages.filter(m => !m.isArchived && !m.archived);
+  }, [unblockedMessages]);
 
-    const handleCasboxMessageSent = (e) => {
-      fetchMessages(true);
-    };
-    window.addEventListener('casbox_message_sent', handleCasboxMessageSent);
+  const archivedMessages = useMemo(() => {
+    return unblockedMessages.filter(m => m.isArchived || m.archived);
+  }, [unblockedMessages]);
 
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('casbox_message_sent', handleCasboxMessageSent);
-    };
-  }, []);
+  const { mainMessages, requestMessages } = useMemo(() => {
+    const acceptedSet = new Set(acceptedContacts.map(e => e.toLowerCase()));
+    const userEmail = user?.email?.toLowerCase();
+    const main = [];
+    const requests = [];
 
-  useEffect(() => {
-    if (!stompClient || !isConnected || !stompClient.connected) return;
+    for (let i = 0; i < activeUnarchived.length; i++) {
+      const msg = activeUnarchived[i];
+      const senderLower = msg.senderEmail?.toLowerCase();
+      const receiverLower = msg.receiverEmail?.toLowerCase();
+      const contact = senderLower === userEmail ? msg.receiverEmail : msg.senderEmail;
+      if (isDisconnectedContact(contact)) continue;
 
-    let messageSub = null;
-    let statusSub = null;
+      const isKnown = senderLower === userEmail ||
+                      knownContacts.has(senderLower) ||
+                      acceptedSet.has(senderLower);
 
-    try {
-      messageSub = stompClient.subscribe('/user/queue/casbox/messages', (msg) => {
-        const newMsg = JSON.parse(msg.body);
-        if (newMsg.customName && newMsg.customName.trim()) {
-          const val = newMsg.customName.trim();
-          const other = newMsg.senderEmail === user?.email ? newMsg.receiverEmail : newMsg.senderEmail;
-          setContactAliases(prev => ({
-            ...prev,
-            ...(other ? { [other.toLowerCase()]: val, [other.split('@')[0].toLowerCase()]: val } : {}),
-            ...(newMsg.contactUsername ? { [newMsg.contactUsername.toLowerCase()]: val } : {}),
-            ...(newMsg.contactUserId ? { [String(newMsg.contactUserId)]: val } : {})
-          }));
-        }
-
-        setMessages(prev => {
-          if (prev.some(m => m.id === newMsg.id)) return prev;
-          return [newMsg, ...prev];
-        });
-
-        // Append to threadMessages if it's the active contact
-        const activeContact = selectedContactRef.current;
-        if (activeContact && (newMsg.senderEmail === activeContact || newMsg.receiverEmail === activeContact)) {
-          setThreadMessages(prev => {
-            if (prev.some(m => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
-        }
-      });
-
-      statusSub = stompClient.subscribe('/user/queue/casbox/status', (msg) => {
-        const updatedMsg = JSON.parse(msg.body);
-        setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
-        setThreadMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
-      });
-
-      casboxAPI.markAsDelivered().catch(console.error);
-    } catch (e) {
-      console.error("Failed to subscribe to Casbox queue:", e);
-    }
-
-    return () => {
-      try {
-        if (messageSub && stompClient && (stompClient.connected || isConnected)) {
-          messageSub.unsubscribe();
-        }
-      } catch (e) {}
-      try {
-        if (statusSub && stompClient && (stompClient.connected || isConnected)) {
-          statusSub.unsubscribe();
-        }
-      } catch (e) {}
-    };
-  }, [stompClient, isConnected]);
-
-  const fetchMessages = async (background = false) => {
-    try {
-      if (!background) setLoading(true);
-      const res = await casboxAPI.getAllMessages();
-      const msgs = res.data || [];
-      setMessages(msgs);
-
-      // Collect any aliases returned in the messages DTOs
-      const dtoAliases = {};
-      msgs.forEach(m => {
-        if (m.customName && m.customName.trim()) {
-          const val = m.customName.trim();
-          if (m.contactUserId) dtoAliases[String(m.contactUserId)] = val;
-          const other = m.senderEmail === user?.email ? m.receiverEmail : m.senderEmail;
-          if (other) {
-            dtoAliases[other.toLowerCase()] = val;
-            dtoAliases[other.split('@')[0].toLowerCase()] = val;
-          }
-          if (m.contactUsername) dtoAliases[m.contactUsername.toLowerCase()] = val;
-        }
-      });
-      if (Object.keys(dtoAliases).length > 0) {
-        setContactAliases(prev => ({ ...prev, ...dtoAliases }));
-      }
-
-      if (selectedContactRef.current) {
-        const contactEmail = selectedContactRef.current;
-        casboxAPI.getThread(contactEmail).then(r => setThreadMessages(r.data || [])).catch(console.error);
-      }
-    } catch (err) {
-      if (!background) toast.error("Failed to fetch messages");
-    } finally {
-      if (!background) setLoading(false);
-    }
-  };
-
-  const handleSelectMessage = async (msg) => {
-    setSelectedMessage(msg);
-    const otherEmail = msg.senderEmail === user?.email ? msg.receiverEmail : msg.senderEmail;
-    const unreadMsgs = messages.filter(m => 
-      (m.senderEmail === otherEmail || m.receiverEmail === otherEmail) && 
-      m.receiverEmail === user?.email && 
-      m.status?.toUpperCase() !== 'SEEN'
-    );
-
-    if (unreadMsgs.length > 0) {
-      const ids = unreadMsgs.map(m => m.id);
-      setMessages(prev => prev.map(m => ids.includes(m.id) ? { ...m, status: 'SEEN' } : m));
-      setThreadMessages(prev => prev.map(m => ids.includes(m.id) ? { ...m, status: 'SEEN' } : m));
-      if (ids.includes(msg.id)) {
-        setSelectedMessage(prev => prev ? { ...prev, status: 'SEEN' } : { ...msg, status: 'SEEN' });
-      }
-
-      try {
-        await casboxAPI.updateStatus({ messageIds: ids, status: 'SEEN' });
-      } catch (e) {
-        console.error("Failed to mark messages as seen", e);
+      if (isKnown) {
+        main.push(msg);
+      } else if (receiverLower === userEmail) {
+        requests.push(msg);
       }
     }
-  };
 
-  const getStatusIcon = (status) => {
-    if (!status) return null;
-    const lowerStatus = status.toLowerCase();
-    if (lowerStatus === "sent") return <MdCheck size={16} className="text-gray-400" title="Sent" />;
-    if (lowerStatus === "delivered") return <MdDoneAll size={16} className="text-gray-400" title="Delivered" />;
-    if (lowerStatus === "seen") return <MdDoneAll size={16} className="text-blue-500" title="Seen" />;
-    return null;
-  };
+    return { mainMessages: main, requestMessages: requests };
+  }, [activeUnarchived, acceptedContacts, knownContacts, user?.email]);
 
-  const parseTimestamp = (timestamp) => {
-    if (!timestamp) return new Date();
-    try {
-      // Handles ISO formats or "YYYY-MM-DD HH:mm:ss"
-      return new Date(timestamp.replace(' ', 'T'));
-    } catch (e) {
-      return new Date(timestamp);
-    }
-  };
-
-  const unblockedMessages = messages.filter(msg => !blockedContacts.includes(msg.senderEmail));
-  const activeUnarchived = unblockedMessages.filter(m => !m.isArchived && !m.archived);
-  const archivedMessages = unblockedMessages.filter(m => m.isArchived || m.archived);
-
-  // Group into Main vs Requests
-  const mainMessages = [];
-  const requestMessages = [];
-
-  activeUnarchived.forEach(msg => {
-    const contact = msg.senderEmail === user?.email ? msg.receiverEmail : msg.senderEmail;
-    if (isDisconnectedContact(contact)) return;
-
-    const isKnown = msg.senderEmail === user?.email ||
-                    knownContacts.has(msg.senderEmail) ||
-                    acceptedContacts.includes(msg.senderEmail);
-
-    if (isKnown) {
-      mainMessages.push(msg);
-    } else {
-      if (msg.receiverEmail === user?.email) {
-        requestMessages.push(msg);
-      }
-    }
-  });
-
-  const filteredMessages = (() => {
+  const filteredMessages = useMemo(() => {
     if (activeTab === 'messages' || activeTab === 'received' || activeTab === 'sent') return mainMessages;
     if (activeTab === 'requests') return requestMessages;
     return archivedMessages;
-  })();
+  }, [activeTab, mainMessages, requestMessages, archivedMessages]);
 
-  const conversationGroups = {};
-  filteredMessages.forEach(msg => {
-    const contact = msg.senderEmail === user?.email ? msg.receiverEmail : msg.senderEmail;
-    if (!contact) return;
-    if (!conversationGroups[contact]) {
-      conversationGroups[contact] = [];
+  const conversationList = useMemo(() => {
+    const userEmail = user?.email?.toLowerCase();
+    const conversationGroups = {};
+
+    for (let i = 0; i < filteredMessages.length; i++) {
+      const msg = filteredMessages[i];
+      const contact = msg.senderEmail?.toLowerCase() === userEmail ? msg.receiverEmail : msg.senderEmail;
+      if (!contact) continue;
+      if (!conversationGroups[contact]) {
+        conversationGroups[contact] = [];
+      }
+      conversationGroups[contact].push(msg);
     }
-    conversationGroups[contact].push(msg);
-  });
 
-  const conversationList = Object.keys(conversationGroups).map(contact => {
-    const msgs = conversationGroups[contact];
-    const sorted = [...msgs].sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp));
-    return {
-      contact,
-      latestMessage: sorted[0],
-      messages: sorted
-    };
-  }).sort((a, b) => parseTimestamp(b.latestMessage.timestamp) - parseTimestamp(a.latestMessage.timestamp));
+    return Object.keys(conversationGroups).map(contact => {
+      const msgs = conversationGroups[contact];
+      const sorted = [...msgs].sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp));
+      return {
+        contact,
+        latestMessage: sorted[0],
+        messages: sorted
+      };
+    }).sort((a, b) => parseTimestamp(b.latestMessage.timestamp) - parseTimestamp(a.latestMessage.timestamp));
+  }, [filteredMessages, user?.email]);
 
   const isMessageUnread = (m) => {
     if (!m || m.receiverEmail !== user?.email) return false;
@@ -1515,7 +1476,12 @@ const Casbox = () => {
 
   const listComponent = (
     <div className="flex-1 overflow-y-auto hidden-scrollbar relative bg-transparent">
-      {conversationList.length === 0 && !loading ? (
+      {loading && conversationList.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-600 opacity-80 pb-20">
+          <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-xs font-medium text-gray-400 dark:text-gray-500">Loading messages...</p>
+        </div>
+      ) : conversationList.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-600 opacity-80 pb-20">
           {activeTab === 'archive' ? (
             <>
