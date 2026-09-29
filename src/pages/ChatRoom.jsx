@@ -410,32 +410,60 @@ const CommentAttachmentItem = React.memo(({ att, isMe, onOpenImage, handleDownlo
   );
 });
 
-const formatMessageTime = (timestamp) => {
-  if (!timestamp) return '';
-  
-  let date;
+const parseMessageDate = (timestamp) => {
+  if (!timestamp) return null;
+
+  if (timestamp instanceof Date) {
+    return isNaN(timestamp.getTime()) ? null : timestamp;
+  }
+
+  if (typeof timestamp === 'number') {
+    const d = new Date(timestamp);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
   if (Array.isArray(timestamp)) {
-    const [year, month, day, hour, minute, second] = timestamp;
-    date = new Date(year, month - 1, day, hour || 0, minute || 0, second || 0);
-  } else {
-    date = new Date(timestamp);
+    // Jackson array format: [year, month, day, hour, minute, second, nano]
+    const [year, month, day, hour = 0, minute = 0, second = 0] = timestamp;
+    const d = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+    return isNaN(d.getTime()) ? null : d;
   }
 
-  if (isNaN(date.getTime())) return '';
+  if (typeof timestamp === 'string') {
+    let str = timestamp.trim();
+    if (!str) return null;
 
-  const now = new Date();
-  
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (str.includes(' ') && !str.includes('T')) {
+      str = str.replace(' ', 'T');
+    }
+
+    // Backend stores and sends UTC timestamps formatted with ISO_LOCAL_DATE_TIME (without 'Z').
+    // In JavaScript ECMAScript, ISO strings without timezone are treated as local time.
+    // If no timezone offset (Z or +/-HH:mm) is present, treat as UTC by appending 'Z'.
+    const hasTimezone = /Z$|[+-]\d{2}(:?\d{2})?$/i.test(str);
+    if (!hasTimezone) {
+      str = `${str}Z`;
+    }
+
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
   }
-  
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) {
-    return `Yesterday, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  }
-  
-  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+  const d = new Date(timestamp);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+const formatMessageTime = (timestamp) => {
+  const date = parseMessageDate(timestamp);
+  if (!date) return '';
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const day = date.getDate();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${month} ${day}, ${hours}:${minutes}`;
 };
 
 const CommentMessageItem = React.memo(({
