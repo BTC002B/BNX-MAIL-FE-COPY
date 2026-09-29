@@ -36,7 +36,9 @@ const Size = Quill.import('attributors/style/size');
 Size.whitelist = ['14px', '16px', '18px', '24px'];
 Quill.register(Size, true);
 
-Quill.register('modules/imageResize', ImageResize);
+if (!Quill.imports['modules/imageResize']) {
+  Quill.register('modules/imageResize', ImageResize, true);
+}
 
 const handleQuillLink = function(value) {
   if (value) {

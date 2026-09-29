@@ -422,12 +422,11 @@ const Casbox = () => {
   }, [fetchMessages]);
 
   useEffect(() => {
-    if (messages.length > 0) {
-      const clickTime = window.__cashboxClickTime || performance.now();
-      console.log(`[Cashbox Perf] 5. Messages rendered on screen (+${(performance.now() - clickTime).toFixed(1)}ms)`);
-      if (console.timeEnd) {
-        try { console.timeEnd('[Cashbox Perf] Total Click-to-Render'); } catch (e) {}
-      }
+    if (messages.length > 0 && window.__cashboxClickTime) {
+      const diff = (performance.now() - window.__cashboxClickTime).toFixed(1);
+      console.log(`[Cashbox Perf] 5. Messages rendered on screen (+${diff}ms)`);
+      console.log(`[Cashbox Perf] Total Click-to-Render: ${diff} ms`);
+      window.__cashboxClickTime = null;
     }
   }, [messages.length]);
 

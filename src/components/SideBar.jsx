@@ -195,9 +195,6 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
                     onClick={() => {
                       window.__cashboxClickTime = performance.now();
                       console.log('[Cashbox Perf] 1. Cashbox click triggered from SideBar');
-                      if (console.time) {
-                        try { console.time('[Cashbox Perf] Total Click-to-Render'); } catch (e) {}
-                      }
                       handleNavigation('/casbox');
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group cursor-pointer btn-collapse

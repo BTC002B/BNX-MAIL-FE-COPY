@@ -37,7 +37,9 @@ import ImageResize from 'quill-image-resize-module-react';
 
 // Make Quill globally available for ImageResize
 window.Quill = Quill;
-Quill.register('modules/imageResize', ImageResize);
+if (!Quill.imports['modules/imageResize']) {
+  Quill.register('modules/imageResize', ImageResize, true);
+}
 
 const quillModules = {
   toolbar: [
