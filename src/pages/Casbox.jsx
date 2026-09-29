@@ -274,6 +274,38 @@ const parseTimestamp = (timestamp) => {
   }
 };
 
+const getTimestampMs = (timestamp) => {
+  if (!timestamp) return 0;
+  if (typeof timestamp === 'number') return timestamp;
+  if (timestamp instanceof Date) return timestamp.getTime();
+  if (Array.isArray(timestamp)) {
+    const [year, month, day, hour, minute, second] = timestamp;
+    return new Date(year, (month || 1) - 1, day || 1, hour || 0, minute || 0, second || 0).getTime() || 0;
+  }
+  if (typeof timestamp === 'string') {
+    const formatted = timestamp.includes(' ') && !timestamp.includes('T')
+      ? timestamp.replace(' ', 'T')
+      : timestamp;
+    const ms = Date.parse(formatted);
+    return isNaN(ms) ? 0 : ms;
+  }
+  return 0;
+};
+
+const parseMessageAttachments = (attachmentsJson) => {
+  if (!attachmentsJson) return [];
+  if (Array.isArray(attachmentsJson)) return attachmentsJson;
+  if (typeof attachmentsJson === 'string' && attachmentsJson.trim()) {
+    try {
+      const parsed = JSON.parse(attachmentsJson);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  return [];
+};
+
 const getStatusIcon = (status) => {
   const s = typeof status === 'string' ? status.toUpperCase() : (status ? String(status).toUpperCase() : '');
   if (s === 'SEEN') {
@@ -320,15 +352,25 @@ const Casbox = () => {
   });
   const [showBlockedModal, setShowBlockedModal] = useState(false);
 
+  const messagesRef = React.useRef(messages);
+  messagesRef.current = messages;
+
   // Existing Cashbox API call started immediately as the very first effect on mount
   const fetchMessages = useCallback(async (background = false) => {
     try {
-      if (!background && messages.length === 0) setLoading(true);
-      const res = await casboxAPI.getAllMessages();
-      const msgs = res.data || [];
-      setMessages(msgs);
+      if (!background && messagesRef.current.length === 0) setLoading(true);
+      const clickTime = window.__cashboxClickTime || performance.now();
+      console.log(`[Cashbox Perf] 2. API request start (+${(performance.now() - clickTime).toFixed(1)}ms)`);
 
-      // Collect any aliases returned in the messages DTOs
+      const res = await casboxAPI.getAllMessages();
+      console.log(`[Cashbox Perf] 3. API response received (+${(performance.now() - clickTime).toFixed(1)}ms)`);
+
+      const msgs = res.data || [];
+      // Set messages immediately to trigger rendering without intermediate blocking
+      setMessages(msgs);
+      console.log(`[Cashbox Perf] 4. State updated (+${(performance.now() - clickTime).toFixed(1)}ms)`);
+
+      // Collect any aliases returned in the messages DTOs in the background
       const dtoAliases = {};
       for (let i = 0; i < msgs.length; i++) {
         const m = msgs[i];
@@ -356,7 +398,7 @@ const Casbox = () => {
     } finally {
       if (!background) setLoading(false);
     }
-  }, [user?.email, messages.length]);
+  }, [user?.email]);
 
   useEffect(() => {
     fetchMessages();
@@ -368,7 +410,7 @@ const Casbox = () => {
       }
     }, 10000);
 
-    const handleCasboxMessageSent = (e) => {
+    const handleCasboxMessageSent = () => {
       fetchMessages(true);
     };
     window.addEventListener('casbox_message_sent', handleCasboxMessageSent);
@@ -378,6 +420,16 @@ const Casbox = () => {
       window.removeEventListener('casbox_message_sent', handleCasboxMessageSent);
     };
   }, [fetchMessages]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const clickTime = window.__cashboxClickTime || performance.now();
+      console.log(`[Cashbox Perf] 5. Messages rendered on screen (+${(performance.now() - clickTime).toFixed(1)}ms)`);
+      if (console.timeEnd) {
+        try { console.timeEnd('[Cashbox Perf] Total Click-to-Render'); } catch (e) {}
+      }
+    }
+  }, [messages.length]);
 
   const [threadMessages, setThreadMessages] = useState([]);
   const [loadingThread, setLoadingThread] = useState(false);
@@ -849,12 +901,17 @@ const Casbox = () => {
 
   // Synchronous derivation of known contacts - never blocks rendering or waits for unrelated operations
   const knownContacts = useMemo(() => {
-    const contacts = new Set();
+    const contacts = new Set(acceptedContacts.map(e => e.toLowerCase()));
     if (messages && messages.length > 0 && user?.email) {
+      const uEmail = user.email.toLowerCase();
       for (let i = 0; i < messages.length; i++) {
         const msg = messages[i];
-        if (msg.senderEmail === user.email && msg.receiverEmail) {
-          contacts.add(msg.receiverEmail.toLowerCase());
+        const s = msg.senderEmail?.toLowerCase();
+        const r = msg.receiverEmail?.toLowerCase();
+        if (s === uEmail && r) contacts.add(r);
+        if (msg.customName || msg.contactUserId || msg.contactDisplayName) {
+          if (s && s !== uEmail) contacts.add(s);
+          if (r && r !== uEmail) contacts.add(r);
         }
       }
     }
@@ -867,7 +924,7 @@ const Casbox = () => {
       }
     }
     return contacts;
-  }, [messages, connections, user?.email]);
+  }, [messages, connections, acceptedContacts, user?.email]);
 
   React.useEffect(() => {
     return () => {
@@ -1196,85 +1253,135 @@ const Casbox = () => {
     }
   };
 
-  const unblockedMessages = useMemo(() => {
-    const blockedSet = new Set(blockedContacts.map(e => e.toLowerCase()));
-    return messages.filter(msg => !blockedSet.has(msg.senderEmail?.toLowerCase()));
-  }, [messages, blockedContacts]);
-
-  const activeUnarchived = useMemo(() => {
-    return unblockedMessages.filter(m => !m.isArchived && !m.archived);
-  }, [unblockedMessages]);
-
-  const archivedMessages = useMemo(() => {
-    return unblockedMessages.filter(m => m.isArchived || m.archived);
-  }, [unblockedMessages]);
-
-  const { mainMessages, requestMessages } = useMemo(() => {
-    const acceptedSet = new Set(acceptedContacts.map(e => e.toLowerCase()));
-    const userEmail = user?.email?.toLowerCase();
-    const main = [];
-    const requests = [];
-
-    for (let i = 0; i < activeUnarchived.length; i++) {
-      const msg = activeUnarchived[i];
-      const senderLower = msg.senderEmail?.toLowerCase();
-      const receiverLower = msg.receiverEmail?.toLowerCase();
-      const contact = senderLower === userEmail ? msg.receiverEmail : msg.senderEmail;
-      if (isDisconnectedContact(contact)) continue;
-
-      const isKnown = senderLower === userEmail ||
-                      knownContacts.has(senderLower) ||
-                      acceptedSet.has(senderLower);
-
-      if (isKnown) {
-        main.push(msg);
-      } else if (receiverLower === userEmail) {
-        requests.push(msg);
-      }
-    }
-
-    return { mainMessages: main, requestMessages: requests };
-  }, [activeUnarchived, acceptedContacts, knownContacts, user?.email]);
-
-  const filteredMessages = useMemo(() => {
-    if (activeTab === 'messages' || activeTab === 'received' || activeTab === 'sent') return mainMessages;
-    if (activeTab === 'requests') return requestMessages;
-    return archivedMessages;
-  }, [activeTab, mainMessages, requestMessages, archivedMessages]);
-
-  const conversationList = useMemo(() => {
-    const userEmail = user?.email?.toLowerCase();
-    const conversationGroups = {};
-
-    for (let i = 0; i < filteredMessages.length; i++) {
-      const msg = filteredMessages[i];
-      const contact = msg.senderEmail?.toLowerCase() === userEmail ? msg.receiverEmail : msg.senderEmail;
-      if (!contact) continue;
-      if (!conversationGroups[contact]) {
-        conversationGroups[contact] = [];
-      }
-      conversationGroups[contact].push(msg);
-    }
-
-    return Object.keys(conversationGroups).map(contact => {
-      const msgs = conversationGroups[contact];
-      const sorted = [...msgs].sort((a, b) => parseTimestamp(b.timestamp) - parseTimestamp(a.timestamp));
-      return {
-        contact,
-        latestMessage: sorted[0],
-        messages: sorted
-      };
-    }).sort((a, b) => parseTimestamp(b.latestMessage?.timestamp) - parseTimestamp(a.latestMessage?.timestamp));
-  }, [filteredMessages, user?.email]);
-
-  const isMessageUnread = (m) => {
+  const isMessageUnread = useCallback((m) => {
     if (!m || m.receiverEmail !== user?.email) return false;
     if (m.isRead === true || m.read === true) return false;
     return m.status?.toUpperCase() !== 'SEEN';
-  };
+  }, [user?.email]);
 
-  const unreadMessagesCount = mainMessages.filter(isMessageUnread).length;
-  const unreadArchivedCount = archivedMessages.filter(isMessageUnread).length;
+  const { conversationList, unreadMessagesCount, unreadArchivedCount, requestMessages } = useMemo(() => {
+    if (!messages || messages.length === 0) {
+      return { conversationList: [], unreadMessagesCount: 0, unreadArchivedCount: 0, requestMessages: [] };
+    }
+
+    const userEmail = user?.email?.toLowerCase();
+    const blockedSet = new Set(blockedContacts.map(e => e.toLowerCase()));
+    const acceptedSet = new Set(acceptedContacts.map(e => e.toLowerCase()));
+
+    // Disconnected contacts set
+    const disconnectedSet = new Set();
+    if (connections && connections.length > 0) {
+      for (let i = 0; i < connections.length; i++) {
+        const c = connections[i];
+        if (c.status?.toUpperCase() === 'DISCONNECTED') {
+          if (c.contactEmail) disconnectedSet.add(c.contactEmail.toLowerCase());
+          if (c.contactUsername) disconnectedSet.add(c.contactUsername.toLowerCase());
+          if (c.contactUserId) disconnectedSet.add(String(c.contactUserId));
+        }
+      }
+    }
+
+    // Immediately identify all established contacts from messages and accepted/connected contacts
+    const knownContactsSet = new Set(acceptedSet);
+    if (connections && connections.length > 0) {
+      for (let i = 0; i < connections.length; i++) {
+        const c = connections[i];
+        if (c.status?.toUpperCase() === 'CONNECTED' && c.contactEmail) {
+          knownContactsSet.add(c.contactEmail.toLowerCase());
+        }
+      }
+    }
+
+    for (let i = 0; i < messages.length; i++) {
+      const m = messages[i];
+      const sender = m.senderEmail?.toLowerCase();
+      const receiver = m.receiverEmail?.toLowerCase();
+      if (sender === userEmail && receiver) {
+        knownContactsSet.add(receiver);
+      }
+      if (m.customName || m.contactUserId || m.contactDisplayName) {
+        if (sender && sender !== userEmail) knownContactsSet.add(sender);
+        if (receiver && receiver !== userEmail) knownContactsSet.add(receiver);
+      }
+    }
+
+    const groups = new Map();
+    const requestsList = [];
+    let mainUnread = 0;
+    let archUnread = 0;
+
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      const sender = msg.senderEmail?.toLowerCase();
+      const receiver = msg.receiverEmail?.toLowerCase();
+
+      if (sender && blockedSet.has(sender)) continue;
+
+      const contact = sender === userEmail ? msg.receiverEmail : msg.senderEmail;
+      if (!contact) continue;
+      const contactLower = contact.toLowerCase();
+      const contactLocal = contactLower.includes('@') ? contactLower.split('@')[0] : contactLower;
+
+      if (disconnectedSet.has(contactLower) || disconnectedSet.has(contactLocal)) continue;
+
+      const isArchived = Boolean(msg.isArchived || msg.archived);
+      const isKnown = sender === userEmail || knownContactsSet.has(contactLower) || knownContactsSet.has(contactLocal);
+      const isRequest = !isArchived && !isKnown && (receiver === userEmail);
+
+      const unread = !isArchived && receiver === userEmail && msg.isRead !== true && msg.read !== true && msg.status?.toUpperCase() !== 'SEEN';
+
+      if (unread) {
+        if (isArchived) archUnread++;
+        else if (!isRequest) mainUnread++;
+      }
+      if (isRequest) requestsList.push(msg);
+
+      let belongsToActiveTab = false;
+      if (activeTab === 'archive') {
+        belongsToActiveTab = isArchived;
+      } else if (activeTab === 'requests') {
+        belongsToActiveTab = isRequest;
+      } else {
+        belongsToActiveTab = !isArchived && !isRequest;
+      }
+
+      if (belongsToActiveTab) {
+        let grp = groups.get(contact);
+        const ts = getTimestampMs(msg.timestamp);
+        if (!grp) {
+          grp = {
+            contact,
+            latestMessage: msg,
+            latestTimestamp: ts,
+            messages: [msg],
+            unreadCount: unread ? 1 : 0
+          };
+          groups.set(contact, grp);
+        } else {
+          grp.messages.push(msg);
+          if (unread) grp.unreadCount++;
+          if (ts > grp.latestTimestamp) {
+            grp.latestTimestamp = ts;
+            grp.latestMessage = msg;
+          }
+        }
+      }
+    }
+
+    const result = Array.from(groups.values());
+    result.sort((a, b) => b.latestTimestamp - a.latestTimestamp);
+
+    for (let i = 0; i < result.length; i++) {
+      result[i].messages.sort((a, b) => getTimestampMs(b.timestamp) - getTimestampMs(a.timestamp));
+    }
+
+    return {
+      conversationList: result,
+      unreadMessagesCount: mainUnread,
+      unreadArchivedCount: archUnread,
+      requestMessages: requestsList
+    };
+  }, [messages, blockedContacts, acceptedContacts, connections, activeTab, user?.email]);
 
   const handleSendChatMessage = async (e) => {
     if (e) e.preventDefault();
@@ -1323,22 +1430,25 @@ const Casbox = () => {
   };
 
   const displayedConnections = React.useMemo(() => {
+    if (!showConnectionsModal) return [];
     const list = [...connections];
 
     if (conversationList && conversationList.length > 0) {
+      const seen = new Set();
+      list.forEach(c => {
+        if (c.contactEmail) seen.add(c.contactEmail.toLowerCase());
+        if (c.contactUsername) seen.add(c.contactUsername.toLowerCase());
+      });
+
       conversationList.forEach(chat => {
         const contactEmail = chat.contact;
         if (!contactEmail || contactEmail === user?.email) return;
         const lower = contactEmail.toLowerCase();
         const local = lower.includes('@') ? lower.split('@')[0] : lower;
 
-        const alreadyExists = list.some(c => {
-          const cEmail = c.contactEmail?.toLowerCase();
-          const cUser = c.contactUsername?.toLowerCase();
-          return cEmail === lower || cEmail === local || cUser === lower || cUser === local;
-        });
-
-        if (!alreadyExists) {
+        if (!seen.has(lower) && !seen.has(local)) {
+          seen.add(lower);
+          seen.add(local);
           const matchedConn = connections.find(c => {
             const cEmail = c.contactEmail?.toLowerCase();
             const cUser = c.contactUsername?.toLowerCase();
@@ -1359,15 +1469,13 @@ const Casbox = () => {
       });
     }
 
+    const blockedSet = new Set(blockedContacts.map(b => b.toLowerCase()));
     return list.filter(conn => {
       const email = conn.contactEmail?.toLowerCase();
       const uname = conn.contactUsername?.toLowerCase();
-      if (blockedContacts.some(b => b.toLowerCase() === email || b.toLowerCase() === uname)) {
-        return false;
-      }
-      return true;
+      return !(email && blockedSet.has(email)) && !(uname && blockedSet.has(uname));
     });
-  }, [connections, conversationList, blockedContacts, user?.email, contactAliases]);
+  }, [showConnectionsModal, connections, conversationList, blockedContacts, user?.email, contactAliases]);
 
   const headerComponent = (
     <div className="flex flex-col shrink-0">
@@ -1548,7 +1656,7 @@ const Casbox = () => {
             (selectedMessage.senderEmail === user?.email ? selectedMessage.receiverEmail : selectedMessage.senderEmail) === otherEmail
           );
 
-          const unreadCount = chat.messages.filter(isMessageUnread).length;
+          const unreadCount = chat.unreadCount !== undefined ? chat.unreadCount : chat.messages.filter(isMessageUnread).length;
 
           return (
             <div
