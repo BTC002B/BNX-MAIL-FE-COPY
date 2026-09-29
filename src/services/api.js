@@ -44,11 +44,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        console.log("=== API ERROR INTERCEPTOR ===");
-        console.log("Status:", error.response?.status);
-        console.log("Data:", error.response?.data);
-        console.log("Error string:", error.response?.data?.error);
-        console.log("=============================");
+        if (error.response) {
+            console.log("=== API ERROR INTERCEPTOR ===");
+            console.log("Status:", error.response?.status);
+            console.log("Data:", error.response?.data);
+            console.log("Error string:", error.response?.data?.error);
+            console.log("=============================");
+        } else if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
+            console.warn(`[API Timeout] Request timed out: ${error.config?.url || 'unknown endpoint'}`);
+        }
 
         const originalRequest = error.config;
 
@@ -341,9 +345,31 @@ export const chatAPI = {
         });
     },
     getMessageHistory: (chatId) => {
-        return chatCache.dedupe(`messages_${chatId}`, () =>
-            api.get(API_ENDPOINTS.CHAT.MESSAGES.replace(':chatId', chatId))
-        );
+        if (!chatId || chatId === 'undefined') return Promise.resolve({ data: [] });
+        return chatCache.dedupe(`messages_${chatId}`, async () => {
+            const endpoint = API_ENDPOINTS.CHAT.MESSAGES.replace(':chatId', encodeURIComponent(chatId));
+            try {
+                return await api.get(endpoint, { timeout: 15000 });
+            } catch (err) {
+                const isTimeout = err.code === 'ECONNABORTED' || err.message?.toLowerCase().includes('timeout');
+                if (isTimeout) {
+                    try {
+                        return await api.get(endpoint, { timeout: 15000 });
+                    } catch (retryErr) {
+                        const cached = chatCache.getMessages(chatId);
+                        if (cached && cached.length > 0) {
+                            return { data: cached };
+                        }
+                        throw retryErr;
+                    }
+                }
+                const cached = chatCache.getMessages(chatId);
+                if (cached && cached.length > 0) {
+                    return { data: cached };
+                }
+                throw err;
+            }
+        });
     },
     sendMessage: (data) => api.post(API_ENDPOINTS.CHAT.SEND_MESSAGE, data),
     addMembers: (chatId, data) => api.post(`/api/chat/${chatId}/members`, data),

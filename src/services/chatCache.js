@@ -247,7 +247,7 @@ export const chatCache = {
     // If already in memory and fresh, skip
     const existingMsgs = memoryCache.messages.get(idStr);
     if (!existingMsgs || Date.now() - existingMsgs.timestamp > CACHE_TTL_MS) {
-      this.dedupe(`msg_${idStr}`, () => chatAPI.getMessageHistory(chatId))
+      this.dedupe(`messages_${idStr}`, () => chatAPI.getMessageHistory(chatId))
         .then(res => {
           if (res?.data) {
             const list = Array.isArray(res.data) ? res.data : (res.data.data || []);
@@ -259,7 +259,7 @@ export const chatCache = {
 
     const existingBroadcasts = memoryCache.broadcasts.get(idStr);
     if (!existingBroadcasts || Date.now() - existingBroadcasts.timestamp > CACHE_TTL_MS) {
-      this.dedupe(`bcast_${idStr}`, () => chatAPI.getBroadcasts(chatId))
+      this.dedupe(`broadcasts_${idStr}`, () => chatAPI.getBroadcasts(chatId))
         .then(res => {
           if (res?.data) {
             const list = Array.isArray(res.data) ? res.data : [];
@@ -271,7 +271,7 @@ export const chatCache = {
 
     const existingMembers = memoryCache.members.get(idStr);
     if (!existingMembers || Date.now() - existingMembers.timestamp > CACHE_TTL_MS) {
-      this.dedupe(`mbrs_${idStr}`, () => chatAPI.getMembers(chatId))
+      this.dedupe(`members_${idStr}`, () => chatAPI.getMembers(chatId))
         .then(res => {
           if (res?.data) {
             const list = Array.isArray(res.data) ? res.data : [];
