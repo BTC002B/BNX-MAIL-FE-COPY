@@ -253,6 +253,27 @@ const ConnectionRow = React.memo(({
   );
 });
 
+const parseTimestamp = (timestamp) => {
+  if (!timestamp) return new Date(0);
+  try {
+    let date;
+    if (Array.isArray(timestamp)) {
+      const [year, month, day, hour, minute, second] = timestamp;
+      date = new Date(year, (month || 1) - 1, day || 1, hour || 0, minute || 0, second || 0);
+    } else if (typeof timestamp === 'string') {
+      const formatted = timestamp.includes(' ') && !timestamp.includes('T')
+        ? timestamp.replace(' ', 'T')
+        : timestamp;
+      date = new Date(formatted);
+    } else {
+      date = new Date(timestamp);
+    }
+    return isNaN(date.getTime()) ? new Date(0) : date;
+  } catch (e) {
+    return new Date(0);
+  }
+};
+
 const Casbox = () => {
   const { t } = useTranslation();
   const { theme, readingPaneMode } = useTheme();
@@ -1222,7 +1243,7 @@ const Casbox = () => {
         latestMessage: sorted[0],
         messages: sorted
       };
-    }).sort((a, b) => parseTimestamp(b.latestMessage.timestamp) - parseTimestamp(a.latestMessage.timestamp));
+    }).sort((a, b) => parseTimestamp(b.latestMessage?.timestamp) - parseTimestamp(a.latestMessage?.timestamp));
   }, [filteredMessages, user?.email]);
 
   const isMessageUnread = (m) => {
@@ -1531,7 +1552,7 @@ const Casbox = () => {
                   </span>
                   <div className="flex items-center gap-1 shrink-0">
                     <span className={`text-xs ${unreadCount > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-400 dark:text-gray-500'}`}>
-                      {parseTimestamp(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {parseTimestamp(msg?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <div className="relative shrink-0" ref={openMenuId === chat.contact ? listMenuRef : null}>
                       <button
@@ -1907,7 +1928,7 @@ const Casbox = () => {
                       <div 
                         className="text-[9px] mt-1 select-none font-normal text-gray-400 dark:text-gray-500 self-end mr-1 text-right"
                       >
-                        {parseTimestamp(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {parseTimestamp(msg?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
 
                       {isMe && index === sortedThread.length - 1 && (
