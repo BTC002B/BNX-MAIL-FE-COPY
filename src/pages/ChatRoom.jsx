@@ -460,10 +460,12 @@ const formatMessageTime = (timestamp) => {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const month = months[date.getMonth()];
   const day = date.getDate();
-  const hours = String(date.getHours()).padStart(2, '0');
+  const rawHours = date.getHours();
+  const hours12 = rawHours % 12 || 12;
   const minutes = String(date.getMinutes()).padStart(2, '0');
+  const period = rawHours >= 12 ? 'PM' : 'AM';
 
-  return `${month} ${day}, ${hours}:${minutes}`;
+  return `${month} ${day}, ${hours12}:${minutes} ${period}`;
 };
 
 const CommentMessageItem = React.memo(({
