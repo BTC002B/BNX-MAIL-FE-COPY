@@ -821,6 +821,11 @@ const Casbox = () => {
     fetchSettings();
   }, []);
 
+  const handleSelectMessage = (msg) => {
+    setOpenMenuId(null);
+    setSelectedMessage(msg || null);
+  };
+
   useEffect(() => {
     if (location.state?.preselectContact && messages.length > 0) {
       const contactEmail = location.state.preselectContact;
