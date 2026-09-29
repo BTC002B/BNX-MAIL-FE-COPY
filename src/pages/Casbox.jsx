@@ -359,16 +359,10 @@ const Casbox = () => {
   const fetchMessages = useCallback(async (background = false) => {
     try {
       if (!background && messagesRef.current.length === 0) setLoading(true);
-      const clickTime = window.__cashboxClickTime || performance.now();
-      console.log(`[Cashbox Perf] 2. API request start (+${(performance.now() - clickTime).toFixed(1)}ms)`);
-
       const res = await casboxAPI.getAllMessages();
-      console.log(`[Cashbox Perf] 3. API response received (+${(performance.now() - clickTime).toFixed(1)}ms)`);
-
       const msgs = res.data || [];
       // Set messages immediately to trigger rendering without intermediate blocking
       setMessages(msgs);
-      console.log(`[Cashbox Perf] 4. State updated (+${(performance.now() - clickTime).toFixed(1)}ms)`);
 
       // Collect any aliases returned in the messages DTOs in the background
       const dtoAliases = {};
@@ -421,14 +415,6 @@ const Casbox = () => {
     };
   }, [fetchMessages]);
 
-  useEffect(() => {
-    if (messages.length > 0 && window.__cashboxClickTime) {
-      const diff = (performance.now() - window.__cashboxClickTime).toFixed(1);
-      console.log(`[Cashbox Perf] 5. Messages rendered on screen (+${diff}ms)`);
-      console.log(`[Cashbox Perf] Total Click-to-Render: ${diff} ms`);
-      window.__cashboxClickTime = null;
-    }
-  }, [messages.length]);
 
   const [threadMessages, setThreadMessages] = useState([]);
   const [loadingThread, setLoadingThread] = useState(false);

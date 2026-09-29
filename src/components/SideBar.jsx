@@ -192,11 +192,7 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
               {/* Casbox */}
               <div className="mb-2">
                  <button
-                    onClick={() => {
-                      window.__cashboxClickTime = performance.now();
-                      console.log('[Cashbox Perf] 1. Cashbox click triggered from SideBar');
-                      handleNavigation('/casbox');
-                    }}
+                    onClick={() => handleNavigation('/casbox')}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group cursor-pointer btn-collapse
                       ${location.pathname.startsWith('/casbox') ? "bg-primary/10 dark:bg-primary/20" : "hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"}
                     `}
