@@ -250,30 +250,6 @@ export const chatCache = {
         })
         .catch(() => {});
     }
-
-    const existingBroadcasts = memoryCache.broadcasts.get(idStr);
-    if (!existingBroadcasts || Date.now() - existingBroadcasts.timestamp > CACHE_TTL_MS) {
-      this.dedupe(`bcast_${idStr}`, () => chatAPI.getBroadcasts(chatId))
-        .then(res => {
-          if (res?.data) {
-            const list = Array.isArray(res.data) ? res.data : [];
-            this.setBroadcasts(idStr, list);
-          }
-        })
-        .catch(() => {});
-    }
-
-    const existingMembers = memoryCache.members.get(idStr);
-    if (!existingMembers || Date.now() - existingMembers.timestamp > CACHE_TTL_MS) {
-      this.dedupe(`mbrs_${idStr}`, () => chatAPI.getMembers(chatId))
-        .then(res => {
-          if (res?.data) {
-            const list = Array.isArray(res.data) ? res.data : [];
-            this.setMembers(idStr, list);
-          }
-        })
-        .catch(() => {});
-    }
   },
 };
 

@@ -42,13 +42,6 @@ const Groups = () => {
                 const chatList = Array.isArray(res.data) ? res.data : (res.data.data || []);
                 setChats(chatList);
                 chatCache.setUserChats(user.email, chatList);
-
-                // Auto-prewarm top 3 chats in background
-                chatList.slice(0, 3).forEach(c => {
-                    if (c && c.id) {
-                        chatCache.prefetchChat(c.id, chatAPI);
-                    }
-                });
             }
         } catch (err) {
             console.error("Failed to load chats:", err);

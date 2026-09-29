@@ -44,6 +44,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
+        if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+            console.warn(`[API Timeout] Request timed out: ${error.config?.url}`);
+            return Promise.reject(error);
+        }
+
         console.log("=== API ERROR INTERCEPTOR ===");
         console.log("Status:", error.response?.status);
         console.log("Data:", error.response?.data);
@@ -341,15 +346,15 @@ export const chatAPI = {
         });
     },
     getMessageHistory: (chatId) => {
-        return chatCache.dedupe(`messages_${chatId}`, () =>
-            api.get(API_ENDPOINTS.CHAT.MESSAGES.replace(':chatId', chatId))
+        return chatCache.dedupe(`msg_${chatId}`, () =>
+            api.get(API_ENDPOINTS.CHAT.MESSAGES.replace(':chatId', chatId), { timeout: 45000 })
         );
     },
     sendMessage: (data) => api.post(API_ENDPOINTS.CHAT.SEND_MESSAGE, data),
     addMembers: (chatId, data) => api.post(`/api/chat/${chatId}/members`, data),
     getMembers: (chatId) => {
-        return chatCache.dedupe(`members_${chatId}`, () =>
-            api.get(`/api/chat/${chatId}/members`)
+        return chatCache.dedupe(`mbrs_${chatId}`, () =>
+            api.get(`/api/chat/${chatId}/members`, { timeout: 30000 })
         ).then(res => {
             if (res?.data) {
                 chatCache.setMembers(chatId, res.data);
@@ -358,8 +363,8 @@ export const chatAPI = {
         });
     },
     getBroadcasts: (chatId) => {
-        return chatCache.dedupe(`broadcasts_${chatId}`, () =>
-            api.get(`/api/chat/${chatId}/broadcasts`)
+        return chatCache.dedupe(`bcast_${chatId}`, () =>
+            api.get(`/api/chat/${chatId}/broadcasts`, { timeout: 30000 })
         ).then(res => {
             if (res?.data) {
                 chatCache.setBroadcasts(chatId, res.data);

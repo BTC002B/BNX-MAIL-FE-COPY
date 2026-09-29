@@ -1067,13 +1067,14 @@ const ChatRoom = () => {
   };
 
   const fetchHistory = async () => {
+    if (!chatId) return;
     const hasCached = chatCache.hasMessages(chatId);
     if (!hasCached) {
       setLoading(true);
     }
     try {
-      const res = await chatAPI.getMessageHistory(chatId);
-      if (res.data) {
+      const res = await chatCache.dedupe(`msg_${chatId}`, () => chatAPI.getMessageHistory(chatId));
+      if (res && res.data) {
         const history = Array.isArray(res.data) ? res.data : (res.data.data || []);
         history.forEach(msg => {
           if (msg && msg.id) {
@@ -1099,31 +1100,33 @@ const ChatRoom = () => {
   };
 
   const fetchChatMembers = async () => {
+    if (!chatId) return;
     try {
-      const res = await chatAPI.getMembers(chatId);
-      if (res.data) {
+      const res = await chatCache.dedupe(`mbrs_${chatId}`, () => chatAPI.getMembers(chatId));
+      if (res && res.data) {
         setMembersList(res.data);
         chatCache.setMembers(chatId, res.data);
       }
     } catch (err) {
-      console.error("Error fetching chat members:", err);
+      console.warn("Error fetching chat members:", err);
     }
   };
 
   const fetchBroadcasts = async () => {
+    if (!chatId) return;
     const hasCached = chatCache.hasBroadcasts(chatId);
     if (!hasCached) {
       setLoadingBroadcasts(true);
     }
     try {
-      const res = await chatAPI.getBroadcasts(chatId);
-      if (res.data) {
+      const res = await chatCache.dedupe(`bcast_${chatId}`, () => chatAPI.getBroadcasts(chatId));
+      if (res && res.data) {
         const list = res.data || [];
         setBroadcasts(list);
         chatCache.setBroadcasts(chatId, list);
       }
     } catch (err) {
-      console.error("Failed to load broadcasts:", err);
+      console.warn("Failed to load broadcasts:", err);
     } finally {
       setLoadingBroadcasts(false);
     }
