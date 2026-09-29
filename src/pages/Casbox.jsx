@@ -275,7 +275,7 @@ const parseTimestamp = (timestamp) => {
 };
 
 const getStatusIcon = (status) => {
-  const s = status?.toUpperCase();
+  const s = typeof status === 'string' ? status.toUpperCase() : (status ? String(status).toUpperCase() : '');
   if (s === 'SEEN') {
     return <MdDoneAll size={14} className="text-blue-500 inline-block" title="Seen" />;
   }
@@ -1633,11 +1633,11 @@ const Casbox = () => {
                       </span>
                     )}
                     <span className="text-xs text-gray-500 dark:text-gray-400 truncate font-normal">
-                      {isMe ? "You: " : ""}{msg.body}
+                      {isMe ? "You: " : ""}{msg?.body || ""}
                     </span>
                   </div>
 
-                  {(unreadCount > 0 || (isMe && getStatusIcon(msg.status))) && (
+                  {(unreadCount > 0 || (isMe && getStatusIcon(msg?.status))) && (
                     <div className="flex items-center gap-1.5 shrink-0">
                       {unreadCount > 0 ? (
                         <span className="bg-blue-500 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
@@ -1645,7 +1645,7 @@ const Casbox = () => {
                         </span>
                       ) : isMe ? (
                         <span className="shrink-0">
-                          {getStatusIcon(msg.status)}
+                          {getStatusIcon(msg?.status)}
                         </span>
                       ) : null}
                     </div>
@@ -1944,7 +1944,7 @@ const Casbox = () => {
 
                       {isMe && index === sortedThread.length - 1 && (
                         <div className="mt-1 mr-1">
-                          {getStatusIcon(msg.status)}
+                          {getStatusIcon(msg?.status)}
                         </div>
                       )}
                     </div>
