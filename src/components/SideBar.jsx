@@ -5,7 +5,6 @@ import { useTheme } from "../context/ThemeContext";
 import { useMail } from "../context/MailContext";
 import { useAuth } from "../context/AuthContext";
 import { useTranslation } from "../context/LanguageContext";
-import { chatAPI } from "../services/api";
 import StorageWidget from './StorageWidget';
 import { MdLabel, MdAdd, MdClose, MdCheck, MdDelete, MdExpandMore, MdExpandLess, MdHelpOutline, MdContactSupport, MdSettings, MdMoreVert, MdEdit, MdGroup, MdChat, MdCloudUpload, MdOutlineNoteAlt } from "react-icons/md";
 
@@ -25,25 +24,6 @@ const SideBar = ({ isDesktopOpen, isMobileOpen, onCloseMobile, onOpenNotes }) =>
   const isChatMode = location.pathname.startsWith("/colab") || location.pathname.startsWith("/chat") || location.pathname.startsWith("/casbox");
   const isVaultMode = location.pathname.startsWith("/vault");
 
-  const [chats, setChats] = useState([]);
-  const [chatsLoading, setChatsLoading] = useState(false);
-
-  useEffect(() => {
-    if (isChatMode && user?.email) {
-      setChatsLoading(true);
-      chatAPI.getUserChats(user.email)
-        .then(res => {
-          if (res.data) {
-            setChats(Array.isArray(res.data) ? res.data : (res.data.data || []));
-          }
-        })
-        .catch(err => console.error("Failed to load chats in sidebar:", err))
-        .finally(() => setChatsLoading(false));
-    }
-  }, [isChatMode, user?.email]);
-
-  const colabGroups = chats.filter(c => c.type === 'GROUP');
-  const directMessages = chats.filter(c => c.type === 'DIRECT');
 
   const [isCreating, setIsCreating] = useState(false);
   const [onLabelCreatedCb, setOnLabelCreatedCb] = useState(null);

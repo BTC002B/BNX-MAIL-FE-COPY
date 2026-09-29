@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { MdChat, MdGroupAdd, MdPersonAdd, MdSearch, MdGroup } from "react-icons/md";
 import { chatAPI } from "../services/api";
+import chatCache from "../services/chatCache";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import toast from "react-hot-toast";
@@ -17,30 +18,43 @@ const Groups = () => {
     const modeTitle = isGroupsMode ? "Colab" : "Direct Messages";
     const modeIcon = isGroupsMode ? <MdGroup className="text-primary" /> : <MdChat className="text-primary" />;
 
-    const [chats, setChats] = useState([]);
-    const [loading, setLoading] = useState(false);
+    // Instant initial load from cache (< 50ms)
+    const [chats, setChats] = useState(() => chatCache.getUserChats(user?.email) || []);
+    const [loading, setLoading] = useState(() => !chatCache.hasUserChats(user?.email));
     const [searchTerm, setSearchTerm] = useState("");
     const [showCreateGroup, setShowCreateGroup] = useState(false);
     const [showStartDirect, setShowStartDirect] = useState(false);
 
-    const [pendingInvitations, setPendingInvitations] = useState([]);
+    const [pendingInvitations, setPendingInvitations] = useState(() => chatCache.getInvitations() || []);
     const [showInvitationsModal, setShowInvitationsModal] = useState(false);
 
     const [groupData, setGroupData] = useState({ name: "", members: "" });
     const [directEmail, setDirectEmail] = useState("");
 
-    const fetchChats = async () => {
+    const fetchChats = async (isBackground = false) => {
         if (!user?.email) return;
         try {
-            setLoading(true);
+            if (!isBackground && chats.length === 0) {
+                setLoading(true);
+            }
             const res = await chatAPI.getUserChats(user.email);
             if (res.data) {
                 const chatList = Array.isArray(res.data) ? res.data : (res.data.data || []);
                 setChats(chatList);
+                chatCache.setUserChats(user.email, chatList);
+
+                // Auto-prewarm top 3 chats in background
+                chatList.slice(0, 3).forEach(c => {
+                    if (c && c.id) {
+                        chatCache.prefetchChat(c.id, chatAPI);
+                    }
+                });
             }
         } catch (err) {
             console.error("Failed to load chats:", err);
-            toast.error("Failed to load conversations");
+            if (!isBackground && chats.length === 0) {
+                toast.error("Failed to load conversations");
+            }
         } finally {
             setLoading(false);
         }
@@ -52,6 +66,7 @@ const Groups = () => {
             const res = await chatAPI.getInvitations();
             if (res.data) {
                 setPendingInvitations(res.data);
+                chatCache.setInvitations(res.data);
             }
         } catch (err) {
             console.error("Failed to load invitations", err);
@@ -59,7 +74,13 @@ const Groups = () => {
     };
 
     useEffect(() => {
-        fetchChats();
+        // If we already have cached chats, revalidate silently without full spinner
+        const hasCached = chatCache.hasUserChats(user?.email);
+        if (hasCached) {
+            setChats(chatCache.getUserChats(user?.email));
+            setLoading(false);
+        }
+        fetchChats(hasCached);
         fetchInvitations();
     }, [user?.email, location.pathname]);
 
@@ -244,6 +265,7 @@ const Groups = () => {
                             return (
                                 <div 
                                     key={chat.id}
+                                    onMouseEnter={() => chatCache.prefetchChat(chat.id, chatAPI)}
                                     onClick={() => navigate(`/chat/${chat.id}`, { state: { chat } })}
                                     className="group relative p-5 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 bg-white/40 dark:bg-gray-800/40 hover:bg-white/60 dark:hover:bg-gray-800/60 transition-all cursor-pointer hover:shadow-lg hover:-translate-y-1"
                                 >

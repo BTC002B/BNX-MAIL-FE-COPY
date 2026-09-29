@@ -32,6 +32,7 @@ import {
   MdInsertEmoticon
 } from "react-icons/md";
 import { chatAPI, mailAPI, templateAPI } from "../services/api";
+import chatCache from "../services/chatCache";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { useTheme } from "../context/ThemeContext";
@@ -509,10 +510,25 @@ const ChatRoom = () => {
   const { theme } = useTheme();
   const { isConnected, subscribeToChat, sendMessage } = useSocket();
 
-  const [chat, setChat] = useState(location.state?.chat || null);
-  const [messages, setMessages] = useState([]);
+  const processedMessageIdsRef = useRef(new Set());
+
+  const [chat, setChat] = useState(() => {
+    return location.state?.chat || chatCache.getChat(chatId) || null;
+  });
+  const [messages, setMessages] = useState(() => {
+    const cached = chatCache.getMessages(chatId);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      cached.forEach(m => {
+        if (m && m.id) processedMessageIdsRef.current.add(String(m.id));
+      });
+      return cached;
+    }
+    return [];
+  });
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => {
+    return !chatCache.hasMessages(chatId);
+  });
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const [isChatStarred, setIsChatStarred] = useState(false);
@@ -520,7 +536,6 @@ const ChatRoom = () => {
   const moreMenuRef = useRef(null);
   const [hasNewMessagesBelow, setHasNewMessagesBelow] = useState(false);
   const [previewMedia, setPreviewMedia] = useState(null);
-  const processedMessageIdsRef = useRef(new Set());
 
   useEffect(() => {
     processedMessageIdsRef.current.clear();
@@ -670,13 +685,19 @@ const ChatRoom = () => {
   const fileInputRef = useRef(null);
 
   // Group Members State
-  const [membersList, setMembersList] = useState([]);
+  const [membersList, setMembersList] = useState(() => {
+    return chatCache.getMembers(chatId) || location.state?.chat?.memberEmails || [];
+  });
   const [emailsInput, setEmailsInput] = useState("");
   const [addingMembers, setAddingMembers] = useState(false);
 
   // Broadcasts List State
-  const [broadcasts, setBroadcasts] = useState([]);
-  const [loadingBroadcasts, setLoadingBroadcasts] = useState(false);
+  const [broadcasts, setBroadcasts] = useState(() => {
+    return chatCache.getBroadcasts(chatId) || [];
+  });
+  const [loadingBroadcasts, setLoadingBroadcasts] = useState(() => {
+    return !chatCache.hasBroadcasts(chatId);
+  });
 
   // Broadcast Email Form State
   const [emailSubject, setEmailSubject] = useState("");
@@ -806,7 +827,13 @@ const ChatRoom = () => {
     }
   };
 
-  const [templates, setTemplates] = useState([]);
+  const [templates, setTemplates] = useState(() => 
+    DEFAULT_TEMPLATES.map(t => ({
+      ...t,
+      name: t.title || t.name,
+      isDefault: true
+    }))
+  );
   const [selectedTemplate, setSelectedTemplate] = useState("");
 
   const handleRenameGroup = async () => {
@@ -1018,12 +1045,21 @@ const ChatRoom = () => {
 
   const fetchChatDetails = async () => {
     if (chat) return;
+    const cachedChat = chatCache.getChat(chatId);
+    if (cachedChat) {
+      setChat(cachedChat);
+      return;
+    }
+    if (!user?.email) return;
     try {
       const res = await chatAPI.getUserChats(user.email);
       if (res.data) {
         const chatList = Array.isArray(res.data) ? res.data : (res.data.data || []);
-        const currentChat = chatList.find(c => c.id === parseInt(chatId));
-        if (currentChat) setChat(currentChat);
+        const currentChat = chatList.find(c => String(c.id) === String(chatId));
+        if (currentChat) {
+          setChat(currentChat);
+          chatCache.setChat(chatId, currentChat);
+        }
       }
     } catch (err) {
       console.error("Failed to fetch chat details:", err);
@@ -1031,8 +1067,11 @@ const ChatRoom = () => {
   };
 
   const fetchHistory = async () => {
-    try {
+    const hasCached = chatCache.hasMessages(chatId);
+    if (!hasCached) {
       setLoading(true);
+    }
+    try {
       const res = await chatAPI.getMessageHistory(chatId);
       if (res.data) {
         const history = Array.isArray(res.data) ? res.data : (res.data.data || []);
@@ -1046,10 +1085,13 @@ const ChatRoom = () => {
           parsedAttachments: getNormalizedAttachments(msg)
         }));
         setMessages(normalizedHistory);
+        chatCache.setMessages(chatId, normalizedHistory);
       }
     } catch (err) {
       console.error("Failed to fetch history:", err);
-      toast.error("Failed to load message history");
+      if (!hasCached) {
+        toast.error("Failed to load message history");
+      }
     } finally {
       setLoading(false);
       setTimeout(() => scrollToBottom(true), 100);
@@ -1061,6 +1103,7 @@ const ChatRoom = () => {
       const res = await chatAPI.getMembers(chatId);
       if (res.data) {
         setMembersList(res.data);
+        chatCache.setMembers(chatId, res.data);
       }
     } catch (err) {
       console.error("Error fetching chat members:", err);
@@ -1068,11 +1111,16 @@ const ChatRoom = () => {
   };
 
   const fetchBroadcasts = async () => {
-    try {
+    const hasCached = chatCache.hasBroadcasts(chatId);
+    if (!hasCached) {
       setLoadingBroadcasts(true);
+    }
+    try {
       const res = await chatAPI.getBroadcasts(chatId);
       if (res.data) {
-        setBroadcasts(res.data || []);
+        const list = res.data || [];
+        setBroadcasts(list);
+        chatCache.setBroadcasts(chatId, list);
       }
     } catch (err) {
       console.error("Failed to load broadcasts:", err);
@@ -1135,11 +1183,34 @@ const ChatRoom = () => {
   };
 
 
-  // Load chat details and message history ONLY when chatId changes
+  // Load chat details, message history, members, and broadcasts in parallel with instant cache
   useEffect(() => {
     if (chatId) {
+      // Rehydrate instantly from cache if available (< 10ms)
+      const cachedChat = chatCache.getChat(chatId);
+      if (cachedChat && !chat) {
+        setChat(cachedChat);
+      }
+      const cachedMsgs = chatCache.getMessages(chatId);
+      if (cachedMsgs?.length) {
+        setMessages(cachedMsgs);
+        setLoading(false);
+      }
+      const cachedBcasts = chatCache.getBroadcasts(chatId);
+      if (cachedBcasts) {
+        setBroadcasts(cachedBcasts);
+        setLoadingBroadcasts(false);
+      }
+      const cachedMbrs = chatCache.getMembers(chatId);
+      if (cachedMbrs?.length) {
+        setMembersList(cachedMbrs);
+      }
+
+      // Concurrently fetch fresh data in parallel
       fetchChatDetails();
       fetchHistory();
+      fetchChatMembers();
+      fetchBroadcasts();
     }
   }, [chatId]);
 
@@ -1157,16 +1228,12 @@ const ChatRoom = () => {
     };
   }, [chatId, isConnected, handleIncomingMessage]);
 
-  // Load Group Specific Data
+  // Lazy load templates ONLY when user actually opens the Compose Broadcast modal
   useEffect(() => {
-    if (chat?.type === 'GROUP') {
-      fetchChatMembers();
-      fetchBroadcasts();
+    if (showComposeModal) {
       fetchTemplates();
-    } else {
-      setMembersList(chat?.memberEmails || []);
     }
-  }, [chatId, chat?.type, user?.email]);
+  }, [showComposeModal]);
 
   const handleSend = (e) => {
     e.preventDefault();

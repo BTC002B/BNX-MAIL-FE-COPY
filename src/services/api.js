@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_ENDPOINTS } from '../Data/constants';
+import chatCache from './chatCache';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -323,19 +324,61 @@ export const groupAPI = {
     sendBroadcast: (groupId, data) => api.post(API_ENDPOINTS.GROUPS.SEND.replace(':id', groupId), data),
 };
 
-// Chat APIs
+// Chat APIs with request deduplication & fast cache sync
 export const chatAPI = {
     createDirectChat: (data) => api.post(API_ENDPOINTS.CHAT.DIRECT, data),
     createGroupChat: (data) => api.post(API_ENDPOINTS.CHAT.GROUP, data),
-    getUserChats: (email) => api.get(API_ENDPOINTS.CHAT.USER_CHATS.replace(':email', email)),
-    getMessageHistory: (chatId) => api.get(API_ENDPOINTS.CHAT.MESSAGES.replace(':chatId', chatId)),
+    getUserChats: (email) => {
+        if (!email) return Promise.resolve({ data: [] });
+        return chatCache.dedupe(`user_chats_${email}`, () => 
+            api.get(API_ENDPOINTS.CHAT.USER_CHATS.replace(':email', email))
+        ).then(res => {
+            if (res?.data) {
+                const list = Array.isArray(res.data) ? res.data : (res.data.data || []);
+                chatCache.setUserChats(email, list);
+            }
+            return res;
+        });
+    },
+    getMessageHistory: (chatId) => {
+        return chatCache.dedupe(`messages_${chatId}`, () =>
+            api.get(API_ENDPOINTS.CHAT.MESSAGES.replace(':chatId', chatId))
+        );
+    },
     sendMessage: (data) => api.post(API_ENDPOINTS.CHAT.SEND_MESSAGE, data),
     addMembers: (chatId, data) => api.post(`/api/chat/${chatId}/members`, data),
-    getMembers: (chatId) => api.get(`/api/chat/${chatId}/members`),
-    getBroadcasts: (chatId) => api.get(`/api/chat/${chatId}/broadcasts`),
+    getMembers: (chatId) => {
+        return chatCache.dedupe(`members_${chatId}`, () =>
+            api.get(`/api/chat/${chatId}/members`)
+        ).then(res => {
+            if (res?.data) {
+                chatCache.setMembers(chatId, res.data);
+            }
+            return res;
+        });
+    },
+    getBroadcasts: (chatId) => {
+        return chatCache.dedupe(`broadcasts_${chatId}`, () =>
+            api.get(`/api/chat/${chatId}/broadcasts`)
+        ).then(res => {
+            if (res?.data) {
+                chatCache.setBroadcasts(chatId, res.data);
+            }
+            return res;
+        });
+    },
     sendBroadcast: (chatId, data) => api.post(`/api/chat/${chatId}/broadcast`, data),
 
-    getInvitations: () => api.get('/api/chat/invitations'),
+    getInvitations: () => {
+        return chatCache.dedupe('invitations', () =>
+            api.get('/api/chat/invitations')
+        ).then(res => {
+            if (res?.data) {
+                chatCache.setInvitations(res.data);
+            }
+            return res;
+        });
+    },
     acceptInvitation: (id) => api.post(`/api/chat/invitations/${id}/accept`),
     rejectInvitation: (id) => api.post(`/api/chat/invitations/${id}/reject`),
 
