@@ -29,7 +29,8 @@ import {
   MdPrint,
   MdStarBorder,
   MdStar,
-  MdInsertEmoticon
+  MdInsertEmoticon,
+  MdRefresh
 } from "react-icons/md";
 import { chatAPI, mailAPI, templateAPI } from "../services/api";
 import chatCache from "../services/chatCache";
@@ -570,9 +571,11 @@ const ChatRoom = () => {
     return [];
   });
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(() => {
+  const [loadingComments, setLoadingComments] = useState(() => {
     return !chatCache.hasMessages(chatId);
   });
+  const [commentsError, setCommentsError] = useState(null);
+  const [isSendingComment, setIsSendingComment] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const [isChatStarred, setIsChatStarred] = useState(false);
@@ -1098,6 +1101,21 @@ const ChatRoom = () => {
       abortControllerRef.current.abort();
     }
     abortControllerRef.current = new AbortController();
+    isFetchingHistoryRef.current = false;
+
+    // Clear stale messages and comments error when changing chat
+    const cached = chatCache.getMessages(chatId);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setMessages(cached);
+      setLoadingComments(false);
+      cached.forEach(m => {
+        if (m && m.id) processedMessageIdsRef.current.add(String(m.id));
+      });
+    } else {
+      setMessages([]);
+      setLoadingComments(true);
+    }
+    setCommentsError(null);
 
     return () => {
       if (abortControllerRef.current) {
@@ -1143,43 +1161,85 @@ const ChatRoom = () => {
 
   const isFetchingHistoryRef = useRef(false);
 
-  const fetchHistory = async (signal) => {
-    if (!chatId || isFetchingHistoryRef.current) return;
-    const hasCached = chatCache.hasMessages(chatId);
-    if (!hasCached) {
-      setLoading(true);
-    }
+  const fetchHistory = useCallback(async (customSignal = null) => {
+    if (!chatId) return;
+    if (isFetchingHistoryRef.current) return;
     isFetchingHistoryRef.current = true;
 
-    try {
-      const res = await chatCache.dedupe(`msg_${chatId}`, () => chatAPI.getMessageHistory(chatId, { signal }));
-      if (res && res.data) {
-        const history = Array.isArray(res.data) ? res.data : (res.data.data || []);
-        history.forEach(msg => {
-          if (msg && msg.id) {
-            processedMessageIdsRef.current.add(String(msg.id));
-          }
-        });
-        // Render messages immediately without blocking on synchronous attachment parsing
-        setMessages(history);
-        setLoading(false);
-        chatCache.setMessages(chatId, history);
+    let signal = customSignal;
+    if (!signal) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
+      abortControllerRef.current = new AbortController();
+      signal = abortControllerRef.current.signal;
+    }
+
+    const hasCached = chatCache.hasMessages(chatId);
+    if (!hasCached) {
+      setLoadingComments(true);
+    }
+    setCommentsError(null);
+
+    const timeoutId = setTimeout(() => {
+      if (isFetchingHistoryRef.current && abortControllerRef.current && !signal?.aborted) {
+        abortControllerRef.current.abort();
+      }
+    }, 10000);
+
+    try {
+      const res = await chatAPI.getMessageHistory(chatId, { signal, timeout: 10000 });
+      let history = [];
+      if (res && res.data) {
+        if (Array.isArray(res.data)) {
+          history = res.data;
+        } else if (Array.isArray(res.data.data)) {
+          history = res.data.data;
+        } else if (Array.isArray(res.data.comments)) {
+          history = res.data.comments;
+        } else if (Array.isArray(res.data.messages)) {
+          history = res.data.messages;
+        } else if (Array.isArray(res.data.content)) {
+          history = res.data.content;
+        }
+      }
+
+      history.forEach(msg => {
+        if (msg && msg.id) {
+          processedMessageIdsRef.current.add(String(msg.id));
+        }
+      });
+
+      // Render messages immediately without blocking
+      setMessages(history);
+      setCommentsError(null);
+      chatCache.setMessages(chatId, history);
     } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      console.error("Failed to fetch history:", err);
+      const isCanceled = (
+        err?.name === 'CanceledError' || 
+        err?.code === 'ERR_CANCELED' || 
+        err?.message === 'canceled' ||
+        signal?.aborted
+      );
+
+      if (!isCanceled) {
+        console.error("Failed to fetch comments history:", err);
+      }
+
       const fallback = chatCache.getMessages(chatId);
       if (fallback && fallback.length > 0) {
         setMessages(fallback);
-      } else if (!hasCached) {
-        toast.error("Failed to load message history");
+        setCommentsError(null);
+      } else {
+        setCommentsError("Unable to load comments. Please try again.");
       }
     } finally {
+      clearTimeout(timeoutId);
       isFetchingHistoryRef.current = false;
-      setLoading(false);
+      setLoadingComments(false);
       setTimeout(() => scrollToBottom(true), 50);
     }
-  };
+  }, [chatId]);
 
   const fetchChatMembers = async (signal) => {
     if (!chatId) return;
@@ -1278,19 +1338,9 @@ const ChatRoom = () => {
   useEffect(() => {
     if (!chatId) return;
 
-    // Fast rehydrate from cache if available (< 5ms)
-    const cachedMsgs = chatCache.getMessages(chatId);
-    if (cachedMsgs && Array.isArray(cachedMsgs)) {
-      setMessages(cachedMsgs);
-      setLoading(false);
-      cachedMsgs.forEach(m => {
-        if (m && m.id) processedMessageIdsRef.current.add(String(m.id));
-      });
-    }
-
     // Immediately start Comments API request with signal
     fetchHistory(abortControllerRef.current?.signal);
-  }, [chatId]);
+  }, [chatId, fetchHistory]);
 
   // 2. Auxiliary Data (Chat details, Broadcasts, Members): Deferred to give Comments API immediate priority
   useEffect(() => {
@@ -1342,9 +1392,14 @@ const ChatRoom = () => {
     }
   }, [showComposeModal]);
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
+    if (isSendingComment) return;
     if (!newMessage.trim() && selectedAttachments.length === 0) return;
+
+    // Save current input to restore in case sending fails
+    const savedText = newMessage;
+    const savedAttachments = [...selectedAttachments];
 
     // Create attachment objects with structure: { name, url, type, size }
     const attachments = selectedAttachments.map(a => ({
@@ -1378,6 +1433,7 @@ const ChatRoom = () => {
     setNewMessage("");
     setSelectedAttachments([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    setIsSendingComment(true);
     setTimeout(() => scrollToBottom(true), 50);
 
     const payload = {
@@ -1387,41 +1443,54 @@ const ChatRoom = () => {
       attachmentsJson: attachmentsJson
     };
 
-    // Send message via HTTP REST
-    const sendViaRest = () => {
-      chatAPI.sendMessage(payload).then(res => {
+    const sendTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Send request timed out")), 10000)
+    );
+
+    try {
+      if (attachmentsJson) {
+        // Messages with attachments are sent via HTTP REST (POST /api/chat/message)
+        const res = await Promise.race([
+          chatAPI.sendMessage(payload),
+          sendTimeout
+        ]);
         const response = res.data?.data || res.data;
         if (response && response.id) {
           handleIncomingMessage(response, tempId);
         } else {
           setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isOptimistic: false } : m));
         }
-      }).catch(err => {
-        console.error("Failed to send message via HTTP", err);
-        toast.error("Failed to send message");
-        setMessages(prev => prev.filter(m => m.id !== tempId));
-      });
-    };
-
-    if (attachmentsJson) {
-      // Messages with attachments are sent via HTTP REST (POST /api/chat/message)
-      // to avoid WebSocket frame size limits (STOMP buffer overflow).
-      // The backend saves the message, broadcasts it over /topic/chat/{chatId},
-      // and returns the MessageResponse. This ensures the group WebSocket connection
-      // stays 100% stable and in the ONLINE state without any reconnecting.
-      sendViaRest();
-    } else {
-      let isSentViaWs = false;
-      if (isConnected) {
-        try {
-          isSentViaWs = sendMessage(chatId, contentText, null) !== false;
-        } catch (wsErr) {
-          isSentViaWs = false;
+      } else {
+        let isSentViaWs = false;
+        if (isConnected) {
+          try {
+            isSentViaWs = sendMessage(chatId, contentText, null) !== false;
+          } catch (wsErr) {
+            isSentViaWs = false;
+          }
+        }
+        if (!isSentViaWs) {
+          const res = await Promise.race([
+            chatAPI.sendMessage(payload),
+            sendTimeout
+          ]);
+          const response = res.data?.data || res.data;
+          if (response && response.id) {
+            handleIncomingMessage(response, tempId);
+          } else {
+            setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isOptimistic: false } : m));
+          }
         }
       }
-      if (!isSentViaWs) {
-        sendViaRest();
-      }
+    } catch (err) {
+      console.error("Failed to send comment:", err);
+      toast.error("Failed to send comment. Please try again.");
+      // Restore previous input and remove temporary message
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setNewMessage(savedText);
+      setSelectedAttachments(savedAttachments);
+    } finally {
+      setIsSendingComment(false);
     }
   };
 
@@ -1794,14 +1863,31 @@ const ChatRoom = () => {
               onScroll={handleMessagesScroll}
               className="h-full overflow-y-auto p-6 space-y-4 hidden-scrollbar bg-white/10 dark:bg-black/10 print:overflow-visible print:h-auto print:p-0 print:space-y-3 print:bg-transparent"
             >
-              {loading && messages.length === 0 ? (
-                <div className="flex justify-center p-10 printable-conversation-no-print">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              {loadingComments && messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full p-10 printable-conversation-no-print">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Loading comments...</p>
+                </div>
+              ) : commentsError && messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full p-8 text-center printable-conversation-no-print">
+                  <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-500 mb-3">
+                    <MdInfoOutline size={24} />
+                  </div>
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+                    {commentsError}
+                  </p>
+                  <button
+                    onClick={() => fetchHistory()}
+                    className="mt-3 px-4 py-2 rounded-xl text-white text-xs font-semibold shadow-sm hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                    style={{ background: theme.accent || "#135bec" }}
+                  >
+                    <MdRefresh size={16} /> Retry
+                  </button>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full opacity-30 text-center print:opacity-70 print:p-4">
                   <MdChat size={64} className="mb-4 print:hidden" />
-                  <p className="text-lg font-medium print:text-base print:text-gray-600">No messages yet</p>
+                  <p className="text-lg font-medium print:text-base print:text-gray-600">No comments yet</p>
                   <p className="text-sm print:hidden">Be the first to say hello!</p>
                 </div>
               ) : (
@@ -1961,17 +2047,24 @@ const ChatRoom = () => {
                 <input 
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="w-full pl-4 pr-12 py-3 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 bg-white/80 dark:bg-gray-800/80 outline-none focus:ring-2 focus:ring-primary/30 transition-all shadow-inner text-sm"
+                  placeholder={isSendingComment ? "Sending..." : "Type a message..."}
+                  disabled={isSendingComment}
+                  className="w-full pl-4 pr-12 py-3 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 bg-white/80 dark:bg-gray-800/80 outline-none focus:ring-2 focus:ring-primary/30 transition-all shadow-inner text-sm disabled:opacity-60"
                   style={{ color: theme.text }}
                   spellCheck="false"
                 />
                 <button 
                   type="submit"
-                  disabled={!newMessage.trim() && selectedAttachments.length === 0}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-primary text-white shadow-md disabled:opacity-30 transition-all hover:scale-105 active:scale-95 focus:outline-none"
+                  disabled={isSendingComment || (!newMessage.trim() && selectedAttachments.length === 0)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-primary text-white shadow-md disabled:opacity-30 transition-all hover:scale-105 active:scale-95 focus:outline-none flex items-center justify-center"
+                  style={{ background: theme.accent }}
+                  title={isSendingComment ? "Sending..." : "Send"}
                 >
-                  <MdSend size={18} />
+                  {isSendingComment ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  ) : (
+                    <MdSend size={18} />
+                  )}
                 </button>
               </div>
             </form>

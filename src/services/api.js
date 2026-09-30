@@ -356,9 +356,26 @@ export const chatAPI = {
         });
     },
     getMessageHistory: (chatId, config = {}) => {
+        const timeout = config.timeout || 10000;
         return chatCache.dedupe(`msg_${chatId}`, () =>
-            api.get(API_ENDPOINTS.CHAT.MESSAGES.replace(':chatId', chatId), { timeout: 45000, ...config })
-        );
+            api.get(API_ENDPOINTS.CHAT.MESSAGES.replace(':chatId', chatId), { timeout, ...config })
+        ).then(res => {
+            if (res?.data) {
+                const history = Array.isArray(res.data)
+                    ? res.data
+                    : (Array.isArray(res.data?.data)
+                        ? res.data.data
+                        : (Array.isArray(res.data?.comments)
+                            ? res.data.comments
+                            : (Array.isArray(res.data?.messages)
+                                ? res.data.messages
+                                : (Array.isArray(res.data?.content)
+                                    ? res.data.content
+                                    : []))));
+                chatCache.setMessages(chatId, history);
+            }
+            return res;
+        });
     },
     sendMessage: (data) => api.post(API_ENDPOINTS.CHAT.SEND_MESSAGE, data),
     addMembers: (chatId, data) => api.post(`/api/chat/${chatId}/members`, data),
