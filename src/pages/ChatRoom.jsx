@@ -480,7 +480,10 @@ const CommentMessageItem = React.memo(({
   formatTime
 }) => {
   const atts = msg.parsedAttachments || getNormalizedAttachments(msg);
-  const hasText = msg.content && msg.content.trim();
+  const msgContent = msg.content !== undefined && msg.content !== null
+    ? msg.content
+    : (msg.message !== undefined && msg.message !== null ? msg.message : (msg.text || msg.body || ""));
+  const hasText = Boolean(msgContent && (typeof msgContent === 'string' ? msgContent.trim() : String(msgContent)));
   if (!hasText && atts.length === 0) return null;
 
   return (
@@ -499,7 +502,7 @@ const CommentMessageItem = React.memo(({
           >
             {hasText ? (
               <p className={`text-[14px] leading-relaxed whitespace-pre-wrap print:text-black ${atts.length > 0 ? 'mb-2.5' : ''}`}>
-                {msg.content}
+                {msgContent}
               </p>
             ) : null}
             
@@ -1209,16 +1212,35 @@ const ChatRoom = () => {
         }
       }
 
-      history.forEach(msg => {
+      const normalizedHistory = history.map(msg => {
+        if (!msg) return null;
+        const content = msg.content !== undefined && msg.content !== null
+          ? msg.content
+          : (msg.message !== undefined && msg.message !== null ? msg.message : (msg.text || msg.body || ""));
+        const sender = msg.sender || msg.senderEmail || msg.sender_email || msg.from || "";
+        const timestamp = msg.timestamp || msg.createdAt || msg.created_at || msg.time || msg.sentDate || "";
+        
+        return {
+          ...msg,
+          id: msg.id || msg._id,
+          content,
+          message: content,
+          sender,
+          timestamp,
+          parsedAttachments: msg.parsedAttachments || getNormalizedAttachments(msg)
+        };
+      }).filter(Boolean);
+
+      normalizedHistory.forEach(msg => {
         if (msg && msg.id) {
           processedMessageIdsRef.current.add(String(msg.id));
         }
       });
 
       // Render messages immediately without blocking
-      setMessages(history);
+      setMessages(normalizedHistory);
       setCommentsError(null);
-      chatCache.setMessages(chatId, history);
+      chatCache.setMessages(chatId, normalizedHistory);
     } catch (err) {
       const isCanceled = (
         err?.name === 'CanceledError' || 

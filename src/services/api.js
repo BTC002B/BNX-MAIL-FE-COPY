@@ -373,7 +373,14 @@ export const chatAPI = {
                                 : (Array.isArray(res.data?.content)
                                     ? res.data.content
                                     : []))));
-                chatCache.setMessages(chatId, history);
+                const normalized = history.map(m => {
+                    if (!m) return null;
+                    const content = m.content !== undefined && m.content !== null
+                        ? m.content
+                        : (m.message !== undefined && m.message !== null ? m.message : (m.text || m.body || ""));
+                    return { ...m, content, message: content };
+                }).filter(Boolean);
+                chatCache.setMessages(chatId, normalized);
             }
             return res;
         });
