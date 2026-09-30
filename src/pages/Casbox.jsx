@@ -11,6 +11,11 @@ import toast from "react-hot-toast";
 import ReadingPaneLayout from "../components/ReadingPaneLayout";
 import logo from "../assets/bnx-remove.png";
 
+const normalizeEmail = (val) => {
+  if (!val) return '';
+  return String(val).trim().toLowerCase();
+};
+
 const getMimeType = (fileName) => {
   const ext = fileName?.split('.').pop().toLowerCase() || '';
   switch (ext) {
@@ -432,6 +437,59 @@ const Casbox = () => {
       window.removeEventListener('casbox_message_sent', handleCasboxMessageSent);
     };
   }, [fetchMessages]);
+
+  // Subscribe to real-time Casbox WebSocket messages
+  useEffect(() => {
+    if (!stompClient || !isConnected || !stompClient.connected) return;
+
+    let subMessages = null;
+    let subStatus = null;
+
+    try {
+      subMessages = stompClient.subscribe('/user/queue/casbox/messages', (message) => {
+        try {
+          const newMsg = JSON.parse(message.body);
+          if (newMsg && newMsg.id) {
+            setMessages(prev => {
+              if (prev.some(m => m.id === newMsg.id)) return prev;
+              return [newMsg, ...prev];
+            });
+
+            const otherEmail = normalizeEmail(newMsg.senderEmail === user?.email ? newMsg.receiverEmail : newMsg.senderEmail);
+            if (selectedContactRef.current && normalizeEmail(selectedContactRef.current) === otherEmail) {
+              setThreadMessages(prev => {
+                if (prev.some(m => m.id === newMsg.id)) return prev;
+                return [...prev, newMsg];
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Failed to parse incoming WebSocket casbox message", e);
+        }
+      });
+
+      subStatus = stompClient.subscribe('/user/queue/casbox/status', (message) => {
+        try {
+          const statusDto = JSON.parse(message.body);
+          if (statusDto && statusDto.id) {
+            setMessages(prev => prev.map(m => m.id === statusDto.id ? { ...m, status: statusDto.status } : m));
+            setThreadMessages(prev => prev.map(m => m.id === statusDto.id ? { ...m, status: statusDto.status } : m));
+          }
+        } catch (e) {
+          console.error("Failed to parse status update", e);
+        }
+      });
+    } catch (err) {
+      console.warn("Could not subscribe to Casbox WebSocket topics", err);
+    }
+
+    return () => {
+      try {
+        if (subMessages) subMessages.unsubscribe();
+        if (subStatus) subStatus.unsubscribe();
+      } catch (e) {}
+    };
+  }, [stompClient, isConnected, user?.email]);
 
 
   const [threadMessages, setThreadMessages] = useState([]);
@@ -902,32 +960,57 @@ const Casbox = () => {
     }
   }, [location.state, messages, user?.email]);
 
-  // Synchronous derivation of known contacts - never blocks rendering or waits for unrelated operations
+  // Synchronous derivation of accepted contacts from settings and connections
+  const acceptedSet = useMemo(() => {
+    const set = new Set();
+
+    if (acceptedContacts && Array.isArray(acceptedContacts)) {
+      acceptedContacts.forEach(e => {
+        const norm = normalizeEmail(e);
+        if (norm) {
+          set.add(norm);
+          if (norm.includes('@')) set.add(norm.split('@')[0]);
+        }
+      });
+    }
+
+    if (connections && Array.isArray(connections)) {
+      connections.forEach(conn => {
+        const status = String(conn?.status || '').trim().toUpperCase();
+        if (status !== 'DISCONNECTED') {
+          const email = normalizeEmail(conn?.contactEmail || conn?.email);
+          if (email) {
+            set.add(email);
+            if (email.includes('@')) set.add(email.split('@')[0]);
+          }
+          const username = normalizeEmail(conn?.contactUsername || conn?.username);
+          if (username) set.add(username);
+        }
+      });
+    }
+
+    return set;
+  }, [acceptedContacts, connections]);
+
+  // Synchronous derivation of known contacts (accepted contacts + contacts user has messaged)
   const knownContacts = useMemo(() => {
-    const contacts = new Set(acceptedContacts.map(e => e.toLowerCase()));
+    const contacts = new Set(acceptedSet);
+
     if (messages && messages.length > 0 && user?.email) {
-      const uEmail = user.email.toLowerCase();
+      const uEmail = normalizeEmail(user.email);
       for (let i = 0; i < messages.length; i++) {
         const msg = messages[i];
-        const s = msg.senderEmail?.toLowerCase();
-        const r = msg.receiverEmail?.toLowerCase();
-        if (s === uEmail && r) contacts.add(r);
-        if (msg.customName || msg.contactUserId || msg.contactDisplayName) {
-          if (s && s !== uEmail) contacts.add(s);
-          if (r && r !== uEmail) contacts.add(r);
+        const s = normalizeEmail(msg.senderEmail || msg.sender);
+        const r = normalizeEmail(msg.receiverEmail || msg.receiver);
+        if (s === uEmail && r) {
+          contacts.add(r);
+          if (r.includes('@')) contacts.add(r.split('@')[0]);
         }
       }
     }
-    if (connections && connections.length > 0) {
-      for (let i = 0; i < connections.length; i++) {
-        const conn = connections[i];
-        if (conn.status?.toUpperCase() === 'CONNECTED' && conn.contactEmail) {
-          contacts.add(conn.contactEmail.toLowerCase());
-        }
-      }
-    }
+
     return contacts;
-  }, [messages, connections, acceptedContacts, user?.email]);
+  }, [acceptedSet, messages, user?.email]);
 
   React.useEffect(() => {
     return () => {
@@ -1257,134 +1340,171 @@ const Casbox = () => {
   };
 
   const isMessageUnread = useCallback((m) => {
-    if (!m || m.receiverEmail !== user?.email) return false;
+    if (!m) return false;
+    const rec = normalizeEmail(m.receiverEmail || m.receiver);
+    const uEmail = normalizeEmail(user?.email || user?.username);
+    if (rec !== uEmail) return false;
     if (m.isRead === true || m.read === true) return false;
-    return m.status?.toUpperCase() !== 'SEEN';
-  }, [user?.email]);
+    return String(m.status || '').trim().toUpperCase() !== 'SEEN';
+  }, [user?.email, user?.username]);
 
-  const { conversationList, unreadMessagesCount, unreadArchivedCount, requestMessages } = useMemo(() => {
+  const { 
+    conversationList, 
+    messagesConversations, 
+    requestsConversations, 
+    archivedConversations, 
+    unreadMessagesCount, 
+    unreadArchivedCount, 
+    requestMessages 
+  } = useMemo(() => {
     if (!messages || messages.length === 0) {
-      return { conversationList: [], unreadMessagesCount: 0, unreadArchivedCount: 0, requestMessages: [] };
+      return { 
+        conversationList: [], 
+        messagesConversations: [], 
+        requestsConversations: [], 
+        archivedConversations: [], 
+        unreadMessagesCount: 0, 
+        unreadArchivedCount: 0, 
+        requestMessages: [] 
+      };
     }
 
-    const userEmail = user?.email?.toLowerCase();
-    const blockedSet = new Set(blockedContacts.map(e => e.toLowerCase()));
-    const acceptedSet = new Set(acceptedContacts.map(e => e.toLowerCase()));
+    const userEmail = normalizeEmail(user?.email || user?.username);
+    const blockedSet = new Set();
+    if (blockedContacts && Array.isArray(blockedContacts)) {
+      blockedContacts.forEach(e => {
+        const norm = normalizeEmail(e);
+        if (norm) {
+          blockedSet.add(norm);
+          if (norm.includes('@')) blockedSet.add(norm.split('@')[0]);
+        }
+      });
+    }
 
     // Disconnected contacts set
     const disconnectedSet = new Set();
-    if (connections && connections.length > 0) {
+    if (connections && Array.isArray(connections)) {
       for (let i = 0; i < connections.length; i++) {
         const c = connections[i];
-        if (c.status?.toUpperCase() === 'DISCONNECTED') {
-          if (c.contactEmail) disconnectedSet.add(c.contactEmail.toLowerCase());
-          if (c.contactUsername) disconnectedSet.add(c.contactUsername.toLowerCase());
+        if (String(c.status || '').trim().toUpperCase() === 'DISCONNECTED') {
+          const email = normalizeEmail(c.contactEmail || c.email);
+          if (email) {
+            disconnectedSet.add(email);
+            if (email.includes('@')) disconnectedSet.add(email.split('@')[0]);
+          }
+          const uname = normalizeEmail(c.contactUsername || c.username);
+          if (uname) disconnectedSet.add(uname);
           if (c.contactUserId) disconnectedSet.add(String(c.contactUserId));
         }
       }
     }
 
-    // Immediately identify all established contacts from messages and accepted/connected contacts
-    const knownContactsSet = new Set(acceptedSet);
-    if (connections && connections.length > 0) {
-      for (let i = 0; i < connections.length; i++) {
-        const c = connections[i];
-        if (c.status?.toUpperCase() === 'CONNECTED' && c.contactEmail) {
-          knownContactsSet.add(c.contactEmail.toLowerCase());
-        }
-      }
-    }
-
-    for (let i = 0; i < messages.length; i++) {
-      const m = messages[i];
-      const sender = m.senderEmail?.toLowerCase();
-      const receiver = m.receiverEmail?.toLowerCase();
-      if (sender === userEmail && receiver) {
-        knownContactsSet.add(receiver);
-      }
-      if (m.customName || m.contactUserId || m.contactDisplayName) {
-        if (sender && sender !== userEmail) knownContactsSet.add(sender);
-        if (receiver && receiver !== userEmail) knownContactsSet.add(receiver);
-      }
-    }
-
-    const groups = new Map();
-    const requestsList = [];
-    let mainUnread = 0;
-    let archUnread = 0;
+    // Step 1: Group all messages by contact
+    const conversationGroups = new Map();
 
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
-      const sender = msg.senderEmail?.toLowerCase();
-      const receiver = msg.receiverEmail?.toLowerCase();
+      const sender = normalizeEmail(msg.senderEmail || msg.sender);
+      const receiver = normalizeEmail(msg.receiverEmail || msg.receiver);
 
-      if (sender && blockedSet.has(sender)) continue;
+      if (!sender || !receiver) continue;
+      if (blockedSet.has(sender) || (sender.includes('@') && blockedSet.has(sender.split('@')[0]))) continue;
 
-      const contact = sender === userEmail ? msg.receiverEmail : msg.senderEmail;
-      if (!contact) continue;
-      const contactLower = contact.toLowerCase();
-      const contactLocal = contactLower.includes('@') ? contactLower.split('@')[0] : contactLower;
+      const rawContact = sender === userEmail ? (msg.receiverEmail || msg.receiver) : (msg.senderEmail || msg.sender);
+      if (!rawContact) continue;
+      const contactNorm = normalizeEmail(rawContact);
+      const contactLocal = contactNorm.includes('@') ? contactNorm.split('@')[0] : contactNorm;
 
-      if (disconnectedSet.has(contactLower) || disconnectedSet.has(contactLocal)) continue;
+      if (disconnectedSet.has(contactNorm) || disconnectedSet.has(contactLocal)) continue;
 
-      const isArchived = Boolean(msg.isArchived || msg.archived);
-      const isKnown = sender === userEmail || knownContactsSet.has(contactLower) || knownContactsSet.has(contactLocal);
-      const isRequest = !isArchived && !isKnown && (receiver === userEmail);
-
-      const unread = !isArchived && receiver === userEmail && msg.isRead !== true && msg.read !== true && msg.status?.toUpperCase() !== 'SEEN';
-
-      if (unread) {
-        if (isArchived) archUnread++;
-        else if (!isRequest) mainUnread++;
-      }
-      if (isRequest) requestsList.push(msg);
-
-      let belongsToActiveTab = false;
-      if (activeTab === 'archive') {
-        belongsToActiveTab = isArchived;
-      } else if (activeTab === 'requests') {
-        belongsToActiveTab = isRequest;
+      let grp = conversationGroups.get(contactNorm);
+      const ts = getTimestampMs(msg.timestamp);
+      if (!grp) {
+        grp = {
+          contact: rawContact,
+          contactNorm,
+          messages: [msg],
+          latestMessage: msg,
+          latestTimestamp: ts,
+        };
+        conversationGroups.set(contactNorm, grp);
       } else {
-        belongsToActiveTab = !isArchived && !isRequest;
-      }
-
-      if (belongsToActiveTab) {
-        let grp = groups.get(contact);
-        const ts = getTimestampMs(msg.timestamp);
-        if (!grp) {
-          grp = {
-            contact,
-            latestMessage: msg,
-            latestTimestamp: ts,
-            messages: [msg],
-            unreadCount: unread ? 1 : 0
-          };
-          groups.set(contact, grp);
-        } else {
-          grp.messages.push(msg);
-          if (unread) grp.unreadCount++;
-          if (ts > grp.latestTimestamp) {
-            grp.latestTimestamp = ts;
-            grp.latestMessage = msg;
-          }
+        grp.messages.push(msg);
+        if (ts > grp.latestTimestamp) {
+          grp.latestTimestamp = ts;
+          grp.latestMessage = msg;
         }
       }
     }
 
-    const result = Array.from(groups.values());
-    result.sort((a, b) => b.latestTimestamp - a.latestTimestamp);
+    // Step 2: Classify conversations into Messages, Requests, Archive
+    const messagesList = [];
+    const requestsList = [];
+    const archivedList = [];
+    const requestMessagesArr = [];
+    let mainUnread = 0;
+    let archUnread = 0;
 
-    for (let i = 0; i < result.length; i++) {
-      result[i].messages.sort((a, b) => getTimestampMs(b.timestamp) - getTimestampMs(a.timestamp));
+    conversationGroups.forEach((grp) => {
+      // Sort messages within conversation descending
+      grp.messages.sort((a, b) => getTimestampMs(b.timestamp) - getTimestampMs(a.timestamp));
+      grp.latestMessage = grp.messages[0];
+      grp.latestTimestamp = getTimestampMs(grp.latestMessage.timestamp);
+
+      const isArchived = Boolean(
+        grp.latestMessage.isArchived || 
+        grp.latestMessage.archived || 
+        grp.messages.some(m => m.isArchived || m.archived)
+      );
+
+      const isAccepted = knownContacts.has(grp.contactNorm) || 
+        (grp.contactNorm.includes('@') && knownContacts.has(grp.contactNorm.split('@')[0]));
+
+      const hasOutgoing = grp.messages.some(m => normalizeEmail(m.senderEmail || m.sender) === userEmail);
+      const hasIncoming = grp.messages.some(m => normalizeEmail(m.receiverEmail || m.receiver) === userEmail);
+
+      const unreadCount = grp.messages.filter(isMessageUnread).length;
+      grp.unreadCount = unreadCount;
+
+      // Classification rule:
+      // If archived -> Archive
+      // Else if contact is NOT accepted AND has incoming messages AND user hasn't sent outgoing -> Requests
+      // Else -> Messages
+      const isRequest = !isArchived && !isAccepted && hasIncoming && !hasOutgoing;
+
+      if (isArchived) {
+        archivedList.push(grp);
+        if (unreadCount > 0) archUnread += unreadCount;
+      } else if (isRequest) {
+        requestsList.push(grp);
+        grp.messages.forEach(m => requestMessagesArr.push(m));
+      } else {
+        messagesList.push(grp);
+        if (unreadCount > 0) mainUnread += unreadCount;
+      }
+    });
+
+    messagesList.sort((a, b) => b.latestTimestamp - a.latestTimestamp);
+    requestsList.sort((a, b) => b.latestTimestamp - a.latestTimestamp);
+    archivedList.sort((a, b) => b.latestTimestamp - a.latestTimestamp);
+
+    let activeList = messagesList;
+    if (activeTab === 'requests') {
+      activeList = requestsList;
+    } else if (activeTab === 'archive') {
+      activeList = archivedList;
     }
 
     return {
-      conversationList: result,
+      conversationList: activeList,
+      messagesConversations: messagesList,
+      requestsConversations: requestsList,
+      archivedConversations: archivedList,
       unreadMessagesCount: mainUnread,
       unreadArchivedCount: archUnread,
-      requestMessages: requestsList
+      requestMessages: requestMessagesArr
     };
-  }, [messages, blockedContacts, acceptedContacts, connections, activeTab, user?.email]);
+  }, [messages, blockedContacts, knownContacts, connections, activeTab, user?.email, user?.username, isMessageUnread]);
 
   const handleSendChatMessage = async (e) => {
     if (e) e.preventDefault();
@@ -1436,17 +1556,17 @@ const Casbox = () => {
     if (!showConnectionsModal) return [];
     const list = [...connections];
 
-    if (conversationList && conversationList.length > 0) {
+    if (messagesConversations && messagesConversations.length > 0) {
       const seen = new Set();
       list.forEach(c => {
-        if (c.contactEmail) seen.add(c.contactEmail.toLowerCase());
-        if (c.contactUsername) seen.add(c.contactUsername.toLowerCase());
+        if (c.contactEmail) seen.add(normalizeEmail(c.contactEmail));
+        if (c.contactUsername) seen.add(normalizeEmail(c.contactUsername));
       });
 
-      conversationList.forEach(chat => {
+      messagesConversations.forEach(chat => {
         const contactEmail = chat.contact;
         if (!contactEmail || contactEmail === user?.email) return;
-        const lower = contactEmail.toLowerCase();
+        const lower = normalizeEmail(contactEmail);
         const local = lower.includes('@') ? lower.split('@')[0] : lower;
 
         if (!seen.has(lower) && !seen.has(local)) {
@@ -1777,8 +1897,12 @@ const Casbox = () => {
 
   const handleAcceptRequest = async (senderEmail) => {
     try {
-      const newAccepted = [...acceptedContacts, senderEmail];
+      const emailLower = normalizeEmail(senderEmail);
+      const newAccepted = Array.from(new Set([...acceptedContacts.map(normalizeEmail), emailLower])).filter(Boolean);
       setAcceptedContacts(newAccepted);
+      try {
+        sessionStorage.setItem('bnx_casbox_accepted', JSON.stringify(newAccepted));
+      } catch (e) {}
       await userAPI.updateSettings({ casboxAccepted: newAccepted });
       toast.success("Request accepted");
       setActiveTab("messages");
@@ -1790,8 +1914,12 @@ const Casbox = () => {
 
   const handleBlockRequest = async (senderEmail) => {
     try {
-      const newBlocked = [...blockedContacts, senderEmail];
+      const emailLower = normalizeEmail(senderEmail);
+      const newBlocked = Array.from(new Set([...blockedContacts.map(normalizeEmail), emailLower])).filter(Boolean);
       setBlockedContacts(newBlocked);
+      try {
+        sessionStorage.setItem('bnx_casbox_blocked', JSON.stringify(newBlocked));
+      } catch (e) {}
       await userAPI.updateSettings({ casboxBlocked: newBlocked });
       toast.success("User blocked");
       setSelectedMessage(null);
@@ -1803,8 +1931,12 @@ const Casbox = () => {
 
   const handleUnblockUser = async (senderEmail) => {
     try {
-      const newBlocked = blockedContacts.filter(email => email !== senderEmail);
+      const emailLower = normalizeEmail(senderEmail);
+      const newBlocked = blockedContacts.filter(email => normalizeEmail(email) !== emailLower);
       setBlockedContacts(newBlocked);
+      try {
+        sessionStorage.setItem('bnx_casbox_blocked', JSON.stringify(newBlocked));
+      } catch (e) {}
       await userAPI.updateSettings({ casboxBlocked: newBlocked });
       toast.success("User unblocked");
     } catch (e) {
@@ -1846,7 +1978,9 @@ const Casbox = () => {
 
   const detailsComponent = selectedMessage ? (() => {
     const otherUserEmail = getOtherUserEmail(selectedMessage);
-    const isContactRequest = !knownContacts.has(otherUserEmail) && !acceptedContacts.includes(otherUserEmail);
+    const otherNorm = normalizeEmail(otherUserEmail);
+    const otherLocal = otherNorm.includes('@') ? otherNorm.split('@')[0] : otherNorm;
+    const isContactRequest = Boolean(otherNorm && !knownContacts.has(otherNorm) && !knownContacts.has(otherLocal));
     const sortedThread = [...threadMessages].sort((a, b) => parseTimestamp(a.timestamp) - parseTimestamp(b.timestamp));
 
     return (
