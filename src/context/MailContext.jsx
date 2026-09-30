@@ -1147,4 +1147,44 @@ export const MailProvider = ({ children }) => {
 };
 
 export default MailProvider;
-export const useMail = () => useContext(MailContext);
+export const useMail = () => {
+    const context = useContext(MailContext);
+    if (!context) {
+        return {
+            emails: [],
+            loading: false,
+            labels: [],
+            unreadCounts: { inbox: 0, spam: 0, trash: 0 },
+            totalEmails: 0,
+            currentPage: 1,
+            fetchEmails: async () => {},
+            fetchEmailsSilently: async () => {},
+            fetchLabelEmails: async () => {},
+            handleToggleStar: async () => {},
+            handleMoveToTrash: async () => {},
+            handleDeletePermanently: async () => {},
+            handleArchive: async () => {},
+            handleUnarchive: async () => {},
+            handleSnooze: async () => {},
+            handleApplyLabel: async () => {},
+            handleRemoveLabel: async () => {},
+            handleCreateLabel: async () => {},
+            handleUpdateLabel: async () => {},
+            handleDeleteLabel: async () => {},
+            handleMarkRead: async () => {},
+            handleMarkUnread: async () => {},
+            handleMarkSpam: async () => {},
+            handleRestoreSpam: async () => {},
+            handleUnsubscribe: async () => {},
+            openCompose: () => {},
+            closeCompose: () => {},
+            isComposeOpen: false,
+            composeData: null,
+            handleEmailSent: () => {},
+            invalidateCache: () => {},
+            handlePageChange: () => {},
+        };
+    }
+    return context;
+};
+

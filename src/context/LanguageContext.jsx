@@ -106,7 +106,12 @@ export const LanguageProvider = ({ children }) => {
 export const useLanguage = () => {
   const ctx = useContext(LanguageContext);
   if (!ctx) {
-    throw new Error('useLanguage must be used within a LanguageProvider');
+    return {
+      currentLanguage: 'en',
+      applyLanguage: async () => {},
+      fetchUserLanguage: async () => {},
+      t: (keyPath, fallback = '') => fallback || keyPath || ''
+    };
   }
   return ctx;
 };
@@ -115,3 +120,4 @@ export const useTranslation = () => {
   const { t, currentLanguage, applyLanguage } = useLanguage();
   return { t, currentLanguage, applyLanguage };
 };
+

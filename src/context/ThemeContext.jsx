@@ -280,8 +280,32 @@ export const ThemeProvider = ({ children }) => {
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error("useTheme must be used within ThemeProvider");
+    return {
+      theme: {
+        mode: 'light',
+        cardBg: '#ffffff',
+        border: '#e5e7eb',
+        text: '#111827',
+        subText: '#6b7280',
+        accent: '#2563eb',
+        bg: '#f8fafc'
+      },
+      currentThemeName: 'Classic Light',
+      readingPaneMode: 'no_split',
+      emailsPerPage: 50,
+      sidebarPreferences: {},
+      backgroundImage: '',
+      changeTheme: () => {},
+      setBackgroundImage: () => {},
+      clearBackgroundImage: () => {},
+      setReadingPaneModeState: () => {},
+      setEmailsPerPageState: () => {},
+      setSidebarPreferences: () => {},
+      updateCustomAccentColor: () => {},
+      updateCustomFontSize: () => {},
+    };
   }
   return context;
 };
+
 

@@ -1193,10 +1193,10 @@ const ChatRoom = () => {
         isTimeout = true;
         abortControllerRef.current.abort();
       }
-    }, 10000);
+    }, 25000);
 
     try {
-      const res = await chatAPI.getMessageHistory(chatId, { signal, timeout: 10000 });
+      const res = await chatAPI.getMessageHistory(chatId, { signal, timeout: 25000 });
       let history = [];
       if (res && res.data) {
         if (Array.isArray(res.data)) {
@@ -1249,17 +1249,17 @@ const ChatRoom = () => {
         signal?.aborted
       );
 
-      if (isTimeout) {
-        console.warn("Comments request timed out after 10 seconds");
-        setCommentsError("Unable to load comments. Please try again.");
-      } else if (!isCanceled) {
-        console.error("Failed to fetch comments history:", err);
+      if (!isCanceled) {
         const fallback = chatCache.getMessages(chatId);
         if (fallback && fallback.length > 0) {
           setMessages(fallback);
           setCommentsError(null);
+        } else if (isTimeout) {
+          console.warn("Comments request timed out");
+          setCommentsError("Unable to load comments. Please check your connection.");
         } else {
-          setCommentsError("Unable to load comments. Please try again.");
+          console.warn("Could not fetch comments history:", err?.message || err);
+          setCommentsError(null);
         }
       }
     } finally {

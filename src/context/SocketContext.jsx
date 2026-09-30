@@ -91,7 +91,7 @@ export const SocketProvider = ({ children }) => {
         };
 
         client.onWebSocketError = (event) => {
-            console.error('WebSocket Error:', event);
+            console.warn('WebSocket connection not available:', event?.message || 'Offline');
             setIsConnected(false);
         };
 
@@ -200,4 +200,16 @@ export const SocketProvider = ({ children }) => {
     );
 };
 
-export const useSocket = () => useContext(SocketContext);
+export const useSocket = () => {
+    const context = useContext(SocketContext);
+    if (!context) {
+        return {
+            stompClient: null,
+            isConnected: false,
+            subscribeToChat: () => null,
+            sendMessage: () => false
+        };
+    }
+    return context;
+};
+
