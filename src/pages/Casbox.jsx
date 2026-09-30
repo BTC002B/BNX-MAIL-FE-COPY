@@ -904,58 +904,28 @@ const Casbox = () => {
 
   // Synchronous derivation of known contacts - never blocks rendering or waits for unrelated operations
   const knownContacts = useMemo(() => {
-    const contacts = new Set();
-
-    // 1. Existing accepted contacts from settings / local state
-    if (acceptedContacts && acceptedContacts.length > 0) {
-      acceptedContacts.forEach(e => {
-        if (e) {
-          const lower = e.toLowerCase();
-          contacts.add(lower);
-          if (lower.includes('@')) {
-            contacts.add(lower.split('@')[0]);
-          }
-        }
-      });
-    }
-
-    // 2. Accepted connections from connectionAPI.getAccepted()
-    if (connections && connections.length > 0) {
-      for (let i = 0; i < connections.length; i++) {
-        const conn = connections[i];
-        const status = conn.status?.toUpperCase();
-        // Disconnected connections are not active accepted contacts
-        if (status !== 'DISCONNECTED') {
-          if (conn.contactEmail) {
-            const emailLower = conn.contactEmail.toLowerCase();
-            contacts.add(emailLower);
-            if (emailLower.includes('@')) {
-              contacts.add(emailLower.split('@')[0]);
-            }
-          }
-          if (conn.contactUsername) {
-            contacts.add(conn.contactUsername.toLowerCase());
-          }
-        }
-      }
-    }
-
-    // 3. Contacts the logged-in user has actively sent a message to
+    const contacts = new Set(acceptedContacts.map(e => e.toLowerCase()));
     if (messages && messages.length > 0 && user?.email) {
       const uEmail = user.email.toLowerCase();
       for (let i = 0; i < messages.length; i++) {
         const msg = messages[i];
         const s = msg.senderEmail?.toLowerCase();
         const r = msg.receiverEmail?.toLowerCase();
-        if (s === uEmail && r) {
-          contacts.add(r);
-          if (r.includes('@')) {
-            contacts.add(r.split('@')[0]);
-          }
+        if (s === uEmail && r) contacts.add(r);
+        if (msg.customName || msg.contactUserId || msg.contactDisplayName) {
+          if (s && s !== uEmail) contacts.add(s);
+          if (r && r !== uEmail) contacts.add(r);
         }
       }
     }
-
+    if (connections && connections.length > 0) {
+      for (let i = 0; i < connections.length; i++) {
+        const conn = connections[i];
+        if (conn.status?.toUpperCase() === 'CONNECTED' && conn.contactEmail) {
+          contacts.add(conn.contactEmail.toLowerCase());
+        }
+      }
+    }
     return contacts;
   }, [messages, connections, acceptedContacts, user?.email]);
 
@@ -1298,16 +1268,8 @@ const Casbox = () => {
     }
 
     const userEmail = user?.email?.toLowerCase();
-    const blockedSet = new Set();
-    if (blockedContacts && blockedContacts.length > 0) {
-      blockedContacts.forEach(e => {
-        if (e) {
-          const lower = e.toLowerCase();
-          blockedSet.add(lower);
-          if (lower.includes('@')) blockedSet.add(lower.split('@')[0]);
-        }
-      });
-    }
+    const blockedSet = new Set(blockedContacts.map(e => e.toLowerCase()));
+    const acceptedSet = new Set(acceptedContacts.map(e => e.toLowerCase()));
 
     // Disconnected contacts set
     const disconnectedSet = new Set();
@@ -1322,6 +1284,30 @@ const Casbox = () => {
       }
     }
 
+    // Immediately identify all established contacts from messages and accepted/connected contacts
+    const knownContactsSet = new Set(acceptedSet);
+    if (connections && connections.length > 0) {
+      for (let i = 0; i < connections.length; i++) {
+        const c = connections[i];
+        if (c.status?.toUpperCase() === 'CONNECTED' && c.contactEmail) {
+          knownContactsSet.add(c.contactEmail.toLowerCase());
+        }
+      }
+    }
+
+    for (let i = 0; i < messages.length; i++) {
+      const m = messages[i];
+      const sender = m.senderEmail?.toLowerCase();
+      const receiver = m.receiverEmail?.toLowerCase();
+      if (sender === userEmail && receiver) {
+        knownContactsSet.add(receiver);
+      }
+      if (m.customName || m.contactUserId || m.contactDisplayName) {
+        if (sender && sender !== userEmail) knownContactsSet.add(sender);
+        if (receiver && receiver !== userEmail) knownContactsSet.add(receiver);
+      }
+    }
+
     const groups = new Map();
     const requestsList = [];
     let mainUnread = 0;
@@ -1332,7 +1318,7 @@ const Casbox = () => {
       const sender = msg.senderEmail?.toLowerCase();
       const receiver = msg.receiverEmail?.toLowerCase();
 
-      if (sender && (blockedSet.has(sender) || (sender.includes('@') && blockedSet.has(sender.split('@')[0])))) continue;
+      if (sender && blockedSet.has(sender)) continue;
 
       const contact = sender === userEmail ? msg.receiverEmail : msg.senderEmail;
       if (!contact) continue;
@@ -1342,7 +1328,7 @@ const Casbox = () => {
       if (disconnectedSet.has(contactLower) || disconnectedSet.has(contactLocal)) continue;
 
       const isArchived = Boolean(msg.isArchived || msg.archived);
-      const isKnown = sender === userEmail || knownContacts.has(contactLower) || knownContacts.has(contactLocal);
+      const isKnown = sender === userEmail || knownContactsSet.has(contactLower) || knownContactsSet.has(contactLocal);
       const isRequest = !isArchived && !isKnown && (receiver === userEmail);
 
       const unread = !isArchived && receiver === userEmail && msg.isRead !== true && msg.read !== true && msg.status?.toUpperCase() !== 'SEEN';
@@ -1398,7 +1384,7 @@ const Casbox = () => {
       unreadArchivedCount: archUnread,
       requestMessages: requestsList
     };
-  }, [messages, blockedContacts, knownContacts, connections, activeTab, user?.email]);
+  }, [messages, blockedContacts, acceptedContacts, connections, activeTab, user?.email]);
 
   const handleSendChatMessage = async (e) => {
     if (e) e.preventDefault();
@@ -1462,9 +1448,6 @@ const Casbox = () => {
         if (!contactEmail || contactEmail === user?.email) return;
         const lower = contactEmail.toLowerCase();
         const local = lower.includes('@') ? lower.split('@')[0] : lower;
-
-        // Never include unaccepted request contacts in the connections modal
-        if (!knownContacts.has(lower) && !knownContacts.has(local)) return;
 
         if (!seen.has(lower) && !seen.has(local)) {
           seen.add(lower);
@@ -1794,12 +1777,8 @@ const Casbox = () => {
 
   const handleAcceptRequest = async (senderEmail) => {
     try {
-      const emailLower = senderEmail.toLowerCase();
-      const newAccepted = Array.from(new Set([...acceptedContacts.map(e => (e ? e.toLowerCase() : '')), emailLower])).filter(Boolean);
+      const newAccepted = [...acceptedContacts, senderEmail];
       setAcceptedContacts(newAccepted);
-      try {
-        sessionStorage.setItem('bnx_casbox_accepted', JSON.stringify(newAccepted));
-      } catch (e) {}
       await userAPI.updateSettings({ casboxAccepted: newAccepted });
       toast.success("Request accepted");
       setActiveTab("messages");
@@ -1811,12 +1790,8 @@ const Casbox = () => {
 
   const handleBlockRequest = async (senderEmail) => {
     try {
-      const emailLower = senderEmail.toLowerCase();
-      const newBlocked = Array.from(new Set([...blockedContacts.map(e => (e ? e.toLowerCase() : '')), emailLower])).filter(Boolean);
+      const newBlocked = [...blockedContacts, senderEmail];
       setBlockedContacts(newBlocked);
-      try {
-        sessionStorage.setItem('bnx_casbox_blocked', JSON.stringify(newBlocked));
-      } catch (e) {}
       await userAPI.updateSettings({ casboxBlocked: newBlocked });
       toast.success("User blocked");
       setSelectedMessage(null);
@@ -1828,12 +1803,8 @@ const Casbox = () => {
 
   const handleUnblockUser = async (senderEmail) => {
     try {
-      const emailLower = senderEmail.toLowerCase();
-      const newBlocked = blockedContacts.filter(email => (email ? email.toLowerCase() : '') !== emailLower);
+      const newBlocked = blockedContacts.filter(email => email !== senderEmail);
       setBlockedContacts(newBlocked);
-      try {
-        sessionStorage.setItem('bnx_casbox_blocked', JSON.stringify(newBlocked));
-      } catch (e) {}
       await userAPI.updateSettings({ casboxBlocked: newBlocked });
       toast.success("User unblocked");
     } catch (e) {
@@ -1875,9 +1846,7 @@ const Casbox = () => {
 
   const detailsComponent = selectedMessage ? (() => {
     const otherUserEmail = getOtherUserEmail(selectedMessage);
-    const otherLower = otherUserEmail?.toLowerCase();
-    const otherLocal = otherLower?.includes('@') ? otherLower.split('@')[0] : otherLower;
-    const isContactRequest = Boolean(otherLower && !knownContacts.has(otherLower) && !knownContacts.has(otherLocal));
+    const isContactRequest = !knownContacts.has(otherUserEmail) && !acceptedContacts.includes(otherUserEmail);
     const sortedThread = [...threadMessages].sort((a, b) => parseTimestamp(a.timestamp) - parseTimestamp(b.timestamp));
 
     return (
