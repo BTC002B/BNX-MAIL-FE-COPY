@@ -72,20 +72,22 @@ rehydrateFromStorage();
 export const chatCache = {
   // Deduplicate inflight requests to prevent redundant simultaneous network calls
   dedupe(key, fetcher) {
+    if (!key) return typeof fetcher === 'function' ? fetcher() : Promise.resolve(fetcher);
     if (memoryCache.inFlight.has(key)) {
       return memoryCache.inFlight.get(key);
     }
-    const promise = fetcher()
-      .then(res => {
-        memoryCache.inFlight.delete(key);
-        return res;
-      })
-      .catch(err => {
-        memoryCache.inFlight.delete(key);
-        throw err;
-      });
-    memoryCache.inFlight.set(key, promise);
-    return promise;
+    try {
+      const result = fetcher();
+      const promise = Promise.resolve(result)
+        .finally(() => {
+          memoryCache.inFlight.delete(key);
+        });
+      memoryCache.inFlight.set(key, promise);
+      return promise;
+    } catch (err) {
+      memoryCache.inFlight.delete(key);
+      return Promise.reject(err);
+    }
   },
 
   // User Chats (Colab list)
@@ -251,7 +253,7 @@ export const chatCache = {
     // If already in memory and fresh, skip
     const existingMsgs = memoryCache.messages.get(idStr);
     if (!existingMsgs || Date.now() - existingMsgs.timestamp > CACHE_TTL_MS) {
-      this.dedupe(`msg_${idStr}`, () => chatAPI.getMessageHistory(chatId))
+      chatAPI.getMessageHistory(chatId)
         .then(res => {
           if (res?.data) {
             const list = Array.isArray(res.data) ? res.data : (res.data.data || []);

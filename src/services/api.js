@@ -356,6 +356,7 @@ export const chatAPI = {
         });
     },
     getMessageHistory: (chatId, config = {}) => {
+        if (!chatId) return Promise.resolve({ data: [] });
         const timeout = config.timeout || 10000;
         return chatCache.dedupe(`msg_${chatId}`, () =>
             api.get(API_ENDPOINTS.CHAT.MESSAGES.replace(':chatId', chatId), { timeout, ...config })

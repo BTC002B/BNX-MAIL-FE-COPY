@@ -1162,7 +1162,10 @@ const ChatRoom = () => {
   const isFetchingHistoryRef = useRef(false);
 
   const fetchHistory = useCallback(async (customSignal = null) => {
-    if (!chatId) return;
+    if (!chatId) {
+      setLoadingComments(false);
+      return;
+    }
     if (isFetchingHistoryRef.current) return;
     isFetchingHistoryRef.current = true;
 
@@ -1181,8 +1184,10 @@ const ChatRoom = () => {
     }
     setCommentsError(null);
 
+    let isTimeout = false;
     const timeoutId = setTimeout(() => {
       if (isFetchingHistoryRef.current && abortControllerRef.current && !signal?.aborted) {
+        isTimeout = true;
         abortControllerRef.current.abort();
       }
     }, 10000);
@@ -1222,16 +1227,18 @@ const ChatRoom = () => {
         signal?.aborted
       );
 
-      if (!isCanceled) {
-        console.error("Failed to fetch comments history:", err);
-      }
-
-      const fallback = chatCache.getMessages(chatId);
-      if (fallback && fallback.length > 0) {
-        setMessages(fallback);
-        setCommentsError(null);
-      } else {
+      if (isTimeout) {
+        console.warn("Comments request timed out after 10 seconds");
         setCommentsError("Unable to load comments. Please try again.");
+      } else if (!isCanceled) {
+        console.error("Failed to fetch comments history:", err);
+        const fallback = chatCache.getMessages(chatId);
+        if (fallback && fallback.length > 0) {
+          setMessages(fallback);
+          setCommentsError(null);
+        } else {
+          setCommentsError("Unable to load comments. Please try again.");
+        }
       }
     } finally {
       clearTimeout(timeoutId);
@@ -1244,7 +1251,7 @@ const ChatRoom = () => {
   const fetchChatMembers = async (signal) => {
     if (!chatId) return;
     try {
-      const res = await chatCache.dedupe(`mbrs_${chatId}`, () => chatAPI.getMembers(chatId, { signal }));
+      const res = await chatAPI.getMembers(chatId, { signal });
       if (res && res.data) {
         setMembersList(res.data);
         chatCache.setMembers(chatId, res.data);
@@ -1264,7 +1271,7 @@ const ChatRoom = () => {
       setLoadingBroadcasts(true);
     }
     try {
-      const res = await chatCache.dedupe(`bcast_${chatId}`, () => chatAPI.getBroadcasts(chatId, { signal }));
+      const res = await chatAPI.getBroadcasts(chatId, { signal });
       if (res && res.data) {
         const list = res.data || [];
         setBroadcasts(list);
