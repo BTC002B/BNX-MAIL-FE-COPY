@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import logo from "../assets/bnx-remove.png";
-import { MdEmail, MdPhone, MdArrowBack, MdLock, MdCheckCircle } from 'react-icons/md';
+import { MdEmail, MdPhone, MdArrowBack, MdLock, MdCheckCircle, MdVisibility, MdVisibilityOff } from 'react-icons/md';
 
 const ForgotPassword = () => {
     const navigate = useNavigate();
@@ -13,6 +13,8 @@ const ForgotPassword = () => {
     const [options, setOptions] = useState(null);
     const [selectedMethod, setSelectedMethod] = useState('');
     const [otp, setOtp] = useState('');
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [passwords, setPasswords] = useState({
         newPassword: '',
         confirmPassword: ''
@@ -236,27 +238,49 @@ const ForgotPassword = () => {
                                 <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                                     New Password
                                 </label>
-                                <input
-                                    type="password"
-                                    value={passwords.newPassword}
-                                    onChange={(e) => setPasswords({...passwords, newPassword: e.target.value})}
-                                    className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white transition-all"
-                                    placeholder="••••••••"
-                                    required
-                                />
+                                <div className="relative flex items-center">
+                                    <input
+                                        type={showNewPassword ? "text" : "password"}
+                                        value={passwords.newPassword}
+                                        onChange={(e) => setPasswords({...passwords, newPassword: e.target.value})}
+                                        className="w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white transition-all"
+                                        placeholder="••••••••"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowNewPassword(!showNewPassword)}
+                                        className="absolute right-3 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer rounded-lg focus:outline-none"
+                                        title={showNewPassword ? "Hide password" : "Show password"}
+                                        aria-label={showNewPassword ? "Hide password" : "Show password"}
+                                    >
+                                        {showNewPassword ? <MdVisibilityOff size={20} /> : <MdVisibility size={20} />}
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                                     Confirm Password
                                 </label>
-                                <input
-                                    type="password"
-                                    value={passwords.confirmPassword}
-                                    onChange={(e) => setPasswords({...passwords, confirmPassword: e.target.value})}
-                                    className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white transition-all"
-                                    placeholder="••••••••"
-                                    required
-                                />
+                                <div className="relative flex items-center">
+                                    <input
+                                        type={showConfirmPassword ? "text" : "password"}
+                                        value={passwords.confirmPassword}
+                                        onChange={(e) => setPasswords({...passwords, confirmPassword: e.target.value})}
+                                        className="w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white transition-all"
+                                        placeholder="••••••••"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute right-3 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer rounded-lg focus:outline-none"
+                                        title={showConfirmPassword ? "Hide password" : "Show password"}
+                                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                                    >
+                                        {showConfirmPassword ? <MdVisibilityOff size={20} /> : <MdVisibility size={20} />}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <button

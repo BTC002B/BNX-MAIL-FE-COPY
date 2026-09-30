@@ -2,13 +2,18 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSignup } from '../../context/SignupContext';
 import { authAPI, emailAPI } from '../../services/api';
+import { MdVisibility, MdVisibilityOff } from 'react-icons/md';
 import toast from 'react-hot-toast';
+
 
 const SignupPasswordSetup = () => {
     const navigate = useNavigate();
     const { formData, updateFormData } = useSignup();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -103,26 +108,48 @@ const SignupPasswordSetup = () => {
                     <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1">
                         Password
                     </label>
-                    <input
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => updateFormData({ password: e.target.value })}
-                        required
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
-                    />
+                    <div className="relative flex items-center">
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            value={formData.password}
+                            onChange={(e) => updateFormData({ password: e.target.value })}
+                            required
+                            className="w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer rounded-lg focus:outline-none"
+                            title={showPassword ? "Hide password" : "Show password"}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                            {showPassword ? <MdVisibilityOff size={20} /> : <MdVisibility size={20} />}
+                        </button>
+                    </div>
                 </div>
                 
                 <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1">
                         Confirm Password
                     </label>
-                    <input
-                        type="password"
-                        value={formData.confirmPassword}
-                        onChange={(e) => updateFormData({ confirmPassword: e.target.value })}
-                        required
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
-                    />
+                    <div className="relative flex items-center">
+                        <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            value={formData.confirmPassword}
+                            onChange={(e) => updateFormData({ confirmPassword: e.target.value })}
+                            required
+                            className="w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer rounded-lg focus:outline-none"
+                            title={showConfirmPassword ? "Hide password" : "Show password"}
+                            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                        >
+                            {showConfirmPassword ? <MdVisibilityOff size={20} /> : <MdVisibility size={20} />}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="pt-4 flex justify-between">
