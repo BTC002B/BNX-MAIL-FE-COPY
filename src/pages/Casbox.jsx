@@ -1513,6 +1513,9 @@ const Casbox = () => {
       grp.latestMessage = grp.messages[0];
       grp.latestTimestamp = getTimestampMs(grp.latestMessage.timestamp);
 
+      const unreadCount = grp.messages.filter(isMessageUnread).length;
+      grp.unreadCount = unreadCount;
+
       const classification = classifyCashboxConversation(grp, userEmail, acceptedContacts);
 
       if (classification === 'ARCHIVE') {
