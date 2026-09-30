@@ -11,11 +11,17 @@ const SignupMobileVerify = () => {
     const { formData, updateFormData } = useSignup();
     const [step, setStep] = useState('MOBILE'); // MOBILE or OTP
     const [loading, setLoading] = useState(false);
+    const [resending, setResending] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSendOtp = async (e) => {
-        e.preventDefault();
-        if (!formData.mobileNumber) {
-            toast.error('Mobile number is required');
+        if (e) e.preventDefault();
+        setError('');
+
+        if (!formData.mobileNumber || formData.mobileNumber.trim() === '+') {
+            const err = 'Mobile number is required';
+            setError(err);
+            toast.error(err);
             return;
         }
 
@@ -25,23 +31,62 @@ const SignupMobileVerify = () => {
             
             // Handle if backend returns 200 OK but success is false
             if (response.data && response.data.success === false) {
-                toast.error(response.data.message || 'Failed to send OTP');
+                const errMsg = response.data.message || 'Failed to send OTP';
+                setError(errMsg);
+                toast.error(errMsg);
                 return;
             }
 
             toast.success('OTP sent to your mobile number');
+            setError('');
             setStep('OTP');
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to send OTP');
+            const errMsg = err.response?.data?.message || 'Failed to send OTP';
+            setError(errMsg);
+            toast.error(errMsg);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleResendOtp = async () => {
+        setError('');
+        setResending(true);
+        try {
+            const response = await authAPI.sendMobileOtp({ mobile: formData.mobileNumber });
+            if (response.data && response.data.success === false) {
+                const errMsg = response.data.message || 'Failed to resend OTP';
+                setError(errMsg);
+                toast.error(errMsg);
+                return;
+            }
+            toast.success('A new OTP has been sent to your mobile number');
+        } catch (err) {
+            const errMsg = err.response?.data?.message || 'Failed to resend OTP';
+            setError(errMsg);
+            toast.error(errMsg);
+        } finally {
+            setResending(false);
+        }
+    };
+
     const handleVerifyOtp = async (e) => {
         e.preventDefault();
-        if (!formData.mobileOtp) {
-            toast.error('Please enter the OTP');
+        setError('');
+
+        const otp = (formData.mobileOtp || '').trim();
+
+        if (!otp) {
+            const msg = 'Please enter the 6-digit OTP.';
+            setError(msg);
+            toast.error(msg);
+            return;
+        }
+
+        if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+            const msg = 'Invalid OTP. Please enter the correct OTP.';
+            setError(msg);
+            toast.error(msg);
             return;
         }
 
@@ -49,12 +94,14 @@ const SignupMobileVerify = () => {
         try {
             const response = await authAPI.verifyMobileOtp({
                 mobile: formData.mobileNumber,
-                otp: formData.mobileOtp
+                otp: otp
             });
 
             // Handle if backend returns 200 OK but success is false
             if (response.data && response.data.success === false) {
-                toast.error(response.data.message || 'Invalid OTP');
+                const msg = 'Invalid OTP. Please enter the correct OTP.';
+                setError(msg);
+                toast.error(msg);
                 return;
             }
             
@@ -66,13 +113,26 @@ const SignupMobileVerify = () => {
             toast.success('Mobile number verified successfully');
             navigate('/signup/password-setup');
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Invalid OTP');
+            const serverMsg = err.response?.data?.message || '';
+            const msg = (
+                serverMsg.toLowerCase().includes('invalid') || 
+                serverMsg.toLowerCase().includes('incorrect') || 
+                serverMsg.toLowerCase().includes('wrong') || 
+                serverMsg.toLowerCase().includes('mismatch') || 
+                serverMsg.toLowerCase().includes('expired') || 
+                !serverMsg
+            )
+                ? 'Invalid OTP. Please enter the correct OTP.'
+                : serverMsg;
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
     };
 
     const handleBack = () => {
+        setError('');
         if (step === 'OTP') {
             setStep('MOBILE');
             return;
@@ -92,6 +152,19 @@ const SignupMobileVerify = () => {
                 </p>
             </div>
 
+            {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm font-medium animate-fadeIn flex items-center justify-between">
+                    <span>{error}</span>
+                    <button 
+                        type="button" 
+                        onClick={() => setError('')} 
+                        className="text-red-400 hover:text-red-600 dark:hover:text-red-200 ml-2 font-bold"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
+
             {step === 'MOBILE' ? (
                 <form onSubmit={handleSendOtp} className="space-y-4">
                     <div>
@@ -101,7 +174,10 @@ const SignupMobileVerify = () => {
                         <PhoneInput
                             country={'us'}
                             value={formData.mobileNumber}
-                            onChange={(phone) => updateFormData({ mobileNumber: '+' + phone })}
+                            onChange={(phone) => {
+                                setError('');
+                                updateFormData({ mobileNumber: '+' + phone });
+                            }}
                             enableSearch={true}
                             containerClass="!w-full"
                             inputClass="!w-full !px-4 !py-3 !pl-[50px] !bg-gray-50 dark:!bg-slate-700 !border !border-gray-200 dark:!border-slate-600 !rounded-xl focus:!ring-2 focus:!ring-indigo-500 !outline-none dark:!text-white !h-[50px] !text-base"
@@ -136,15 +212,42 @@ const SignupMobileVerify = () => {
                         </label>
                         <input
                             type="text"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            maxLength={6}
                             value={formData.mobileOtp || ''}
-                            onChange={(e) => updateFormData({ mobileOtp: e.target.value })}
+                            onChange={(e) => {
+                                const cleanDigits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                setError('');
+                                updateFormData({ mobileOtp: cleanDigits });
+                            }}
                             required
                             placeholder="123456"
-                            className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white text-center tracking-widest text-lg font-mono"
+                            className={`w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border ${error ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 dark:border-slate-600 focus:ring-indigo-500'} rounded-xl focus:ring-2 outline-none dark:text-white text-center tracking-widest text-lg font-mono transition-all`}
                         />
-                        <p className="text-xs text-gray-500 mt-2 text-center">
-                            Code sent to {formData.mobileNumber}. <button type="button" onClick={() => setStep('MOBILE')} className="text-indigo-600 hover:underline">Change number</button>
-                        </p>
+                        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400 mt-2 px-1">
+                            <span>
+                                Code sent to <span className="font-semibold text-gray-700 dark:text-gray-300">{formData.mobileNumber}</span>.
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    type="button" 
+                                    disabled={resending}
+                                    onClick={handleResendOtp} 
+                                    className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium disabled:opacity-50"
+                                >
+                                    {resending ? 'Resending...' : 'Resend OTP'}
+                                </button>
+                                <span>•</span>
+                                <button 
+                                    type="button" 
+                                    onClick={() => { setError(''); setStep('MOBILE'); }} 
+                                    className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
+                                >
+                                    Change number
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="pt-4 flex justify-between">
@@ -157,7 +260,7 @@ const SignupMobileVerify = () => {
                         </button>
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || (formData.mobileOtp || '').length !== 6}
                             className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 disabled:opacity-50"
                         >
                             {loading ? 'Verifying...' : 'Verify OTP'}
