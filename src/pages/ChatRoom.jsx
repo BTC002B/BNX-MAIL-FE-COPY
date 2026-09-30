@@ -562,7 +562,7 @@ const ChatRoom = () => {
   });
   const [messages, setMessages] = useState(() => {
     const cached = chatCache.getMessages(chatId);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
+    if (cached && Array.isArray(cached)) {
       cached.forEach(m => {
         if (m && m.id) processedMessageIdsRef.current.add(String(m.id));
       });
@@ -1105,7 +1105,7 @@ const ChatRoom = () => {
 
     // Clear stale messages and comments error when changing chat
     const cached = chatCache.getMessages(chatId);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
+    if (cached && Array.isArray(cached)) {
       setMessages(cached);
       setLoadingComments(false);
       cached.forEach(m => {
@@ -1373,7 +1373,7 @@ const ChatRoom = () => {
       fetchChatDetails(signal);
       fetchChatMembers(signal);
       fetchBroadcasts(signal);
-    }, 40);
+    }, 100);
 
     return () => clearTimeout(timer);
   }, [chatId]);
