@@ -40,18 +40,27 @@ export const classifyCashboxConversation = (item, currentUserEmail, casboxAccept
   if (isArchived) return 'ARCHIVE';
 
   const userNorm = normalizeEmail(currentUserEmail);
+  const userLocal = userNorm.includes('@') ? userNorm.split('@')[0] : userNorm;
+
+  const isUser = (emailOrUser) => {
+    if (!emailOrUser) return false;
+    const norm = normalizeEmail(emailOrUser);
+    const local = norm.includes('@') ? norm.split('@')[0] : norm;
+    return norm === userNorm || local === userLocal;
+  };
+
   const msgs = Array.isArray(item?.messages) ? item.messages : (item ? [item] : []);
 
-  const hasOutgoing = msgs.some(m => normalizeEmail(m?.senderEmail || m?.sender) === userNorm);
-  const hasIncoming = msgs.some(m => normalizeEmail(m?.receiverEmail || m?.receiver) === userNorm);
+  const hasOutgoing = msgs.some(m => isUser(m?.senderEmail || m?.sender));
+  const hasIncoming = msgs.some(m => isUser(m?.receiverEmail || m?.receiver));
 
   let senderEmail = "";
   if (msgs.length > 0) {
-    const incoming = msgs.find(m => normalizeEmail(m?.receiverEmail || m?.receiver) === userNorm);
+    const incoming = msgs.find(m => isUser(m?.receiverEmail || m?.receiver));
     if (incoming) {
       senderEmail = normalizeEmail(incoming.senderEmail || incoming.sender);
     } else {
-      const outgoing = msgs.find(m => normalizeEmail(m?.senderEmail || m?.sender) === userNorm);
+      const outgoing = msgs.find(m => isUser(m?.senderEmail || m?.sender));
       senderEmail = outgoing ? normalizeEmail(outgoing.receiverEmail || outgoing.receiver) : "";
     }
   }
@@ -61,22 +70,21 @@ export const classifyCashboxConversation = (item, currentUserEmail, casboxAccept
 
   const accepted = isCashboxSenderAccepted(senderEmail, casboxAcceptedList);
 
-  let result = 'MESSAGES';
-  if (accepted) {
-    result = 'MESSAGES';
-  } else if (hasIncoming && !hasOutgoing) {
-    result = 'REQUESTS';
-  } else if (!hasOutgoing && !accepted) {
-    result = 'REQUESTS';
-  } else {
-    // Preserve outgoing-message behavior (user initiated chat to contact)
-    result = 'MESSAGES';
+  // Strict rule:
+  // For any INCOMING conversation:
+  // accepted === true  -> MESSAGES
+  // accepted === false -> REQUESTS
+  // For purely outgoing conversation:
+  // preserve existing outgoing behavior -> MESSAGES
+  if (hasIncoming) {
+    return accepted ? 'MESSAGES' : 'REQUESTS';
   }
 
-  // Critical development debug log as requested
-  console.log(`[Cashbox Request Debug]\nsender: ${senderEmail}\naccepted: ${accepted}\nresult: ${result}`);
+  if (hasOutgoing) {
+    return 'MESSAGES';
+  }
 
-  return result;
+  return accepted ? 'MESSAGES' : 'REQUESTS';
 };
 
 const getMimeType = (fileName) => {
@@ -518,9 +526,6 @@ const Casbox = () => {
         try {
           const newMsg = JSON.parse(message.body);
           if (newMsg && newMsg.id) {
-            // Classify incoming WebSocket message using unified classification function
-            classifyCashboxConversation(newMsg, user?.email, acceptedContactsRef.current);
-
             setMessages(prev => {
               if (prev.some(m => m.id === newMsg.id)) return prev;
               return [newMsg, ...prev];
