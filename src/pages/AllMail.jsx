@@ -11,6 +11,7 @@ import BulkActionsToolbar from "../components/BulkActionsToolbar";
 import ReadingPaneLayout from "../components/ReadingPaneLayout";
 
 const AllMail = ({ searchQuery }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { labelId } = useParams();
   const { theme, readingPaneMode } = useTheme();
@@ -22,7 +23,6 @@ const AllMail = ({ searchQuery }) => {
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const handleToggleSelect = (uid) => {
-  const { t } = useTranslation();
     const strUid = String(uid);
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -320,6 +320,7 @@ const handleReply = (email) => {
                     if (val) { setShowFrom(false); setShowTo(false); setShowMore(false); }
                   }}
                   active={!!filterDate}
+                  align="right"
                 >
                   <div className="flex flex-col gap-2.5">
                     <div className="font-semibold text-gray-700 dark:text-gray-300 mb-1">Filter by date</div>
@@ -337,7 +338,7 @@ const handleReply = (email) => {
                                 setFilterDate(opt);
                               }
                             }}
-                            className="text-blue-600 focus:ring-blue-500"
+                            className="text-blue-600 focus:ring-blue-500 cursor-pointer"
                           />
                           <span>{opt}</span>
                         </label>
@@ -391,6 +392,7 @@ const handleReply = (email) => {
                     if (val) { setShowFrom(false); setShowTo(false); setShowTime(false); }
                   }}
                   active={filterHasAttachment !== null || filterReadStatus !== "all" || filterStarred !== null}
+                  align="right"
                 >
                   <div className="flex flex-col gap-3">
                     <div className="font-semibold text-gray-700 dark:text-gray-300">More filters</div>
@@ -401,9 +403,9 @@ const handleReply = (email) => {
                         type="checkbox"
                         checked={filterStarred === true}
                         onChange={(e) => setFilterStarred(e.target.checked ? true : null)}
-                        className="rounded border-gray-350 dark:border-gray-750 text-blue-600 focus:ring-blue-500 w-4 h-4 bg-transparent"
+                        className="rounded border-gray-350 dark:border-gray-750 text-blue-600 focus:ring-blue-500 w-4 h-4 bg-transparent cursor-pointer"
                       />
-                      <span>Starred messages only</span>
+                      <span className="whitespace-nowrap">Starred messages only</span>
                     </label>
 
                     {/* Attachments status */}
@@ -412,9 +414,9 @@ const handleReply = (email) => {
                         type="checkbox"
                         checked={filterHasAttachment === true}
                         onChange={(e) => setFilterHasAttachment(e.target.checked ? true : null)}
-                        className="rounded border-gray-350 dark:border-gray-755 text-blue-600 focus:ring-blue-500 w-4 h-4 bg-transparent"
+                        className="rounded border-gray-350 dark:border-gray-755 text-blue-600 focus:ring-blue-500 w-4 h-4 bg-transparent cursor-pointer"
                       />
-                      <span>Has attachment</span>
+                      <span className="whitespace-nowrap">Has attachment</span>
                     </label>
 
                     {/* Read/Unread Status */}
@@ -423,7 +425,7 @@ const handleReply = (email) => {
                       <select
                         value={filterReadStatus}
                         onChange={(e) => setFilterReadStatus(e.target.value)}
-                        className="w-full px-2 py-1.5 border border-gray-250 dark:border-gray-750 rounded-lg text-xs bg-white dark:bg-gray-850 text-gray-850 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-2 py-1.5 border border-gray-250 dark:border-gray-750 rounded-lg text-xs bg-white dark:bg-gray-850 text-gray-850 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
                       >
                         <option value="all">All Messages</option>
                         <option value="unread">Unread only</option>
@@ -486,27 +488,44 @@ const handleReply = (email) => {
 };
 
 /* ---------------- FILTER BUTTON ---------------- */
-const FilterButton = ({ label, open, setOpen, children, active = false }) => (
-  <div className="relative">
-    <button
-      onClick={() => setOpen(!open)}
-      className={`px-3 py-1 border rounded-full text-sm font-medium transition-colors cursor-pointer select-none flex items-center gap-1
-        ${active 
-          ? "border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400" 
-          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-750"
-        }
-      `}
-    >
-      <span>{label}</span>
-      <span className="text-[10px]">▼</span>
-    </button>
+const FilterButton = ({ label, open, setOpen, children, active = false, align = "left" }) => {
+  const containerRef = React.useRef(null);
 
-    {open && (
-      <div className="absolute mt-2 w-64 bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-4 z-40 text-sm border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in duration-150 origin-top-left left-0">
-        {children}
-      </div>
-    )}
-  </div>
-);
+  React.useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open, setOpen]);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`px-3 py-1 border rounded-full text-sm font-medium transition-colors cursor-pointer select-none flex items-center gap-1
+          ${active 
+            ? "border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400" 
+            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-750"
+          }
+        `}
+      >
+        <span>{label}</span>
+        <span className="text-[10px]">▼</span>
+      </button>
+
+      {open && (
+        <div className={`absolute mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-4 z-50 text-sm border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in duration-150 ${
+          align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"
+        }`}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default AllMail;
