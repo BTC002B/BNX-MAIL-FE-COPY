@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSignup } from '../../context/SignupContext';
 import { authAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const SignupMail = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { formData, updateFormData } = useSignup();
     const [suggestions, setSuggestions] = useState([]);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-    const [error, setError] = useState('');
+    const [error, setError] = useState(location.state?.usernameError || '');
 
     const domainSuffix = '@bnxmail.com';
 
@@ -42,27 +43,36 @@ const SignupMail = () => {
         e.preventDefault();
         setError('');
 
-        if (!formData.username || formData.username.trim() === '') {
+        const username = (formData.username || '').trim();
+
+        if (!username) {
             setError('Please choose a valid email address');
             return;
         }
 
-        if (formData.accountType === 'PERSONAL' || formData.accountType === 'CHILD') {
-            const username = formData.username.trim();
+        if (formData.accountType === 'BUSINESS') {
+            if (username.length < 10) {
+                setError('Business username must be at least 10 characters long');
+                return;
+            }
+            if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+                setError('Username can only contain letters, numbers, dots, and hyphens');
+                return;
+            }
+        } else {
             const letters = username.replace(/[^a-zA-Z]/g, '').length;
             const digits = username.replace(/[^0-9]/g, '').length;
-                  console.log({
-          username,
-          letters,
-          digits,
-          length: username.length
-      });
+
             if (username.length < 10) {
                 setError('Email handle must be at least 10 characters long');
                 return;
             }
             if (letters < 7 || digits < 3) {
                 setError('Email handle must contain at least 7 letters and 3 numbers');
+                return;
+            }
+            if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+                setError('Username can only contain letters, numbers, dots, and hyphens');
                 return;
             }
         }
@@ -72,6 +82,7 @@ const SignupMail = () => {
     };
 
     const selectSuggestion = (sugg) => {
+        setError('');
         updateFormData({ username: sugg });
     };
 
@@ -91,12 +102,6 @@ const SignupMail = () => {
                     Pick a suggested handle or create your own.
                 </p>
             </div>
-
-            {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl">
-                    {error}
-                </div>
-            )}
 
             {loadingSuggestions && (
                 <div className="text-center text-sm text-indigo-500 font-medium">Generating suggestions...</div>
@@ -122,11 +127,14 @@ const SignupMail = () => {
                     <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1">
                         Create a custom handle
                     </label>
-                    <div className="flex items-center bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
+                    <div className={`flex items-center bg-gray-50 dark:bg-slate-700 border ${error ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-200 dark:border-slate-600 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500'} rounded-xl overflow-hidden transition-all`}>
                         <input
                             type="text"
                             value={formData.username || ''}
-                            onChange={(e) => updateFormData({ username: e.target.value })}
+                            onChange={(e) => {
+                                setError('');
+                                updateFormData({ username: e.target.value });
+                            }}
                             placeholder="e.g. johndoe123"
                             required
                             className="flex-1 px-4 py-3 bg-transparent outline-none dark:text-white"
@@ -135,6 +143,11 @@ const SignupMail = () => {
                             {domainSuffix}
                         </span>
                     </div>
+                    {error && (
+                        <p className="text-red-600 dark:text-red-400 text-xs font-medium mt-1.5 flex items-center gap-1">
+                            {error}
+                        </p>
+                    )}
                 </div>
 
                 <div className="pt-4 flex justify-between">

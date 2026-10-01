@@ -10,21 +10,29 @@ const SignupPasswordSetup = () => {
     const navigate = useNavigate();
     const { formData, updateFormData } = useSignup();
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({
+        password: '',
+        confirmPassword: '',
+        general: ''
+    });
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
+        setFieldErrors({ password: '', confirmPassword: '', general: '' });
 
-        if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match');
-            return;
+        const errors = {};
+        if (!formData.password || formData.password.length < 8) {
+            errors.password = 'Password must be at least 8 characters';
         }
-        if (formData.password.length < 8) {
-            setError('Password must be at least 8 characters');
+        if (formData.password !== formData.confirmPassword) {
+            errors.confirmPassword = 'Passwords do not match';
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(prev => ({ ...prev, ...errors }));
             return;
         }
 
@@ -80,7 +88,21 @@ const SignupPasswordSetup = () => {
 
         } catch (err) {
             console.error(err);
-            setError(err.response?.data?.message || err.message || 'Registration failed');
+            const errMsg = err.response?.data?.message || err.message || 'Registration failed';
+            const lower = errMsg.toLowerCase();
+
+            if (lower.includes('username') || lower.includes('handle') || lower.includes('email name')) {
+                toast.error(errMsg);
+                navigate('/signup/mail', { state: { usernameError: errMsg } });
+                return;
+            }
+
+            if (lower.includes('password')) {
+                setFieldErrors(prev => ({ ...prev, password: errMsg }));
+                return;
+            }
+
+            setFieldErrors(prev => ({ ...prev, general: errMsg }));
         } finally {
             setLoading(false);
         }
@@ -97,9 +119,9 @@ const SignupPasswordSetup = () => {
                 </p>
             </div>
 
-            {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl">
-                    {error}
+            {fieldErrors.general && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm font-medium">
+                    {fieldErrors.general}
                 </div>
             )}
 
@@ -112,9 +134,14 @@ const SignupPasswordSetup = () => {
                         <input
                             type={showPassword ? "text" : "password"}
                             value={formData.password}
-                            onChange={(e) => updateFormData({ password: e.target.value })}
+                            onChange={(e) => {
+                                setFieldErrors(prev => ({ ...prev, password: '', general: '' }));
+                                updateFormData({ password: e.target.value });
+                            }}
                             required
-                            className="w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                            className={`w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-slate-700 border ${
+                                fieldErrors.password ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-200 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500'
+                            } rounded-xl outline-none dark:text-white transition-all`}
                         />
                         <button
                             type="button"
@@ -126,6 +153,11 @@ const SignupPasswordSetup = () => {
                             {showPassword ? <MdVisibilityOff size={20} /> : <MdVisibility size={20} />}
                         </button>
                     </div>
+                    {fieldErrors.password && (
+                        <p className="text-red-600 dark:text-red-400 text-xs font-medium mt-1.5 flex items-center gap-1">
+                            {fieldErrors.password}
+                        </p>
+                    )}
                 </div>
                 
                 <div>
@@ -136,9 +168,14 @@ const SignupPasswordSetup = () => {
                         <input
                             type={showConfirmPassword ? "text" : "password"}
                             value={formData.confirmPassword}
-                            onChange={(e) => updateFormData({ confirmPassword: e.target.value })}
+                            onChange={(e) => {
+                                setFieldErrors(prev => ({ ...prev, confirmPassword: '', general: '' }));
+                                updateFormData({ confirmPassword: e.target.value });
+                            }}
                             required
-                            className="w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                            className={`w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-slate-700 border ${
+                                fieldErrors.confirmPassword ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-200 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500'
+                            } rounded-xl outline-none dark:text-white transition-all`}
                         />
                         <button
                             type="button"
@@ -150,6 +187,11 @@ const SignupPasswordSetup = () => {
                             {showConfirmPassword ? <MdVisibilityOff size={20} /> : <MdVisibility size={20} />}
                         </button>
                     </div>
+                    {fieldErrors.confirmPassword && (
+                        <p className="text-red-600 dark:text-red-400 text-xs font-medium mt-1.5 flex items-center gap-1">
+                            {fieldErrors.confirmPassword}
+                        </p>
+                    )}
                 </div>
 
                 <div className="pt-4 flex justify-between">
