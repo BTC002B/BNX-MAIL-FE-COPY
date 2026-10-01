@@ -469,10 +469,122 @@ const formatMessageTime = (timestamp) => {
   return `${month} ${day}, ${hours12}:${minutes} ${period}`;
 };
 
+const isMessageFromMe = (msg, currentUser) => {
+  if (!msg || !currentUser) return false;
+  const userEmail = (currentUser.email || "").toLowerCase().trim();
+  const userUsername = (currentUser.username || "").toLowerCase().trim();
+  const senderEmail = (msg.senderEmail || msg.sender_email || "").toLowerCase().trim();
+  const rawSender = (msg.sender || msg.from || "").toLowerCase().trim();
+  const senderUsername = (msg.senderUsername || msg.sender_username || msg.username || msg.userName || "").toLowerCase().trim();
+
+  if (userEmail) {
+    if (senderEmail && senderEmail === userEmail) return true;
+    if (rawSender && (rawSender === userEmail || (rawSender.includes('@') && rawSender.split('@')[0] === userEmail.split('@')[0]))) return true;
+  }
+  if (userUsername) {
+    if (senderUsername && senderUsername === userUsername) return true;
+    if (rawSender && (rawSender === userUsername || (rawSender.includes('@') && rawSender.split('@')[0] === userUsername))) return true;
+    if (senderEmail && (senderEmail === userUsername || (senderEmail.includes('@') && senderEmail.split('@')[0] === userUsername))) return true;
+  }
+  return false;
+};
+
+const getCommentSenderName = (msg, isMe, currentUser) => {
+  if (!msg) return "";
+
+  // 1. Explicit display name or sender name from message fields
+  const explicitDisplayName =
+    msg.senderName ||
+    msg.senderDisplayName ||
+    msg.displayName ||
+    msg.sender_name ||
+    msg.fullName ||
+    msg.name ||
+    msg.user?.displayName ||
+    msg.user?.name ||
+    msg.user?.fullName ||
+    msg.senderInfo?.displayName ||
+    msg.senderInfo?.name;
+
+  if (explicitDisplayName && typeof explicitDisplayName === "string" && explicitDisplayName.trim()) {
+    return explicitDisplayName.trim();
+  }
+
+  // 2. If it's the current logged in user, prefer current user's profile display name
+  if (isMe && currentUser) {
+    const currentFullName = [currentUser.firstName, currentUser.lastName].filter(Boolean).join(" ").trim();
+    const currentUserName =
+      currentUser.displayName ||
+      currentUser.name ||
+      currentUser.fullName ||
+      currentFullName ||
+      currentUser.username;
+
+    if (currentUserName && typeof currentUserName === "string" && currentUserName.trim()) {
+      return currentUserName.trim();
+    }
+  }
+
+  // 3. Explicit username field from message
+  const explicitUsername =
+    msg.senderUsername ||
+    msg.sender_username ||
+    msg.username ||
+    msg.userName ||
+    msg.user?.username ||
+    msg.user?.userName ||
+    msg.senderInfo?.username;
+
+  if (explicitUsername && typeof explicitUsername === "string" && explicitUsername.trim()) {
+    const trimmed = explicitUsername.trim();
+    if (!trimmed.includes(" ") && !/[A-Z]/.test(trimmed)) {
+      return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    }
+    return trimmed;
+  }
+
+  // 4. Sender / senderEmail / from field
+  const rawSender = msg.sender || msg.senderEmail || msg.sender_email || msg.from || "";
+  if (rawSender && typeof rawSender === "string" && rawSender.trim()) {
+    const trimmed = rawSender.trim();
+    if (trimmed.includes("@")) {
+      const local = trimmed.split("@")[0];
+      if (local) {
+        // If local part has dots/underscores (e.g. "dilli.prasath" -> "Dilli Prasath")
+        if (/[._]/.test(local)) {
+          return local
+            .split(/[._]/)
+            .filter(Boolean)
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(" ");
+        }
+        // Capitalize first letter if all lowercase (e.g. "rahul" -> "Rahul", "arun" -> "Arun")
+        if (!/[A-Z]/.test(local)) {
+          return local.charAt(0).toUpperCase() + local.slice(1);
+        }
+        return local;
+      }
+      return trimmed;
+    }
+    // If not email (e.g. "Rahul" or "rahul"), capitalize first letter if all lowercase
+    if (!trimmed.includes(" ") && !/[A-Z]/.test(trimmed)) {
+      return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    }
+    return trimmed;
+  }
+
+  // 5. Fallback to sender email if available
+  if (msg.senderEmail && typeof msg.senderEmail === "string" && msg.senderEmail.trim()) {
+    return msg.senderEmail.trim();
+  }
+
+  return isMe ? "You" : "Unknown";
+};
+
 const CommentMessageItem = React.memo(({
   msg,
   isMe,
-  chatName,
+  senderName,
   theme,
   onOpenImage,
   handleDownload,
@@ -489,8 +601,8 @@ const CommentMessageItem = React.memo(({
   return (
     <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300 comment-card printable-item print:mb-3">
       <div className="max-w-[85%] sm:max-w-[75%] print:max-w-full flex flex-col items-start">
-        <span className="text-[10px] font-bold mb-1 ml-2 uppercase opacity-60 print:opacity-100 print:text-gray-700 print:text-[11px]" style={{ color: theme.subText }}>
-          {chatName}
+        <span className="text-[10px] font-bold mb-1 ml-2 opacity-60 print:opacity-100 print:text-gray-700 print:text-[11px]" style={{ color: theme.subText }}>
+          {senderName}
         </span>
         <div className="flex flex-col w-fit print:w-full">
           <div 
@@ -543,7 +655,7 @@ const CommentMessageItem = React.memo(({
     prev.msg.timestamp === next.msg.timestamp &&
     prev.msg.attachmentsJson === next.msg.attachmentsJson &&
     prev.isMe === next.isMe &&
-    prev.chatName === next.chatName &&
+    prev.senderName === next.senderName &&
     prev.theme?.accent === next.theme?.accent &&
     prev.theme?.text === next.theme?.text &&
     prev.theme?.mode === next.theme?.mode
@@ -946,7 +1058,7 @@ const ChatRoom = () => {
     const msgContent = response.content !== undefined && response.content !== null 
       ? response.content 
       : (response.message !== undefined && response.message !== null ? response.message : "");
-    const isMe = msgSender === user?.email;
+    const isMe = isMessageFromMe(response, user);
     const nearBottom = isUserNearBottom();
 
     setMessages(prev => {
@@ -982,7 +1094,7 @@ const ChatRoom = () => {
       if (replaceIdx === -1) {
         replaceIdx = prev.findIndex(m => 
           m.isOptimistic && 
-          (m.sender === msgSender || m.sender === user?.email) &&
+          (m.sender === msgSender || m.sender === user?.email || isMessageFromMe(m, user)) &&
           ((m.content || "") === (msgContent || "") || (!m.content && !msgContent))
         );
       }
@@ -1443,6 +1555,7 @@ const ChatRoom = () => {
 
     const contentText = newMessage.trim();
     const senderEmail = user?.email || user?.username || "";
+    const senderDisplayName = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || user?.displayName || user?.name || user?.username || "";
 
     // Optimistic update with unique temp ID
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -1450,6 +1563,9 @@ const ChatRoom = () => {
       id: tempId,
       chatId: parseInt(chatId),
       sender: senderEmail,
+      senderEmail: user?.email || "",
+      senderUsername: user?.username || "",
+      senderName: senderDisplayName,
       content: contentText,
       message: contentText,
       attachmentsJson: attachmentsJson,
@@ -1921,13 +2037,14 @@ const ChatRoom = () => {
                 </div>
               ) : (
                 messages.map((msg, idx) => {
-                  const isMe = msg.sender === user?.email || msg.senderEmail === user?.email;
+                  const isMe = isMessageFromMe(msg, user);
+                  const senderName = getCommentSenderName(msg, isMe, user);
                   return (
                     <CommentMessageItem
                       key={msg.id || idx}
                       msg={msg}
                       isMe={isMe}
-                      chatName={chatName}
+                      senderName={senderName}
                       theme={theme}
                       onOpenImage={setPreviewMedia}
                       handleDownload={handleDownloadAttachment}
