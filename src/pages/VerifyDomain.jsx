@@ -39,7 +39,7 @@ const VerifyDomain = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 py-12 px-4 sm:px-6 lg:px-8 font-sans">
+    <div className="min-h-screen h-screen overflow-y-auto bg-slate-50 dark:bg-slate-900 py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-10">
           <img src={logo} alt="BNX Mail" className="mx-auto h-12 w-auto mb-6" />

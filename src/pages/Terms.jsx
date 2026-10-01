@@ -4,8 +4,8 @@ import { ArrowLeft } from "lucide-react";
 
 const Terms = () => {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-6 md:p-12 font-sans selection:bg-blue-500/30">
-      <div className="max-w-4xl mx-auto">
+    <div className="h-screen overflow-y-auto bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-6 md:p-12 font-sans selection:bg-blue-500/30">
+      <div className="max-w-4xl mx-auto pb-12">
         <Link 
           to="/register" 
           className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline mb-8 group"
