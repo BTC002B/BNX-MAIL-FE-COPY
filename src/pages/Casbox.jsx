@@ -1255,18 +1255,19 @@ const Casbox = () => {
       await casboxAPI.deleteConversation(targetContact);
 
       // Only remove the conversation from UI after backend confirms successful deletion
+      const targetNorm = normalizeEmail(targetContact);
+      const targetLocal = targetNorm.includes('@') ? targetNorm.split('@')[0] : targetNorm;
       setMessages(prev => prev.filter(m => {
-        if (targetContact.toLowerCase() === user?.email?.toLowerCase()) {
-          return !(m.senderEmail?.toLowerCase() === user?.email?.toLowerCase() && m.receiverEmail?.toLowerCase() === user?.email?.toLowerCase());
-        }
-        const other = m.senderEmail?.toLowerCase() === user?.email?.toLowerCase() ? m.receiverEmail : m.senderEmail;
-        return other?.toLowerCase() !== targetContact.toLowerCase();
+        const otherNorm = normalizeEmail(getOtherUserEmail(m));
+        const otherLocal = otherNorm.includes('@') ? otherNorm.split('@')[0] : otherNorm;
+        return otherNorm !== targetNorm && otherLocal !== targetLocal;
       }));
 
       // Close thread if currently viewing this conversation
       if (selectedMessage) {
-        const other = selectedMessage.senderEmail?.toLowerCase() === user?.email?.toLowerCase() ? selectedMessage.receiverEmail : selectedMessage.senderEmail;
-        if (other?.toLowerCase() === targetContact.toLowerCase()) {
+        const currentOtherNorm = normalizeEmail(getOtherUserEmail(selectedMessage));
+        const currentOtherLocal = currentOtherNorm.includes('@') ? currentOtherNorm.split('@')[0] : currentOtherNorm;
+        if (currentOtherNorm === targetNorm || currentOtherLocal === targetLocal) {
           setSelectedMessage(null);
         }
       }
@@ -1365,7 +1366,7 @@ const Casbox = () => {
     if (!activeContact || !user?.email || threadMessages.length === 0) return;
 
     const unreadMsgs = threadMessages.filter(m => 
-      m.receiverEmail === user.email && 
+      isCurrentUser(m.receiverEmail || m.receiver) && 
       m.status?.toUpperCase() !== 'SEEN'
     );
 
@@ -1896,10 +1897,10 @@ const Casbox = () => {
       ) : (
         conversationList.map((chat) => {
           const msg = chat.latestMessage;
-          const isMe = msg.senderEmail === user?.email;
+          const isMe = isCurrentUser(msg?.senderEmail || msg?.sender);
           const otherEmail = chat.contact;
           const isSelected = selectedMessage && (
-            (selectedMessage.senderEmail === user?.email ? selectedMessage.receiverEmail : selectedMessage.senderEmail) === otherEmail
+            normalizeEmail(getOtherUserEmail(selectedMessage)) === normalizeEmail(otherEmail)
           );
 
           const unreadCount = chat.unreadCount !== undefined ? chat.unreadCount : chat.messages.filter(isMessageUnread).length;
@@ -2258,8 +2259,8 @@ const Casbox = () => {
             </div>
           ) : (
             sortedThread.map((msg, index) => {
-              const isMe = msg.senderEmail === user?.email;
-              const senderEmail = msg.senderEmail || "";
+              const isMe = isCurrentUser(msg?.senderEmail || msg?.sender);
+              const senderEmail = msg.senderEmail || msg.sender || "";
               const senderLabel = isMe ? (user?.username || senderEmail.split("@")[0]) : getDisplayName(senderEmail, msg);
               const senderInitial = isMe ? (user?.username || senderEmail).charAt(0).toUpperCase() : getContactInitial(senderEmail, msg);
 
