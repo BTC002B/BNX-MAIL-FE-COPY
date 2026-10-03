@@ -94,7 +94,19 @@ export const classifyCashboxConversation = (item, currentUser, casboxAcceptedLis
     contactEmail = normalizeEmail(item?.senderEmail || item?.sender || "");
   }
 
-  const accepted = isCashboxSenderAccepted(contactEmail, casboxAcceptedList);
+  const isAcceptedLocally = isCashboxSenderAccepted(contactEmail, casboxAcceptedList);
+  const dtoAccepted = item?.latestMessage?.isAccepted !== undefined 
+    ? item.latestMessage.isAccepted 
+    : (item?.isAccepted !== undefined ? item.isAccepted : (item?.accepted !== undefined ? item.accepted : undefined));
+
+  let accepted = false;
+  if (isAcceptedLocally) {
+    accepted = true;
+  } else if (dtoAccepted !== undefined) {
+    accepted = Boolean(dtoAccepted);
+  } else {
+    accepted = isAcceptedLocally;
+  }
 
   let result = 'MESSAGES';
   if (hasIncoming) {
@@ -2108,7 +2120,7 @@ const Casbox = () => {
   const detailsComponent = selectedMessage ? (() => {
     const otherUserEmail = getOtherUserEmail(selectedMessage);
     const otherNorm = normalizeEmail(otherUserEmail);
-    const isContactAccepted = isCashboxSenderAccepted(otherNorm, acceptedSet);
+    const isContactAccepted = isCashboxSenderAccepted(otherNorm, acceptedSet) || Boolean(selectedMessage?.isAccepted || selectedMessage?.accepted);
     const isContactRequest = Boolean(otherNorm && !isContactAccepted);
     const sortedThread = [...threadMessages].sort((a, b) => parseTimestamp(a.timestamp) - parseTimestamp(b.timestamp));
 
