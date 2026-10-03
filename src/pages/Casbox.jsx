@@ -16,6 +16,21 @@ const normalizeEmail = (val) => {
   return String(val).trim().toLowerCase();
 };
 
+export const isCurrentUserEmail = (emailOrUsername, user) => {
+  if (!emailOrUsername) return false;
+  const n = normalizeEmail(emailOrUsername);
+  const nLocal = n.includes('@') ? n.split('@')[0] : n;
+
+  const userObj = typeof user === 'object' && user !== null ? user : null;
+  const uEmail = normalizeEmail(userObj?.email || (typeof user === 'string' ? user : ''));
+  const uEmailLocal = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
+  const uName = normalizeEmail(userObj?.username || '');
+  const uNameLocal = uName.includes('@') ? uName.split('@')[0] : uName;
+
+  return (uEmail && (n === uEmail || nLocal === uEmailLocal)) ||
+         (uName && (n === uName || nLocal === uNameLocal));
+};
+
 export const isCashboxSenderAccepted = (senderEmail, casboxAcceptedList) => {
   if (!senderEmail || !casboxAcceptedList) return false;
   const normalizedSender = normalizeEmail(senderEmail);
@@ -55,22 +70,7 @@ export const classifyCashboxConversation = (item, currentUser, casboxAcceptedLis
   );
   if (isArchived) return 'ARCHIVE';
 
-  const userObj = typeof currentUser === 'object' && currentUser !== null ? currentUser : null;
-  const rawUserEmail = userObj?.email || (typeof currentUser === 'string' ? currentUser : '');
-  const rawUserName = userObj?.username || '';
-
-  const userNormEmail = normalizeEmail(rawUserEmail);
-  const userLocalEmail = userNormEmail.includes('@') ? userNormEmail.split('@')[0] : userNormEmail;
-  const userNormName = normalizeEmail(rawUserName);
-  const userLocalName = userNormName.includes('@') ? userNormName.split('@')[0] : userNormName;
-
-  const isUser = (e) => {
-    if (!e) return false;
-    const n = normalizeEmail(e);
-    const nLocal = n.includes('@') ? n.split('@')[0] : n;
-    return (userNormEmail && (n === userNormEmail || nLocal === userLocalEmail)) ||
-           (userNormName && (n === userNormName || nLocal === userLocalName));
-  };
+  const isUser = (e) => isCurrentUserEmail(e, currentUser);
 
   const msgs = Array.isArray(item?.messages) ? item.messages : (item ? [item] : []);
 
@@ -440,6 +440,12 @@ const Casbox = () => {
   const { stompClient, isConnected } = useSocket();
   const { openCompose, handleArchive, handleSnooze, handleMoveToTrash, handleToggleStar } = useMail();
 
+  const isCurrentUser = useCallback((e) => isCurrentUserEmail(e, user), [user?.email, user?.username]);
+  const isCurrentUserRef = React.useRef(isCurrentUser);
+  useEffect(() => {
+    isCurrentUserRef.current = isCurrentUser;
+  }, [isCurrentUser]);
+
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -476,7 +482,6 @@ const Casbox = () => {
   }, [acceptedContacts]);
 
   const acceptedSetRef = React.useRef(new Set());
-  const isCurrentUserRef = React.useRef(() => false);
 
   // Existing Cashbox API call started immediately as the very first effect on mount
   const fetchMessages = useCallback(async (background = false) => {
@@ -1070,23 +1075,6 @@ const Casbox = () => {
       window.history.replaceState({}, document.title);
     }
   }, [location.state, messages, user?.email]);
-
-  const isCurrentUser = useCallback((e) => {
-    if (!e) return false;
-    const n = normalizeEmail(e);
-    const nLocal = n.includes('@') ? n.split('@')[0] : n;
-    const uEmail = normalizeEmail(user?.email);
-    const uEmailLocal = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
-    const uName = normalizeEmail(user?.username);
-    const uNameLocal = uName.includes('@') ? uName.split('@')[0] : uName;
-
-    return (uEmail && (n === uEmail || nLocal === uEmailLocal)) ||
-           (uName && (n === uName || nLocal === uNameLocal));
-  }, [user?.email, user?.username]);
-
-  useEffect(() => {
-    isCurrentUserRef.current = isCurrentUser;
-  }, [isCurrentUser]);
 
   // Synchronous derivation of accepted contacts from settings and connections
   const acceptedSet = useMemo(() => {
