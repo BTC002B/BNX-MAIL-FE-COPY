@@ -17,19 +17,35 @@ const normalizeEmail = (val) => {
 };
 
 export const isCashboxSenderAccepted = (senderEmail, casboxAcceptedList) => {
-  if (!senderEmail || !casboxAcceptedList || !Array.isArray(casboxAcceptedList)) return false;
+  if (!senderEmail || !casboxAcceptedList) return false;
   const normalizedSender = normalizeEmail(senderEmail);
   if (!normalizedSender) return false;
   const senderLocal = normalizedSender.includes('@') ? normalizedSender.split('@')[0] : normalizedSender;
 
-  return casboxAcceptedList.some(email => {
-    const norm = normalizeEmail(email);
-    if (!norm) return false;
-    return norm === normalizedSender || norm === senderLocal || (norm.includes('@') && norm.split('@')[0] === senderLocal);
-  });
+  if (casboxAcceptedList instanceof Set) {
+    if (casboxAcceptedList.has(normalizedSender) || casboxAcceptedList.has(senderLocal)) return true;
+    for (const email of casboxAcceptedList) {
+      const norm = normalizeEmail(email);
+      if (!norm) continue;
+      if (norm === normalizedSender || norm === senderLocal || (norm.includes('@') && norm.split('@')[0] === senderLocal)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (Array.isArray(casboxAcceptedList)) {
+    return casboxAcceptedList.some(email => {
+      const norm = normalizeEmail(email);
+      if (!norm) return false;
+      return norm === normalizedSender || norm === senderLocal || (norm.includes('@') && norm.split('@')[0] === senderLocal);
+    });
+  }
+
+  return false;
 };
 
-export const classifyCashboxConversation = (item, currentUserEmail, casboxAcceptedList) => {
+export const classifyCashboxConversation = (item, currentUser, casboxAcceptedList) => {
   const isArchived = Boolean(
     item?.isArchived || 
     item?.archived || 
@@ -39,13 +55,21 @@ export const classifyCashboxConversation = (item, currentUserEmail, casboxAccept
   );
   if (isArchived) return 'ARCHIVE';
 
-  const userNorm = normalizeEmail(currentUserEmail);
-  const userLocal = userNorm.includes('@') ? userNorm.split('@')[0] : userNorm;
+  const userObj = typeof currentUser === 'object' && currentUser !== null ? currentUser : null;
+  const rawUserEmail = userObj?.email || (typeof currentUser === 'string' ? currentUser : '');
+  const rawUserName = userObj?.username || '';
+
+  const userNormEmail = normalizeEmail(rawUserEmail);
+  const userLocalEmail = userNormEmail.includes('@') ? userNormEmail.split('@')[0] : userNormEmail;
+  const userNormName = normalizeEmail(rawUserName);
+  const userLocalName = userNormName.includes('@') ? userNormName.split('@')[0] : userNormName;
 
   const isUser = (e) => {
     if (!e) return false;
     const n = normalizeEmail(e);
-    return n === userNorm || n === userLocal || (n.includes('@') && n.split('@')[0] === userLocal);
+    const nLocal = n.includes('@') ? n.split('@')[0] : n;
+    return (userNormEmail && (n === userNormEmail || nLocal === userLocalEmail)) ||
+           (userNormName && (n === userNormName || nLocal === userLocalName));
   };
 
   const msgs = Array.isArray(item?.messages) ? item.messages : (item ? [item] : []);
@@ -53,21 +77,24 @@ export const classifyCashboxConversation = (item, currentUserEmail, casboxAccept
   const hasOutgoing = msgs.some(m => isUser(m?.senderEmail || m?.sender));
   const hasIncoming = msgs.some(m => isUser(m?.receiverEmail || m?.receiver));
 
-  let senderEmail = "";
-  if (msgs.length > 0) {
+  let contactEmail = "";
+  if (item?.contactNorm || item?.contact) {
+    contactEmail = normalizeEmail(item.contactNorm || item.contact);
+  }
+  if (!contactEmail && msgs.length > 0) {
     const incoming = msgs.find(m => isUser(m?.receiverEmail || m?.receiver));
     if (incoming) {
-      senderEmail = normalizeEmail(incoming.senderEmail || incoming.sender);
+      contactEmail = normalizeEmail(incoming.senderEmail || incoming.sender);
     } else {
       const outgoing = msgs.find(m => isUser(m?.senderEmail || m?.sender));
-      senderEmail = outgoing ? normalizeEmail(outgoing.receiverEmail || outgoing.receiver) : "";
+      contactEmail = outgoing ? normalizeEmail(outgoing.receiverEmail || outgoing.receiver) : "";
     }
   }
-  if (!senderEmail) {
-    senderEmail = normalizeEmail(item?.contactNorm || item?.contact || item?.senderEmail || item?.sender || "");
+  if (!contactEmail) {
+    contactEmail = normalizeEmail(item?.senderEmail || item?.sender || "");
   }
 
-  const accepted = isCashboxSenderAccepted(senderEmail, casboxAcceptedList);
+  const accepted = isCashboxSenderAccepted(contactEmail, casboxAcceptedList);
 
   let result = 'MESSAGES';
   if (hasIncoming) {
@@ -77,8 +104,6 @@ export const classifyCashboxConversation = (item, currentUserEmail, casboxAccept
   } else {
     result = accepted ? 'MESSAGES' : 'REQUESTS';
   }
-
-  console.log(`[Cashbox Request Debug]\nsender: ${senderEmail}\naccepted: ${accepted}\nresult: ${result}`);
 
   return result;
 };
@@ -450,6 +475,9 @@ const Casbox = () => {
     acceptedContactsRef.current = acceptedContacts;
   }, [acceptedContacts]);
 
+  const acceptedSetRef = React.useRef(new Set());
+  const isCurrentUserRef = React.useRef(() => false);
+
   // Existing Cashbox API call started immediately as the very first effect on mount
   const fetchMessages = useCallback(async (background = false) => {
     try {
@@ -522,15 +550,14 @@ const Casbox = () => {
         try {
           const newMsg = JSON.parse(message.body);
           if (newMsg && newMsg.id) {
-            classifyCashboxConversation(newMsg, user?.email || user?.username, acceptedContactsRef.current);
-
             setMessages(prev => {
               if (prev.some(m => m.id === newMsg.id)) return prev;
               return [newMsg, ...prev];
             });
 
+            const sender = normalizeEmail(newMsg.senderEmail || newMsg.sender);
             const otherEmail = normalizeEmail(
-              normalizeEmail(newMsg.senderEmail || newMsg.sender) === normalizeEmail(user?.email || user?.username)
+              isCurrentUserRef.current(sender)
                 ? (newMsg.receiverEmail || newMsg.receiver)
                 : (newMsg.senderEmail || newMsg.sender)
             );
@@ -801,14 +828,12 @@ const Casbox = () => {
     }
   };
 
-  const getOtherUserEmail = (msg) => {
+  const getOtherUserEmail = useCallback((msg) => {
     if (!msg) return "";
     const sender = normalizeEmail(msg.senderEmail || msg.sender);
-    const userEmail = normalizeEmail(user?.email || user?.username);
-    const userLocal = userEmail.includes('@') ? userEmail.split('@')[0] : userEmail;
-    const isMe = sender === userEmail || sender === userLocal || (sender.includes('@') && sender.split('@')[0] === userLocal);
+    const isMe = isCurrentUser(sender);
     return isMe ? (msg.receiverEmail || msg.receiver || "") : (msg.senderEmail || msg.sender || "");
-  };
+  }, [isCurrentUser]);
 
   const getDisplayName = (emailOrUsername, msg) => {
     if (!emailOrUsername) return "";
@@ -1046,6 +1071,23 @@ const Casbox = () => {
     }
   }, [location.state, messages, user?.email]);
 
+  const isCurrentUser = useCallback((e) => {
+    if (!e) return false;
+    const n = normalizeEmail(e);
+    const nLocal = n.includes('@') ? n.split('@')[0] : n;
+    const uEmail = normalizeEmail(user?.email);
+    const uEmailLocal = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
+    const uName = normalizeEmail(user?.username);
+    const uNameLocal = uName.includes('@') ? uName.split('@')[0] : uName;
+
+    return (uEmail && (n === uEmail || nLocal === uEmailLocal)) ||
+           (uName && (n === uName || nLocal === uNameLocal));
+  }, [user?.email, user?.username]);
+
+  useEffect(() => {
+    isCurrentUserRef.current = isCurrentUser;
+  }, [isCurrentUser]);
+
   // Synchronous derivation of accepted contacts from settings and connections
   const acceptedSet = useMemo(() => {
     const set = new Set();
@@ -1070,7 +1112,10 @@ const Casbox = () => {
             if (email.includes('@')) set.add(email.split('@')[0]);
           }
           const username = normalizeEmail(conn?.contactUsername || conn?.username);
-          if (username) set.add(username);
+          if (username) {
+            set.add(username);
+            if (username.includes('@')) set.add(username.split('@')[0]);
+          }
         }
       });
     }
@@ -1078,25 +1123,9 @@ const Casbox = () => {
     return set;
   }, [acceptedContacts, connections]);
 
-  // Synchronous derivation of known contacts (accepted contacts + contacts user has messaged)
-  const knownContacts = useMemo(() => {
-    const contacts = new Set(acceptedSet);
-
-    if (messages && messages.length > 0 && user?.email) {
-      const uEmail = normalizeEmail(user.email);
-      for (let i = 0; i < messages.length; i++) {
-        const msg = messages[i];
-        const s = normalizeEmail(msg.senderEmail || msg.sender);
-        const r = normalizeEmail(msg.receiverEmail || msg.receiver);
-        if (s === uEmail && r) {
-          contacts.add(r);
-          if (r.includes('@')) contacts.add(r.split('@')[0]);
-        }
-      }
-    }
-
-    return contacts;
-  }, [acceptedSet, messages, user?.email]);
+  useEffect(() => {
+    acceptedSetRef.current = acceptedSet;
+  }, [acceptedSet]);
 
   React.useEffect(() => {
     return () => {
@@ -1428,11 +1457,10 @@ const Casbox = () => {
   const isMessageUnread = useCallback((m) => {
     if (!m) return false;
     const rec = normalizeEmail(m.receiverEmail || m.receiver);
-    const uEmail = normalizeEmail(user?.email || user?.username);
-    if (rec !== uEmail) return false;
+    if (!isCurrentUser(rec)) return false;
     if (m.isRead === true || m.read === true) return false;
     return String(m.status || '').trim().toUpperCase() !== 'SEEN';
-  }, [user?.email, user?.username]);
+  }, [isCurrentUser]);
 
   const { 
     conversationList, 
@@ -1441,6 +1469,7 @@ const Casbox = () => {
     archivedConversations, 
     unreadMessagesCount, 
     unreadArchivedCount, 
+    unreadRequestsCount,
     requestMessages 
   } = useMemo(() => {
     if (!messages || messages.length === 0) {
@@ -1451,11 +1480,11 @@ const Casbox = () => {
         archivedConversations: [], 
         unreadMessagesCount: 0, 
         unreadArchivedCount: 0, 
+        unreadRequestsCount: 0,
         requestMessages: [] 
       };
     }
 
-    const userEmail = normalizeEmail(user?.email || user?.username);
     const blockedSet = new Set();
     if (blockedContacts && Array.isArray(blockedContacts)) {
       blockedContacts.forEach(e => {
@@ -1496,30 +1525,53 @@ const Casbox = () => {
       if (!sender || !receiver) continue;
       if (blockedSet.has(sender) || (sender.includes('@') && blockedSet.has(sender.split('@')[0]))) continue;
 
-      const rawContact = sender === userEmail ? (msg.receiverEmail || msg.receiver) : (msg.senderEmail || msg.sender);
+      const rawContact = isCurrentUser(sender) ? (msg.receiverEmail || msg.receiver) : (msg.senderEmail || msg.sender);
       if (!rawContact) continue;
       const contactNorm = normalizeEmail(rawContact);
       const contactLocal = contactNorm.includes('@') ? contactNorm.split('@')[0] : contactNorm;
 
       if (disconnectedSet.has(contactNorm) || disconnectedSet.has(contactLocal)) continue;
 
-      let grp = conversationGroups.get(contactNorm);
-      const ts = getTimestampMs(msg.timestamp);
-      if (!grp) {
-        grp = {
-          contact: rawContact,
-          contactNorm,
-          messages: [msg],
-          latestMessage: msg,
-          latestTimestamp: ts,
-        };
-        conversationGroups.set(contactNorm, grp);
+      // Match existing group by either full normalized address or local part to prevent duplicates
+      let grpKey = null;
+      if (conversationGroups.has(contactNorm)) {
+        grpKey = contactNorm;
+      } else if (conversationGroups.has(contactLocal)) {
+        grpKey = contactLocal;
       } else {
+        for (const [k, g] of conversationGroups.entries()) {
+          const gNorm = normalizeEmail(g.contact || k);
+          const gLocal = gNorm.includes('@') ? gNorm.split('@')[0] : gNorm;
+          if (gNorm === contactNorm || gLocal === contactLocal) {
+            grpKey = k;
+            break;
+          }
+        }
+      }
+
+      const ts = getTimestampMs(msg.timestamp);
+      if (grpKey) {
+        const grp = conversationGroups.get(grpKey);
         grp.messages.push(msg);
         if (ts > grp.latestTimestamp) {
           grp.latestTimestamp = ts;
           grp.latestMessage = msg;
         }
+        if (contactNorm.includes('@') && !grp.contact.includes('@')) {
+          grp.contact = rawContact;
+          grp.contactNorm = contactNorm;
+        }
+      } else {
+        const canonicalKey = contactNorm.includes('@') ? contactNorm : contactLocal;
+        const newGrp = {
+          contact: rawContact,
+          contactNorm,
+          contactLocal,
+          messages: [msg],
+          latestMessage: msg,
+          latestTimestamp: ts,
+        };
+        conversationGroups.set(canonicalKey, newGrp);
       }
     }
 
@@ -1530,6 +1582,7 @@ const Casbox = () => {
     const requestMessagesArr = [];
     let mainUnread = 0;
     let archUnread = 0;
+    let reqUnread = 0;
 
     conversationGroups.forEach((grp) => {
       // Sort messages within conversation descending
@@ -1540,7 +1593,7 @@ const Casbox = () => {
       const unreadCount = grp.messages.filter(isMessageUnread).length;
       grp.unreadCount = unreadCount;
 
-      const classification = classifyCashboxConversation(grp, userEmail, acceptedContacts);
+      const classification = classifyCashboxConversation(grp, user, acceptedSet);
 
       if (classification === 'ARCHIVE') {
         archivedList.push(grp);
@@ -1548,6 +1601,7 @@ const Casbox = () => {
       } else if (classification === 'REQUESTS') {
         requestsList.push(grp);
         grp.messages.forEach(m => requestMessagesArr.push(m));
+        if (unreadCount > 0) reqUnread += unreadCount;
       } else {
         messagesList.push(grp);
         if (unreadCount > 0) mainUnread += unreadCount;
@@ -1572,9 +1626,10 @@ const Casbox = () => {
       archivedConversations: archivedList,
       unreadMessagesCount: mainUnread,
       unreadArchivedCount: archUnread,
+      unreadRequestsCount: reqUnread,
       requestMessages: requestMessagesArr
     };
-  }, [messages, blockedContacts, acceptedContacts, connections, activeTab, user?.email, user?.username, isMessageUnread]);
+  }, [messages, blockedContacts, acceptedContacts, connections, acceptedSet, activeTab, user, isMessageUnread, isCurrentUser]);
 
   const handleSendChatMessage = async (e) => {
     if (e) e.preventDefault();
@@ -1689,7 +1744,17 @@ const Casbox = () => {
             onClick={() => { setActiveTab('requests'); setSelectedMessage(null); }}
             className={`px-3 sm:px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'requests' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
           >
-            {t('casbox.requests', 'Requests')} {requestMessages.length > 0 && <span className="flex h-2 w-2 rounded-full bg-red-500"></span>}
+            {t('casbox.requests', 'Requests')}
+            {unreadRequestsCount > 0 ? (
+              <span className={`font-normal hidden sm:inline ${activeTab === 'requests' ? 'opacity-80' : 'opacity-60'}`}>
+                ({unreadRequestsCount})
+              </span>
+            ) : requestsConversations.length > 0 ? (
+              <span className={`font-normal hidden sm:inline ${activeTab === 'requests' ? 'opacity-80' : 'opacity-60'}`}>
+                ({requestsConversations.length})
+              </span>
+            ) : null}
+            {requestMessages.length > 0 && <span className="flex h-2 w-2 rounded-full bg-red-500"></span>}
           </button>
           <button
             onClick={() => {
@@ -1968,7 +2033,12 @@ const Casbox = () => {
   const handleAcceptRequest = async (senderEmail) => {
     try {
       const emailLower = normalizeEmail(senderEmail);
-      const newAccepted = Array.from(new Set([...acceptedContacts.map(normalizeEmail), emailLower])).filter(Boolean);
+      const localPart = emailLower.includes('@') ? emailLower.split('@')[0] : emailLower;
+      const newAccepted = Array.from(new Set([
+        ...acceptedContacts.map(normalizeEmail),
+        emailLower,
+        localPart
+      ])).filter(Boolean);
       setAcceptedContacts(newAccepted);
       try {
         sessionStorage.setItem('bnx_casbox_accepted', JSON.stringify(newAccepted));
@@ -2049,7 +2119,7 @@ const Casbox = () => {
   const detailsComponent = selectedMessage ? (() => {
     const otherUserEmail = getOtherUserEmail(selectedMessage);
     const otherNorm = normalizeEmail(otherUserEmail);
-    const isContactAccepted = isCashboxSenderAccepted(otherNorm, acceptedContacts);
+    const isContactAccepted = isCashboxSenderAccepted(otherNorm, acceptedSet);
     const isContactRequest = Boolean(otherNorm && !isContactAccepted);
     const sortedThread = [...threadMessages].sort((a, b) => parseTimestamp(a.timestamp) - parseTimestamp(b.timestamp));
 
@@ -2301,12 +2371,7 @@ const Casbox = () => {
                 Reconnect
               </button>
             </div>
-          ) : isContactRequest && (() => {
-            const rec = normalizeEmail(selectedMessage?.receiverEmail || selectedMessage?.receiver);
-            const uEmail = normalizeEmail(user?.email);
-            const uName = normalizeEmail(user?.username);
-            return rec === uEmail || rec === uName || (uEmail && rec === uEmail.split('@')[0]) || (rec.includes('@') && rec.split('@')[0] === uName);
-          })() ? (
+          ) : isContactRequest && isCurrentUser(selectedMessage?.receiverEmail || selectedMessage?.receiver) ? (
             <div className="flex items-center gap-3 w-full">
               <button
                 onClick={() => handleAcceptRequest(otherUserEmail)}
