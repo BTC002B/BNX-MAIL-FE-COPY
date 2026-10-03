@@ -4,11 +4,13 @@ import { useSignup } from '../../context/SignupContext';
 
 const SignupSelection = () => {
     const navigate = useNavigate();
-    const { resetSignupForm, updateFormData } = useSignup();
+    const { formData, resetSignupForm, updateFormData } = useSignup();
 
     const handleSelect = (mode, route) => {
-        resetSignupForm();
-        updateFormData({ accountType: mode });
+        if (formData.accountType !== mode) {
+            resetSignupForm();
+            updateFormData({ accountType: mode });
+        }
         navigate(route);
     };
 

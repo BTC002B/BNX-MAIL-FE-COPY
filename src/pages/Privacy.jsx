@@ -1,14 +1,29 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 const Privacy = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleBack = (e) => {
+    e.preventDefault();
+    if (location.state?.from) {
+      navigate(location.state.from);
+    } else if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/register");
+    }
+  };
+
   return (
     <div className="h-screen overflow-y-auto bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-6 md:p-12 font-sans selection:bg-blue-500/30">
       <div className="max-w-4xl mx-auto pb-12">
         <Link 
-          to="/register" 
-          className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline mb-8 group"
+          to={location.state?.from || "/register"} 
+          onClick={handleBack}
+          className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline mb-8 group cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           Back to Registration

@@ -1,42 +1,23 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { authAPI, emailAPI } from '../services/api';
+import { useSignup } from '../context/SignupContext';
 // import logo from '../assets/bnx.jpeg';
 
 import logo from "../assets/bnx-remove.png";
 
 const Register = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const { formData, updateFormData } = useSignup();
     const [step, setStep] = useState(1); // 1: Register, 2: Create Email
-    const [accountType, setAccountType] = useState('PERSONAL'); // PERSONAL or BUSINESS
+    const accountType = formData.accountType || 'PERSONAL'; // PERSONAL or BUSINESS
+    const setAccountType = (type) => updateFormData({ accountType: type });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Form data
-    const [formData, setFormData] = useState({
-        // Common
-        username: '',
-        password: '',
-        confirmPassword: '',
-        
-        // Personal
-        firstName: '',
-        lastName: '',
-        dob: '',
-        parentEmail: '',
-
-        // Business
-        businessName: '',
-        businessType: '',
-        registrationNumber: '',
-        ownerFirstName: '',
-        ownerLastName: '',
-        domain: '',
-    });
-
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
+        updateFormData({
             [e.target.name]: e.target.value
         });
         setError('');
@@ -172,7 +153,7 @@ const Register = () => {
                             <input
                                 type="text"
                                 name="username"
-                                value={formData.username}
+                                value={formData.username || ''}
                                 onChange={handleChange}
                                 required
                                 className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all outline-none dark:text-white"
@@ -189,7 +170,7 @@ const Register = () => {
                                     <input
                                         type="text"
                                         name="firstName"
-                                        value={formData.firstName}
+                                        value={formData.firstName || ''}
                                         onChange={handleChange}
                                         required
                                         className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
@@ -202,7 +183,7 @@ const Register = () => {
                                     <input
                                         type="text"
                                         name="lastName"
-                                        value={formData.lastName}
+                                        value={formData.lastName || ''}
                                         onChange={handleChange}
                                         required
                                         className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
@@ -215,7 +196,7 @@ const Register = () => {
                                     <input
                                         type="date"
                                         name="dob"
-                                        value={formData.dob}
+                                        value={formData.dob || ''}
                                         onChange={handleChange}
                                         required
                                         className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
@@ -228,7 +209,7 @@ const Register = () => {
                                     <input
                                         type="email"
                                         name="parentEmail"
-                                        value={formData.parentEmail}
+                                        value={formData.parentEmail || ''}
                                         onChange={handleChange}
                                         className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
                                         placeholder="Required if you are a minor"
@@ -244,7 +225,7 @@ const Register = () => {
                                     <input
                                         type="text"
                                         name="businessName"
-                                        value={formData.businessName}
+                                        value={formData.businessName || ''}
                                         onChange={handleChange}
                                         required
                                         className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
@@ -258,7 +239,7 @@ const Register = () => {
                                     <input
                                         type="text"
                                         name="businessType"
-                                        value={formData.businessType}
+                                        value={formData.businessType || ''}
                                         onChange={handleChange}
                                         required
                                         className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
@@ -272,7 +253,7 @@ const Register = () => {
                                     <input
                                         type="text"
                                         name="registrationNumber"
-                                        value={formData.registrationNumber}
+                                        value={formData.registrationNumber || ''}
                                         onChange={handleChange}
                                         required
                                         className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
@@ -286,7 +267,7 @@ const Register = () => {
                                     <input
                                         type="text"
                                         name="ownerFirstName"
-                                        value={formData.ownerFirstName}
+                                        value={formData.ownerFirstName || ''}
                                         onChange={handleChange}
                                         required
                                         className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
@@ -299,7 +280,7 @@ const Register = () => {
                                     <input
                                         type="text"
                                         name="ownerLastName"
-                                        value={formData.ownerLastName}
+                                        value={formData.ownerLastName || ''}
                                         onChange={handleChange}
                                         required
                                         className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
@@ -312,7 +293,7 @@ const Register = () => {
                                     <input
                                         type="text"
                                         name="domain"
-                                        value={formData.domain}
+                                        value={formData.domain || ''}
                                         onChange={handleChange}
                                         required
                                         className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
@@ -330,7 +311,7 @@ const Register = () => {
                             <input
                                 type="password"
                                 name="password"
-                                value={formData.password}
+                                value={formData.password || ''}
                                 onChange={handleChange}
                                 required
                                 className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
@@ -343,7 +324,7 @@ const Register = () => {
                             <input
                                 type="password"
                                 name="confirmPassword"
-                                value={formData.confirmPassword}
+                                value={formData.confirmPassword || ''}
                                 onChange={handleChange}
                                 required
                                 className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
@@ -375,9 +356,9 @@ const Register = () => {
                         </div>
                         <div className="text-[10px] text-gray-400 dark:text-slate-500 border-t border-gray-100 dark:border-slate-700 pt-6">
                             By creating an account, you agree to our{' '}
-                            <Link to="/terms" className="text-indigo-600 dark:text-indigo-400 hover:underline">Terms</Link>
+                            <Link to="/terms" state={{ from: location.pathname }} className="text-indigo-600 dark:text-indigo-400 hover:underline">Terms</Link>
                             {' '}and{' '}
-                            <Link to="/privacy" className="text-indigo-600 dark:text-indigo-400 hover:underline">Privacy Policy</Link>
+                            <Link to="/privacy" state={{ from: location.pathname }} className="text-indigo-600 dark:text-indigo-400 hover:underline">Privacy Policy</Link>
                         </div>
                     </div>
                 </form>

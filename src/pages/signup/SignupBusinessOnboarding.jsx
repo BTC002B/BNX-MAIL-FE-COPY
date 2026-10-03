@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSignup } from '../../context/SignupContext';
 import { businessAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const SignupBusinessOnboarding = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { formData, updateFormData } = useSignup();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -220,7 +221,7 @@ const SignupBusinessOnboarding = () => {
                                         className="w-5 h-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer" 
                                     />
                                     <span className="text-sm text-gray-600 dark:text-slate-400">
-                                        I accept the <a href="/terms" className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Terms of Service</a> and <a href="/privacy" className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Privacy Policy</a>.
+                                        I accept the <Link to="/terms" state={{ from: location.pathname }} className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Terms of Service</Link> and <Link to="/privacy" state={{ from: location.pathname }} className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Privacy Policy</Link>.
                                     </span>
                                 </label>
                             </div>
